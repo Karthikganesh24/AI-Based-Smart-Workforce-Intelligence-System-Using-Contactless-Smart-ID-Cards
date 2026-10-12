@@ -1,0 +1,26 @@
+{
+  "name": "smartworkforce",
+  "version": "2.0.0",
+  "description": "Smart Workforce Intelligence System with Persistent SQLite Storage",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/test_persistence.js",
+    "test:e2e": "node tests/test_persistence.js",
+    "simulate:esp32": "node scripts/simulate_esp32.js",
+    "simulate:stream": "node scripts/simulate_esp32.js --stream",
+    "reset-db": "node -e \"require('./database.js').resetDatabase(); console.log('Database reset to clean initial seed.');\""
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "keywords": [
+    "workforce",
+    "attendance",
+    "smart-id",
+    "rfid-simulation",
+    "sqlite"
+  ],
+  "author": "SmartWorkforce Engineering",
+  "license": "ISC"
+}
