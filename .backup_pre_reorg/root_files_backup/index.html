@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartWorkforce Intelligence | Attendance & Presence Management Dashboard</title>
+  <meta name="description" content="Industrial workforce attendance and presence monitoring system dashboard with simulated contactless smart ID card detection, realtime telemetry, and workforce roster management.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ========================================================
+       0A. SMARTWORKFORCE LOGIN PORTAL (EXACT REFERENCE DESIGN)
+       ======================================================== -->
+  <div class="login-portal-wrapper" id="loginPortal">
+    <!-- Ambient Organic Wavy Backdrop Decor -->
+    <div class="login-bg-decor" aria-hidden="true">
+      <svg viewBox="0 0 1440 900" fill="none" preserveAspectRatio="none">
+        <path d="M-100,200 C300,50 500,400 900,180 C1200,20 1350,220 1550,150 L1550,950 L-100,950 Z" fill="rgba(167, 243, 208, 0.25)"/>
+        <path d="M-100,500 C250,350 650,650 1050,450 C1300,300 1450,550 1550,480 L1550,950 L-100,950 Z" fill="rgba(209, 250, 229, 0.35)"/>
+      </svg>
+    </div>
+
+    <main class="login-card" role="main">
+      <!-- LEFT PANEL: Deep Emerald Green Brand & Architectural Campus Showcase -->
+      <section class="login-left-panel" aria-label="SmartWorkforce Brand Highlights">
+        <div class="login-brand-header">
+          <div class="login-brand-icon">
+            <!-- RFID Contactless Wireless Transmission Waves ((o)) -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="SmartWorkforce RFID Icon">
+              <path d="M4.9 19.1a10 10 0 0 1 0-14.2M7.8 16.2a6 6 0 0 1 0-8.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 0v5m4.2-2.8a6 6 0 0 0 0-8.4m2.8 11.2a10 10 0 0 0 0-14.2"/>
+            </svg>
+          </div>
+          <h1 class="login-brand-title">SmartWorkforce</h1>
+          <p class="login-brand-sub">AI-Powered Workforce Management</p>
+        </div>
+
+        <!-- Center Showcase: Glass Office Architecture with Tagline -->
+        <div class="login-office-card">
+          <img src="office_building.jpg" alt="SmartWorkforce Corporate Office Campus" class="office-preview-img">
+          <div class="office-tagline-overlay">
+            <div class="tagline-line1">Smarter Attendance.</div>
+            <div class="tagline-line2">A More Productive Workforce.</div>
+          </div>
+        </div>
+
+        <!-- Bottom 3 Frosted Feature Pills -->
+        <div class="login-feature-pills">
+          <div class="feature-pill">
+            <svg class="feature-pill-icon" viewBox="0 0 24 24">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span class="feature-pill-label">Real-Time<br>Monitoring</span>
+          </div>
+
+          <div class="feature-pill">
+            <svg class="feature-pill-icon" viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <polyline points="9 12 11 14 15 10"></polyline>
+            </svg>
+            <span class="feature-pill-label">Secure &amp;<br>Reliable</span>
+          </div>
+
+          <div class="feature-pill">
+            <svg class="feature-pill-icon" viewBox="0 0 24 24">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span class="feature-pill-label">Efficient<br>Workforce Control</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL: Clean White Authentication Form -->
+      <section class="login-right-panel" aria-label="Sign In Credentials Form">
+        <!-- Top Tab Switcher: Company Admin vs Employee -->
+        <div class="portal-tabs-wrapper">
+          <div class="portal-tabs" role="tablist" aria-label="Portal Mode Selection">
+            <button type="button" class="portal-tab-btn active" id="tabCompanyAdmin" role="tab" aria-selected="true" aria-controls="loginForm">
+              <svg viewBox="0 0 24 24">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <path d="M9 22v-4h6v4"></path>
+                <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"></path>
+              </svg>
+              <span>Company Admin</span>
+            </button>
+            <button type="button" class="portal-tab-btn" id="tabEmployee" role="tab" aria-selected="false" aria-controls="loginForm">
+              <svg viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <span>Employee</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Form Headings -->
+        <div class="login-form-header">
+          <h2 class="login-heading" id="loginHeading">Welcome Back</h2>
+          <p class="login-subheading" id="loginSubheading">Sign in to access your SmartWorkforce dashboard</p>
+        </div>
+
+        <!-- Credentials Form -->
+        <form id="loginForm" class="login-form-body" novalidate>
+          <!-- Identity Field (Company Email/Admin ID OR Employee ID) -->
+          <div class="login-field-group">
+            <label class="login-field-label" for="loginIdentityInput">
+              <svg id="identityFieldIcon" viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+                <circle cx="9" cy="10" r="2"></circle>
+                <line x1="15" y1="8" x2="17" y2="8"></line>
+                <line x1="15" y1="12" x2="17" y2="12"></line>
+                <line x1="7" y1="16" x2="17" y2="16"></line>
+              </svg>
+              <span id="loginIdentityLabel">Company Email / Admin ID</span>
+            </label>
+            <input 
+              type="text" 
+              id="loginIdentityInput" 
+              class="login-input-field" 
+              placeholder="Enter your company email or admin ID" 
+              autocomplete="username" 
+              required
+            >
+          </div>
+
+          <!-- Password Field -->
+          <div class="login-field-group">
+            <label class="login-field-label" for="loginPasswordInput">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Password</span>
+            </label>
+            <div class="password-input-container">
+              <input 
+                type="password" 
+                id="loginPasswordInput" 
+                class="login-input-field" 
+                placeholder="Enter your password" 
+                autocomplete="current-password" 
+                required
+              >
+              <button type="button" id="btnTogglePassword" class="btn-toggle-password" aria-label="Toggle password visibility" title="Show/Hide password">
+                <svg id="iconEyeOpen" viewBox="0 0 24 24">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Employee Portal Guidance Hint (Dynamically displayed when Employee tab active) -->
+          <div id="employeePortalHint" class="employee-portal-hint">
+            <strong>ℹ️ Employee Portal:</strong> Authenticate using the Employee ID (e.g. <code>EMP-101</code>) and password provided by your company admin.
+          </div>
+
+          <!-- Auxiliary Row: Remember Me & Forgot Password -->
+          <div class="login-aux-row">
+            <label class="remember-checkbox-label">
+              <input type="checkbox" id="loginRememberMe">
+              <span>Remember me</span>
+            </label>
+            <a href="#" id="linkForgotPassword" class="link-forgot-password">Forgot password?</a>
+          </div>
+
+          <!-- Main Sign In Action Button -->
+          <button type="submit" id="btnSignInSubmit" class="btn-signin-submit">
+            <span class="btn-signin-arrow">→</span>
+            <span>Sign In</span>
+          </button>
+
+          <!-- Authentic Status Banner for Navigation & Feedback -->
+          <div id="loginStatusBanner" class="login-status-banner"></div>
+
+          <!-- OR Divider -->
+          <div class="login-or-divider">
+            <span>OR</span>
+          </div>
+
+          <!-- New Company Registration Link Card -->
+          <div class="new-company-card" id="btnOpenCompanyRegistration" role="button" tabindex="0" title="Open Company Registration">
+            <div class="new-company-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </div>
+            <div class="new-company-text">
+              <span class="new-company-title">New Company?</span>
+              <span class="new-company-desc">Register your company to get started</span>
+            </div>
+            <svg class="new-company-chevron" viewBox="0 0 24 24">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+
+          <!-- Security Stamp -->
+          <div class="login-security-footer">
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Authorized Access Only</span>
+          </div>
+
+          <!-- Direct System Dashboard Quick Navigation Link -->
+          <div class="direct-dashboard-bar">
+            <button type="button" id="btnBypassToDashboard" class="btn-preview-dashboard-link">
+              <span>Access System Dashboard &amp; RFID Simulator</span> &rarr;
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- ========================================================
+       0B. NEW COMPANY REGISTRATION PORTAL
+       ======================================================== -->
+  <div class="company-registration-wrapper hidden" id="companyRegistrationPortal">
+    <div class="registration-card" role="region" aria-label="Company Registration Form">
+      <div class="reg-header-top">
+        <button type="button" class="btn-back-to-login" id="btnBackToLogin">
+          <span>&larr;</span>
+          <span>Back to Sign In</span>
+        </button>
+        <div class="reg-brand-chip">
+          <span>SmartWorkforce Organization Setup</span>
+        </div>
+      </div>
+
+      <h2 class="reg-title">Register New Enterprise Company</h2>
+      <p class="reg-subtitle">
+        Provision an isolated organizational tenant with contactless smart ID badges, gate reader telemetry, and workforce intelligence.
+      </p>
+
+      <form id="companyRegistrationForm" class="reg-form-grid" novalidate>
+        <div class="reg-form-group">
+          <label class="reg-label" for="regCompanyName">Company Legal Name *</label>
+          <input type="text" id="regCompanyName" class="reg-input" placeholder="e.g. Acme Precision Technologies Ltd." required>
+        </div>
+
+        <div class="reg-form-group">
+          <label class="reg-label" for="regIndustry">Industry / Operational Sector *</label>
+          <select id="regIndustry" class="reg-select" required>
+            <option value="">Select industry domain...</option>
+            <option value="manufacturing">Advanced Manufacturing &amp; CNC</option>
+            <option value="it">Information Technology &amp; Cloud</option>
+            <option value="healthcare">Healthcare &amp; Life Sciences</option>
+            <option value="logistics">Supply Chain &amp; Logistics</option>
+            <option value="defense">Aerospace &amp; Defense</option>
+            <option value="other">General Enterprise</option>
+          </select>
+        </div>
+
+        <div class="reg-form-group">
+          <label class="reg-label" for="regCompanyEmail">Corporate Domain / Work Email *</label>
+          <input type="email" id="regCompanyEmail" class="reg-input" placeholder="e.g. admin@acmeprecision.com" required>
+        </div>
+
+        <div class="reg-form-group">
+          <label class="reg-label" for="regFacilityLocation">Primary Facility / Gate Location *</label>
+          <input type="text" id="regFacilityLocation" class="reg-input" placeholder="e.g. Bengaluru Plant 01 - Main Gate" required>
+        </div>
+
+        <div class="reg-form-group">
+          <label class="reg-label" for="regAdminName">Company Head / Facility Administrator *</label>
+          <input type="text" id="regAdminName" class="reg-input" placeholder="e.g. Karthik Ganesh" required>
+        </div>
+
+        <div class="reg-form-group">
+          <label class="reg-label" for="regAdminDesignation">Designation / Executive Role *</label>
+          <input type="text" id="regAdminDesignation" class="reg-input" placeholder="e.g. VP Operations &amp; Facility Security" required>
+        </div>
+
+        <div class="reg-form-group">
+          <label class="reg-label" for="regAdminPassword">Master Admin Password *</label>
+          <input type="password" id="regAdminPassword" class="reg-input" placeholder="Create strong master password" required>
+        </div>
+
+        <div class="reg-form-group">
+          <label class="reg-label" for="regAdminPasswordConfirm">Confirm Master Password *</label>
+          <input type="password" id="regAdminPasswordConfirm" class="reg-input" placeholder="Re-enter master password" required>
+        </div>
+
+        <div class="reg-info-callout">
+          <span>ℹ️</span>
+          <div>
+            <strong>Organization Provisioning Note:</strong> Company registration configures tenant workspace isolation, initializes SQLite employee directories, and provisions RFID/NFC contactless card readers.
+          </div>
+        </div>
+
+        <div id="regStatusNotice" class="login-status-banner info" style="grid-column: 1 / -1; display: none;"></div>
+
+        <div class="reg-actions-row">
+          <button type="button" class="btn-back-to-login" id="btnCancelRegistration">Cancel</button>
+          <button type="submit" class="btn-submit-registration" id="btnSubmitCompanyReg">Register Company &amp; Setup Admin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       1. MAIN DASHBOARD APPLICATION
+       ======================================================== -->
+  <div class="dashboard-layout hidden" id="dashboardLayout">
+
+    <!-- ========================================================
+         1. MODERN ADMIN SIDEBAR NAVIGATION
+         ======================================================== -->
+    <aside class="admin-sidebar" id="adminSidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">
+          <!-- RFID / Contactless Wave SVG -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4.9 19.1C2.5 16.7 2.5 12.8 4.9 10.4M7.8 16.2C6.2 14.6 6.2 12 7.8 10.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM16.2 16.2c1.6-1.6 1.6-4.2 0-5.8M19.1 19.1c2.4-2.4 2.4-6.3 0-8.7"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">SmartWorkforce</span>
+          <span class="brand-subtitle">Attendance OS &bull; v2.4</span>
+        </div>
+        <button class="sidebar-close-btn" id="btnCloseSidebar" aria-label="Close sidebar">✕</button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">MAIN NAVIGATION</div>
+
+        <button class="nav-item active" data-view="view-overview" id="navItemOverview">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+          </svg>
+          <span class="nav-text">Dashboard Overview</span>
+        </button>
+
+        <button class="nav-item" data-view="view-attendance" id="navItemAttendance">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
+            <rect x="9" y="3" width="6" height="4" rx="1"></rect>
+            <path d="m9 14 2 2 4-4"></path>
+          </svg>
+          <span class="nav-text">Attendance Roster</span>
+          <span class="nav-badge" id="navBadgePresent">-- Present</span>
+        </button>
+
+        <button class="nav-item" data-view="view-terminal" id="navItemTerminal">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+            <line x1="2" y1="10" x2="22" y2="10"></line>
+            <circle cx="7" cy="15" r="1"></circle>
+          </svg>
+          <span class="nav-text">Smart Card Terminal</span>
+          <span class="nav-pulse">LIVE</span>
+        </button>
+
+        <button class="nav-item" data-view="view-employees" id="navItemEmployees">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span class="nav-text">Workforce Directory</span>
+        </button>
+
+        <button class="nav-item" data-view="view-history" id="navItemHistory">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span class="nav-text">Gate History Log</span>
+        </button>
+
+        <button class="nav-item" data-view="view-analytics" id="navItemAnalytics">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span class="nav-text">Analytics & Stats</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status-pill">
+          <span class="pulse-dot"></span>
+          <span>GATE READER 01: ONLINE</span>
+        </div>
+
+        <div class="sidebar-user-card">
+          <div class="user-avatar">AD</div>
+          <div class="user-info">
+            <div class="user-name">Security Admin</div>
+            <div class="user-role">Supervisory Control</div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-sidebar-signout" id="btnSidebarSignOut" title="Sign out to Login Portal">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- ========================================================
+         2. MAIN APPLICATION CONTENT WRAPPER
+         ======================================================== -->
+    <div class="main-content-wrapper">
+
+      <!-- Top Utility Header -->
+      <header class="top-nav-bar">
+        <div class="top-left">
+          <button class="btn-hamburger" id="btnToggleSidebar" aria-label="Toggle Navigation Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div class="page-title-group">
+            <h1 class="page-heading" id="currentPageHeading">Dashboard Overview</h1>
+            <p class="page-subheading" id="currentPageSubheading">
+              Real-time Workforce Presence, Contactless RFID Gate Telemetry & Shift Analytics
+            </p>
+          </div>
+        </div>
+
+        <div class="top-right">
+          <div class="live-clock" id="liveClockDisplay">--:--:--</div>
+
+          <button class="btn-theme-toggle" id="btnToggleTheme" title="Toggle Light / Dark mode">
+            <span id="themeIcon">🌙</span>
+            <span id="themeText">Dark</span>
+          </button>
+
+          <button class="btn-sound" id="btnToggleSound" title="Toggle audio feedback">
+            <span id="soundIcon">🔊</span>
+            <span id="soundText">Sound ON</span>
+          </button>
+
+          <button class="btn-action-primary" id="btnQuickDemoTap" title="Simulate Random Employee Badge Tap">
+            <svg style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+            <span class="btn-text">Quick Tap</span>
+          </button>
+
+          <button type="button" class="btn-header-signout" id="btnHeaderSignOut" title="Sign out to Login Portal">
+            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Body Container -->
+      <main class="dashboard-body">
+
+        <!-- ====================================================
+             VIEW 1: DASHBOARD OVERVIEW (Default)
+             ==================================================== -->
+        <section class="view-panel active" id="view-overview">
+
+          <!-- Hero System Status Banner -->
+          <div class="hero-banner">
+            <div class="hero-banner-content">
+              <div class="badge-row">
+                <span class="phase-badge">Phase 1 Industrial Prototype</span>
+                <span class="tech-badge">RFID 13.56MHz Contactless Engine</span>
+              </div>
+              <h2>Smart Workforce Presence & Access Intelligence</h2>
+              <p>Simulated contactless smart ID card detection system. Monitor workforce entry, punctuality, and department occupancy across Production, IT, Quality, and Maintenance.</p>
+            </div>
+            <div class="hero-banner-actions">
+              <button class="btn-hero-action" id="btnHeroOpenTerminal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                  <line x1="2" y1="10" x2="22" y2="10"></line>
+                </svg>
+                Launch Gate Simulator
+              </button>
+              <button class="btn-hero-secondary" id="btnHeroViewRoster">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
+                </svg>
+                View Full Roster
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 PRIMARY KPI METRIC CARDS -->
+          <section class="kpi-grid">
+            <!-- 1. Total Employees -->
+            <div class="kpi-card kpi-total">
+              <div class="kpi-header">
+                <span class="kpi-title">Total Employees</span>
+                <div class="kpi-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpiTotalEmp">0</div>
+              <div class="kpi-subtext">Registered smart badges on system</div>
+              <div class="kpi-footer-pill">100% Enrolled</div>
+            </div>
+
+            <!-- 2. Present Employees (Inside Premises) -->
+            <div class="kpi-card kpi-inside">
+              <div class="kpi-header">
+                <span class="kpi-title">Present Employees</span>
+                <div class="kpi-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpiPresentEmp">0</div>
+              <!-- Preserved legacy element for compatibility -->
+              <span id="kpiInsideEmp" style="display: none;">0</span>
+              <div class="kpi-subtext" id="kpiInsideSub">0% Facility Occupancy</div>
+              <div class="occupancy-bar">
+                <div class="occupancy-fill" id="occupancyFill"></div>
+              </div>
+            </div>
+
+            <!-- 3. Absent Employees (Not Checked In) -->
+            <div class="kpi-card kpi-outside">
+              <div class="kpi-header">
+                <span class="kpi-title">Absent Employees</span>
+                <div class="kpi-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpiAbsentEmp">0</div>
+              <!-- Preserved legacy element for compatibility -->
+              <span id="kpiOutsideEmp" style="display: none;">0</span>
+              <div class="kpi-subtext" id="kpiAbsentSub">Off-premises or yet to check-in</div>
+              <div class="kpi-footer-pill warning" id="kpiAbsentRate">0% Absent</div>
+            </div>
+
+            <!-- 4. Late Arrivals (After 09:00 AM) -->
+            <div class="kpi-card kpi-late">
+              <div class="kpi-header">
+                <span class="kpi-title">Late Arrivals</span>
+                <div class="kpi-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpiLateEmp">0</div>
+              <div class="kpi-subtext" id="kpiLateSub">Checked in after 09:00 AM</div>
+              <div class="kpi-footer-pill alert" id="kpiOnTimeRateTag">0% Punctuality</div>
+            </div>
+          </section>
+
+          <!-- SECONDARY TELEMETRY STRIP (Events count preserved) -->
+          <div class="telemetry-bar">
+            <div class="telemetry-item">
+              <span class="telemetry-label">GATE TRANSACTIONS</span>
+              <span class="telemetry-value" id="kpiTotalEvents">0</span>
+            </div>
+            <div class="telemetry-divider"></div>
+            <div class="telemetry-item">
+              <span class="telemetry-label">ENTRIES LOGGED</span>
+              <span class="telemetry-value" id="kpiEntryCount">0 Entries</span>
+            </div>
+            <div class="telemetry-divider"></div>
+            <div class="telemetry-item">
+              <span class="telemetry-label">EXITS LOGGED</span>
+              <span class="telemetry-value" id="kpiExitCount">0 Exits</span>
+            </div>
+            <div class="telemetry-divider"></div>
+            <div class="telemetry-item">
+              <span class="telemetry-label">SHIFT SCHEDULE</span>
+              <span class="telemetry-value">08:30 AM – 05:30 PM</span>
+            </div>
+          </div>
+
+          <!-- BENTO GRID: ATTENDANCE CHARTS & LIVE STREAM -->
+          <div class="bento-analytics-grid">
+
+            <!-- Chart 1: Hourly Attendance Flow Chart -->
+            <div class="card-panel chart-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                  </svg>
+                  <span>Shift Check-In & Entry Volume</span>
+                </div>
+                <div class="chart-legend">
+                  <span class="legend-dot on-time"></span><span>On-Time (&le;9:00 AM)</span>
+                  <span class="legend-dot late"></span><span>Late (&gt;9:00 AM)</span>
+                </div>
+              </div>
+              <div class="chart-content">
+                <div id="chartHourlyTraffic" class="svg-chart-container"></div>
+              </div>
+            </div>
+
+            <!-- Chart 2: Department Presence Breakdown -->
+            <div class="card-panel chart-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                  <span>Department Attendance Rate</span>
+                </div>
+                <span class="terminal-tag">4 SECTORS</span>
+              </div>
+              <div class="chart-content">
+                <div class="dept-grid" id="deptGridContainer">
+                  <!-- Dynamic Department Cards -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- BOTTOM ROW: RECENT ATTENDANCE SNAPSHOT + REALTIME GATE STREAM -->
+          <div class="dashboard-grid">
+
+            <!-- Quick Attendance Roster Snapshot -->
+            <div class="card-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
+                    <rect x="9" y="3" width="6" height="4" rx="1"></rect>
+                  </svg>
+                  <span>Today's Attendance Roster (Preview)</span>
+                </div>
+                <button class="link-btn" id="btnGoToFullRoster">View All &rarr;</button>
+              </div>
+
+              <div class="table-responsive" style="max-height: 380px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Dept</th>
+                      <th>Check-In</th>
+                      <th>Check-Out</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overviewRosterTableBody">
+                    <!-- Dynamic Rows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Live Gate Activity Stream -->
+            <div class="card-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                  </svg>
+                  <span>Live Gate Reader Stream</span>
+                </div>
+                <span class="terminal-tag">REALTIME STREAM</span>
+              </div>
+
+              <div class="stream-box">
+                <div class="stream-header">
+                  <span>TIMESTAMP &bull; EVENT &bull; EMPLOYEE</span>
+                  <span id="streamCountTag">0 Events</span>
+                </div>
+                <ul class="stream-list" id="streamList">
+                  <li class="stream-item" style="color: var(--text-dim); justify-content: center; padding: 20px 0;">
+                    No detection events yet. Tap a smart ID card to begin.
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- ====================================================
+             VIEW 2: DEDICATED ATTENDANCE ROSTER TABLE
+             ==================================================== -->
+        <section class="view-panel" id="view-attendance">
+          <div class="table-container">
+            <div class="table-toolbar">
+              <div>
+                <h3 class="section-title">Today's Attendance Management Roster</h3>
+                <p class="section-subtitle">
+                  Synchronized check-in times, check-out times, punctuality tracking, and real-time facility presence
+                </p>
+              </div>
+
+              <div class="table-filter-group">
+                <!-- Search Attendance Roster -->
+                <div class="search-box-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  <input type="text" id="inputSearchAttendance" class="text-input" placeholder="Search by name, ID, department...">
+                </div>
+
+                <!-- Filter Department -->
+                <select id="filterAttendanceDept" class="select-input" style="width: auto; min-width: 150px;">
+                  <option value="ALL">All Departments</option>
+                  <option value="Production">Production</option>
+                  <option value="IT">IT & Software</option>
+                  <option value="Quality">Quality</option>
+                  <option value="Maintenance">Maintenance</option>
+                </select>
+
+                <!-- Filter Status -->
+                <select id="filterAttendanceStatus" class="select-input" style="width: auto; min-width: 150px;">
+                  <option value="ALL">All Statuses</option>
+                  <option value="PRESENT_ON_TIME">Present (On-Time)</option>
+                  <option value="LATE">Late Arrival</option>
+                  <option value="ABSENT">Absent (No Check-In)</option>
+                  <option value="CHECKED_OUT">Checked Out</option>
+                </select>
+
+                <!-- Export CSV -->
+                <button class="btn-action-secondary" id="btnExportAttendanceCSV" style="margin-top: 0; width: auto; padding: 10px 14px;">
+                  <svg style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  Export Roster
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Employee ID</th>
+                    <th>Employee Name</th>
+                    <th>Department</th>
+                    <th>Designation</th>
+                    <th>Check-In Time</th>
+                    <th>Check-Out Time</th>
+                    <th>Work Duration</th>
+                    <th>Attendance Status</th>
+                    <th style="text-align: right;">Simulate Gate Tap</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceRosterTableBody">
+                  <!-- Dynamic Attendance Rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================
+             VIEW 3: SMART CARD TERMINAL & VIRTUAL RFID SIMULATOR (PHASE 5A)
+             ==================================================== -->
+        <section class="view-panel" id="view-terminal">
+
+          <!-- Virtual Hardware Simulation Notice Banner -->
+          <div class="sim-disclaimer-banner">
+            <div class="sim-banner-left">
+              <span class="sim-badge">PHASE 5B VIRTUAL RFID VALIDATION & SIMULATION ENGINE</span>
+              <h3 class="sim-banner-title">Contactless Smart ID Card & Gate Telemetry Validation Console</h3>
+            </div>
+            <div class="sim-banner-right">
+              <p class="sim-disclaimer-note">
+                ⚠️ <strong>Simulated RF Telemetry & Technology Roadmap:</strong> Distance (0.2–4.0m) and signal strength (RSSI -30 to -85 dBm) are software-simulated parameters. No physical RFID reader is connected. Future hands-free walk-through industrial portals target <strong>UHF EPC Gen2 (860–960 MHz, subject to local regulatory requirements)</strong>, while current desktop/turnstile emulation tests <strong>13.56 MHz HF/NFC</strong> proximity badge tap. Card UID presentation proves card presence only, not cardholder identity.
+              </p>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+
+            <!-- Left Column: Virtual RFID Antenna Terminal & Controls -->
+            <div class="card-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                    <line x1="2" y1="10" x2="22" y2="10"></line>
+                  </svg>
+                  <span>Virtual RFID Gate Antenna Terminal</span>
+                </div>
+                <span class="terminal-tag">ISO/IEC 14443A &bull; EPC Gen2 Emulation</span>
+              </div>
+
+              <!-- Virtual Smart ID Card Preview Stage -->
+              <div class="smart-card-stage">
+                <div class="virtual-id-card" id="virtualCard">
+                  <div class="card-hologram"></div>
+                  
+                  <div class="card-top">
+                    <div class="card-logo">
+                      <div class="card-logo-chip"></div>
+                      <div>
+                        <div class="card-org-name">WORKFORCE ID</div>
+                        <div style="font-size: 0.65rem; color: #64748B;">CONTACTLESS CARD</div>
+                      </div>
+                    </div>
+                    <!-- NFC icon -->
+                    <svg class="card-nfc-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M6 18a6 6 0 0 1 0-12M10 16a3.5 3.5 0 0 1 0-8M14 14a1 1 0 0 1 0-4"></path>
+                    </svg>
+                  </div>
+
+                  <div class="card-body-info">
+                    <div class="card-avatar" id="cardAvatar">JD</div>
+                    <div style="overflow: hidden;">
+                      <div class="card-holder-name" id="cardEmpName">John Doe</div>
+                      <div class="card-holder-role" id="cardEmpRole">Senior Automation Engineer</div>
+                      <div style="font-size: 0.75rem; color: var(--accent-cyan);" id="cardEmpDept">Production Floor</div>
+                    </div>
+                  </div>
+
+                  <div class="card-footer-strip">
+                    <div>
+                      <span style="color: #64748B;">ID:</span>
+                      <span id="cardEmpId">EMP-101</span>
+                      <span style="margin-left: 8px; color: #64748B;">UID:</span>
+                      <span class="card-uid" id="cardEmpUid">7E:A1:39</span>
+                    </div>
+                    <span class="card-status-badge badge-outside" id="cardStatusBadge">OUTSIDE</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Simulated Contactless Reader Antenna Pad -->
+              <div class="scanner-target-zone" id="scannerAntenna">
+                <div class="rfid-wave-rings">
+                  <div class="ring"></div>
+                  <div class="ring"></div>
+                  <div class="ring"></div>
+                </div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: #94A3B8;">
+                  RFID/NFC Contactless Sensing Zone &bull; Virtual RF Portal
+                </div>
+                <div class="scanner-screen" id="scannerLcdScreen">
+                  [READER READY] &bull; SELECT CARD OR INJECT UID TO TEST
+                </div>
+              </div>
+
+              <!-- Simulation Controls Form -->
+              <!-- 1. Select Registered Employee -->
+              <div class="control-group">
+                <label class="control-label" for="selectEmployee">Select Registered Employee Card</label>
+                <select id="selectEmployee" class="select-input"></select>
+              </div>
+
+              <!-- 2. Test / Custom UID Input & Quick Presets -->
+              <div class="control-group">
+                <div class="control-label-split">
+                  <label class="control-label" for="inputCustomUid" style="margin-bottom: 0;">Card UID for Simulation</label>
+                  <span class="control-hint">Format: XX:XX:XX:XX or Hex</span>
+                </div>
+                <div class="custom-uid-input-wrap">
+                  <input type="text" id="inputCustomUid" class="text-input" placeholder="e.g. 7E:A1:39:B2" spellcheck="false" autocomplete="off">
+                  <button type="button" class="btn-inline-action" id="btnChipUseSelected" title="Copy selected employee UID to input">Selected UID</button>
+                </div>
+                <div class="preset-chips-row">
+                  <button type="button" class="preset-chip" id="btnChipUnknown">Preset: Unknown UID (FF:EE:DD:CC)</button>
+                  <button type="button" class="preset-chip" id="btnChipInvalid">Preset: Corrupted UID (BAD_HEX)</button>
+                  <button type="button" class="preset-chip" id="btnChipRandomEmp">Preset: Random Employee</button>
+                </div>
+              </div>
+
+              <!-- 3. Virtual Gates -->
+              <div class="control-group">
+                <label class="control-label" for="selectGateLocation">Virtual RFID Reader Gate</label>
+                <select id="selectGateLocation" class="select-input">
+                  <option value="Gate 01 - Main Turnstile">GATE-01: Main Facility Turnstile (Turnstile A - Portal)</option>
+                  <option value="Gate 02 - Production Bay">GATE-02: Production Bay Turnstile (Shop Floor Access)</option>
+                  <option value="Gate 03 - IT Labs Secure Door">GATE-03: IT Labs Secure Door (Restricted Tech Wing)</option>
+                  <option value="Gate 04 - Maintenance Workshop">GATE-04: Maintenance Workshop Gate (Bay 4 Engineering)</option>
+                  <option value="Gate 05 - North Executive Portal">GATE-05: North Executive Portal (Walk-Through Portal)</option>
+                </select>
+              </div>
+
+              <!-- 4. Detection Mode -->
+              <div class="control-group">
+                <label class="control-label">Attendance Detection Mode</label>
+                <div class="radio-pill-group">
+                  <div>
+                    <input type="radio" id="modeAuto" name="scanMode" value="AUTO" class="radio-pill-input" checked>
+                    <label for="modeAuto" class="radio-pill-label">Auto Toggle (Smart)</label>
+                  </div>
+                  <div>
+                    <input type="radio" id="modeEntry" name="scanMode" value="ENTRY" class="radio-pill-input">
+                    <label for="modeEntry" class="radio-pill-label">Force Entry (In)</label>
+                  </div>
+                  <div>
+                    <input type="radio" id="modeExit" name="scanMode" value="EXIT" class="radio-pill-input">
+                    <label for="modeExit" class="radio-pill-label">Force Exit (Out)</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. Configurable Simulated RF Telemetry Parameters -->
+              <div class="sim-telemetry-config-box">
+                <div class="sim-config-header">
+                  <span class="sim-config-title">Simulated RF Telemetry Controls</span>
+                  <span class="sim-config-tag">Software Emulation</span>
+                </div>
+
+                <div class="sim-slider-row">
+                  <div class="sim-slider-label-group">
+                    <label for="sliderReadDistance" class="sim-slider-label">Simulated Read Distance</label>
+                    <span class="sim-slider-val" id="valReadDistance">1.2 m</span>
+                  </div>
+                  <input type="range" id="sliderReadDistance" class="sim-slider-input" min="0.2" max="4.0" step="0.1" value="1.2">
+                  <div class="sim-slider-ticks">
+                    <span>0.2m (Contact)</span>
+                    <span>1.2m (Turnstile)</span>
+                    <span>4.0m (UHF Portal)</span>
+                  </div>
+                </div>
+
+                <div class="sim-slider-row">
+                  <div class="sim-slider-label-group">
+                    <label for="sliderSignalRssi" class="sim-slider-label">Simulated Signal Strength (RSSI)</label>
+                    <span class="sim-slider-val" id="valSignalRssi">-58 dBm &bull; Optimal</span>
+                  </div>
+                  <input type="range" id="sliderSignalRssi" class="sim-slider-input" min="-85" max="-30" step="1" value="-58">
+                  <div class="sim-slider-ticks">
+                    <span>-85 dBm (Weak)</span>
+                    <span>-58 dBm (Optimal)</span>
+                    <span>-30 dBm (Strong)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. Simulation Trigger Buttons (Suite of 4 Scenarios) -->
+              <div class="sim-action-buttons-grid">
+                <!-- 1. Single Scan -->
+                <button class="btn-action-primary" id="btnSimulateScan">
+                  <svg style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+                    <path d="M4.9 19.1C2.5 16.7 2.5 12.8 4.9 10.4M7.8 16.2C6.2 14.6 6.2 12 7.8 10.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM16.2 16.2c1.6-1.6 1.6-4.2 0-5.8M19.1 19.1c2.4-2.4 2.4-6.3 0-8.7"/>
+                  </svg>
+                  TAP SMART ID CARD (SINGLE SCAN)
+                </button>
+
+                <div class="sim-secondary-buttons-row">
+                  <!-- 2. Burst Repeat Scan (Debounce Test) -->
+                  <button type="button" class="btn-action-secondary" id="btnBurstDebounceScan" title="Fires 2 rapid scans in <200ms to test 5-second duplicate protection">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    BURST TEST (RAPID 2X TAP)
+                  </button>
+
+                  <!-- 3. Unknown Card Test -->
+                  <button type="button" class="btn-action-secondary" id="btnUnknownCardTest" title="Fires unregistered UID FF:EE:DD:CC to verify 404 safe rejection">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    UNKNOWN CARD TEST (404)
+                  </button>
+                </div>
+
+                <!-- 4. Multi-Employee Rush Simulation -->
+                <button type="button" class="btn-action-secondary batch-btn" id="btnMultiEmployeeBatch" title="Simulates sequential walk-through scans for 4 distinct employees">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  MULTI-EMPLOYEE RUSH SIMULATION (BATCH 4X)
+                </button>
+              </div>
+
+            </div>
+
+            <!-- Right Column: Live Results Console & Activity Stream -->
+            <div class="right-column-stack">
+
+              <!-- Live Simulation Diagnostics Console -->
+              <div class="card-panel diag-console-panel">
+                <div class="panel-header">
+                  <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>Live Simulation Results & Telemetry</span>
+                  </div>
+                  <span class="diag-status-pill" id="diagStatusPill">SIMULATOR READY</span>
+                </div>
+
+                <div class="diag-console-content">
+                  <div class="diag-grid">
+                    <div class="diag-item">
+                      <span class="diag-label">Simulated Card UID</span>
+                      <span class="diag-val font-mono" id="diagSimUid">7E:A1:39:B2</span>
+                    </div>
+
+                    <div class="diag-item">
+                      <span class="diag-label">Resolved Employee</span>
+                      <span class="diag-val" id="diagSimEmp">Aravind Kumar (EMP-101)</span>
+                    </div>
+
+                    <div class="diag-item">
+                      <span class="diag-label">Active Gate & Device</span>
+                      <span class="diag-val" id="diagSimGate">Gate 01 &bull; VIRTUAL-RFID-SIM-01</span>
+                    </div>
+
+                    <div class="diag-item">
+                      <span class="diag-label">Virtual RF Telemetry</span>
+                      <span class="diag-val font-mono" id="diagSimTelemetry">Dist: 1.2m | RSSI: -58 dBm | 13.56MHz</span>
+                    </div>
+
+                    <div class="diag-item">
+                      <span class="diag-label">Server HTTP Response</span>
+                      <span class="diag-val font-mono" id="diagSimResponse">HTTP 200 OK (~14ms)</span>
+                    </div>
+
+                    <div class="diag-item">
+                      <span class="diag-label">Attendance State</span>
+                      <span class="diag-val" id="diagSimAttendance">Status: OUTSIDE &rarr; INSIDE (ENTRY)</span>
+                    </div>
+                  </div>
+
+                  <div class="diag-outcome-banner" id="diagOutcomeBanner">
+                    <div class="diag-outcome-icon" id="diagOutcomeIcon">✓</div>
+                    <div class="diag-outcome-text">
+                      <div class="diag-outcome-title" id="diagOutcomeTitle">Simulation Ready</div>
+                      <div class="diag-outcome-desc" id="diagOutcomeDesc">Select an employee badge or custom UID and click Tap to execute test.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Phase 5B Simulation Run & Validation Report Panel -->
+              <div class="card-panel sim-report-panel" id="panelSimReport">
+                <div class="panel-header">
+                  <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                      <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>Simulation Validation & Run Report</span>
+                  </div>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="btn-sm-action" id="btnRefreshSimReport" title="Refresh Live Simulation Report">
+                      <svg style="width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                      </svg>
+                      Refresh
+                    </button>
+                    <button type="button" class="btn-sm-danger" id="btnResetSimReport" title="Safely clear session simulation metrics without deleting database history">
+                      <svg style="width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                      Reset Metrics
+                    </button>
+                  </div>
+                </div>
+
+                <div class="sim-report-body">
+                  <!-- Simulation Metadata Strip -->
+                  <div class="sim-report-meta-strip">
+                    <span class="report-meta-pill simulated-pill">⚠️ SIMULATED RESULTS</span>
+                    <span class="report-meta-pill tech-pill">UHF EPC Gen2 (860–960 MHz) Target</span>
+                    <span class="report-meta-pill time-pill" id="simRepTimestamp">Generated: --</span>
+                  </div>
+
+                  <!-- Identity & Verification Notice Callout -->
+                  <div class="sim-report-disclaimer-box">
+                    <div class="disclaimer-icon">ℹ️</div>
+                    <div class="disclaimer-text">
+                      <strong>Cardholder Identity Notice:</strong> RFID card UID detection registers smart badge presentation only. It does not provide cryptographic or biometric proof of cardholder identity. Passive RFID credentials can be presented by unauthorized individuals without secondary verification.
+                    </div>
+                  </div>
+
+                  <!-- 6 Session Metric KPIs -->
+                  <div class="sim-report-stats-grid">
+                    <div class="sim-stat-box">
+                      <span class="sim-stat-label">Total Attempts</span>
+                      <span class="sim-stat-val font-mono" id="simRepTotalAttempts">0</span>
+                      <span class="sim-stat-sub">Session scans</span>
+                    </div>
+
+                    <div class="sim-stat-box success">
+                      <span class="sim-stat-label">Accepted Scans</span>
+                      <span class="sim-stat-val font-mono" id="simRepAccepted">0</span>
+                      <span class="sim-stat-sub" id="simRepEntriesExits">0 IN &bull; 0 OUT</span>
+                    </div>
+
+                    <div class="sim-stat-box warning">
+                      <span class="sim-stat-label">Debounced Reads</span>
+                      <span class="sim-stat-val font-mono" id="simRepDebounced">0</span>
+                      <span class="sim-stat-sub">&lt;5s same-gate repeat</span>
+                    </div>
+
+                    <div class="sim-stat-box danger">
+                      <span class="sim-stat-label">Rejected Unknown</span>
+                      <span class="sim-stat-val font-mono" id="simRepUnknown">0</span>
+                      <span class="sim-stat-sub">HTTP 404 unassigned UID</span>
+                    </div>
+
+                    <div class="sim-stat-box info">
+                      <span class="sim-stat-label">Sequence Anomalies</span>
+                      <span class="sim-stat-val font-mono" id="simRepAnomaliesCount">0</span>
+                      <span class="sim-stat-sub" id="simRepAnomalyTypes">0 unpaired &bull; 0 rapid</span>
+                    </div>
+
+                    <div class="sim-stat-box neutral">
+                      <span class="sim-stat-label">Facility Occupancy</span>
+                      <span class="sim-stat-val font-mono" id="simRepOccupancy">0%</span>
+                      <span class="sim-stat-sub" id="simRepInsideOutsideCount">0 Inside &bull; 0 Outside</span>
+                    </div>
+                  </div>
+
+                  <!-- Final Employee Attendance States List Preview -->
+                  <div class="sim-report-roster-preview">
+                    <div class="roster-preview-header">
+                      <span>Final Employee Attendance States (Persistent SQLite Roster)</span>
+                      <span id="simRepHeadcountTag">13 Employees Enrolled</span>
+                    </div>
+                    <div class="sim-report-roster-chips" id="simRepRosterChips">
+                      <!-- Rendered dynamically -->
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- RFID Technology Architecture & Comparison Specs -->
+              <div class="card-panel">
+                <div class="panel-header">
+                  <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>RFID Technology Architecture & Protocol Roadmap</span>
+                  </div>
+                  <span class="terminal-tag">ISO 18000-6C &bull; ISO 14443A</span>
+                </div>
+                <div class="info-content-block">
+                  <p>SmartWorkforce models enterprise identity card architectures across short-range proximity and industrial hands-free long-range detection zones.</p>
+
+                  <div class="tech-comparison-table-wrap">
+                    <table class="tech-comparison-table">
+                      <thead>
+                        <tr>
+                          <th>Specification</th>
+                          <th>HF / NFC Proximity (Legacy)</th>
+                          <th>UHF EPC Gen2 (Target Architecture)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong>Operating Band</strong></td>
+                          <td>13.56 MHz HF (ISM)</td>
+                          <td>860–960 MHz UHF (Subject to local regulatory standards)</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Standard</strong></td>
+                          <td>ISO/IEC 14443 Type A &bull; MIFARE</td>
+                          <td>EPC Class 1 Gen 2 &bull; ISO/IEC 18000-6C</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Operational Range</strong></td>
+                          <td>2–10 cm (Direct physical badge tap)</td>
+                          <td>1.0–6.0 m (Hands-free walk-through portal)</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Deployment Goal</strong></td>
+                          <td>Desktop encoders & desk check-in</td>
+                          <td>Hands-free turnstiles, overhead portals & bay lanes</td>
+                        </tr>
+                        <tr>
+                          <td><strong>Current Status</strong></td>
+                          <td>Simulated via software console</td>
+                          <td>Target hardware roadmap (Simulated telemetry)</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div class="tech-notes-list">
+                    <div class="tech-note-item">
+                      <span class="note-bullet">📡</span>
+                      <span><strong>Software Emulation Notice:</strong> Current distance (0.2–4.0m) and RSSI (-30 to -85 dBm) metrics are simulated in software. No physical RFID reader is connected.</span>
+                    </div>
+                    <div class="tech-note-item">
+                      <span class="note-bullet">🔒</span>
+                      <span><strong>Identity Authentication Limitation:</strong> A card UID proves badge presence at the reader, but cannot independently authenticate the badge bearer's true identity without secondary biometric verification.</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Terminal stream duplicate container (Preserved) -->
+              <div class="card-panel">
+                <div class="panel-header">
+                  <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <span>Terminal Activity History & Telemetry Stream</span>
+                  </div>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="link-btn" id="btnClearSimLogs" title="Clear simulation stream log" style="font-size: 0.75rem;">Clear Log</button>
+                    <button class="link-btn" id="btnGoToGateHistory">View Full Log &rarr;</button>
+                  </div>
+                </div>
+                <div class="terminal-log-preview" id="terminalLogPreview">
+                  <!-- Synced stream items -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ====================================================
+             VIEW 4: WORKFORCE DIRECTORY & EMPLOYEE MANAGEMENT
+             ==================================================== -->
+        <section class="view-panel" id="view-employees">
+          <div class="table-container">
+            <div class="table-toolbar">
+              <div>
+                <h3 class="section-title">Registered Workforce Directory</h3>
+                <p class="section-subtitle">
+                  Employee badge records, assigned smart card UIDs, department rosters, and quick tap simulation
+                </p>
+              </div>
+
+              <div class="table-filter-group">
+                <!-- Search Employee -->
+                <div class="search-box-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  <input type="text" id="inputSearchEmployees" class="text-input" placeholder="Search by name, ID, role, UID...">
+                </div>
+
+                <!-- Filter Department -->
+                <select id="filterEmpDept" class="select-input" style="width: auto; min-width: 150px;">
+                  <option value="ALL">All Departments</option>
+                  <option value="Production">Production</option>
+                  <option value="IT">IT & Software</option>
+                  <option value="Quality">Quality</option>
+                  <option value="Maintenance">Maintenance</option>
+                </select>
+
+                <!-- Filter Status -->
+                <select id="filterEmpStatus" class="select-input" style="width: auto; min-width: 140px;">
+                  <option value="ALL">All Statuses</option>
+                  <option value="INSIDE">Currently Inside</option>
+                  <option value="OUTSIDE">Currently Outside</option>
+                </select>
+
+                <!-- Add Employee Button -->
+                <button class="btn-action-primary" id="btnOpenAddEmployeeModal" style="margin-top: 0; width: auto; padding: 10px 16px;">
+                  <svg style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.5;" viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Add Employee
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Employee ID</th>
+                    <th>Employee Name</th>
+                    <th>Department</th>
+                    <th>Designation</th>
+                    <th>Smart Card UID</th>
+                    <th>Current Status</th>
+                    <th>Last Detection</th>
+                    <th style="text-align: right;">Simulate Gate Tap</th>
+                  </tr>
+                </thead>
+                <tbody id="employeeTableBody">
+                  <!-- Rendered via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================
+             VIEW 5: GATE ATTENDANCE HISTORY LOG
+             ==================================================== -->
+        <section class="view-panel" id="view-history">
+          <div class="table-container">
+            <div class="table-toolbar">
+              <div>
+                <h3 class="section-title">Smart ID Detection & Attendance History</h3>
+                <p class="section-subtitle">
+                  Immutable chronological audit trail of all turnstile gate entries and exits with verification stamps
+                </p>
+              </div>
+
+              <div class="table-filter-group">
+                <!-- Search Attendance Log -->
+                <div class="search-box-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  <input type="text" id="inputSearchLogs" class="text-input" placeholder="Search gate logs...">
+                </div>
+
+                <!-- Filter Event Type -->
+                <select id="filterLogEventType" class="select-input" style="width: auto; min-width: 140px;">
+                  <option value="ALL">All Events</option>
+                  <option value="ENTRY">Entry Events Only</option>
+                  <option value="EXIT">Exit Events Only</option>
+                </select>
+
+                <!-- Export to CSV Button -->
+                <button class="btn-action-secondary" id="btnExportCSV" style="margin-top: 0; width: auto; padding: 10px 14px;">
+                  <svg style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  Export CSV
+                </button>
+
+                <!-- Clear Log -->
+                <button class="btn-action-secondary" id="btnClearLogs" style="margin-top: 0; width: auto; padding: 10px 14px; color: #EF4444;">
+                  Clear Logs
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Event ID</th>
+                    <th>Timestamp</th>
+                    <th>Employee ID</th>
+                    <th>Employee Name</th>
+                    <th>Department</th>
+                    <th>Event Type</th>
+                    <th>Gate / Reader Location</th>
+                    <th>Verification</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceLogTableBody">
+                  <!-- Rendered via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================
+             VIEW 6: ATTENDANCE CHARTS & DEEP STATISTICS
+             ==================================================== -->
+        <!-- ====================================================
+             VIEW 6: AI WORKFORCE ANALYTICS & INTELLIGENCE
+             ==================================================== -->
+        <section class="view-panel" id="view-analytics">
+          <div class="analytics-dashboard">
+
+            <!-- Executive Shift Policy Banner -->
+            <div class="disclaimer-banner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <div>
+                <strong>Configured Enterprise Work Schedule:</strong> Standard Shift 09:00 AM – 05:00 PM (15-min grace window) &bull; Standard Duration: 8.0h.
+                <span style="color: var(--text-dim); display: block; font-size: 0.74rem; margin-top: 2px;">
+                  All calculations strictly derive from authenticated RFID gate telemetry in SQLite. Risk flags are explainable heuristic indicators, not deterministic predictions.
+                </span>
+              </div>
+            </div>
+
+            <!-- Stat Highlights Row -->
+            <div class="analytics-metrics-row">
+              <div class="stat-card">
+                <span class="stat-title">Shift On-Time Rate</span>
+                <span class="stat-num" id="statOnTimePercent">--%</span>
+                <span class="stat-desc">Checked in before 09:15 AM target</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-title">Early Departures</span>
+                <span class="stat-num" id="statEarlyDepartures" style="color: #D97706;">0</span>
+                <span class="stat-desc">Exited before 05:00 PM shift end</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-title">Confirmed Overtime</span>
+                <span class="stat-num" id="statTotalOvertime" style="color: var(--status-inside);">0.0h</span>
+                <span class="stat-desc">Hours worked beyond 8.0h shift</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-title">Sequence Discrepancies</span>
+                <span class="stat-num" id="statAnomaliesCount" style="color: #2563EB;">0</span>
+                <span class="stat-desc">Unpaired entries, exits, or off-hours</span>
+              </div>
+            </div>
+
+            <!-- Department Attendance Breakdown Grid -->
+            <div style="margin-bottom: 24px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                  <svg style="width: 18px; height: 18px; stroke: var(--accent-primary); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                  </svg>
+                  Department Attendance Performance Matrix
+                </h3>
+                <span class="terminal-tag">LIVE TELEMETRY SUMMARY</span>
+              </div>
+              <div id="analyticsDeptGrid" class="analytics-dept-grid">
+                <!-- Rendered dynamically via JavaScript -->
+              </div>
+            </div>
+
+            <!-- Detailed Visual Distribution Row -->
+            <div class="bento-analytics-grid">
+              <div class="card-panel">
+                <div class="panel-header">
+                  <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <span>Shift Entry & Exit Chronology Chart</span>
+                  </div>
+                  <span class="terminal-tag">HOURLY DISTRIBUTION</span>
+                </div>
+                <div class="chart-content">
+                  <div id="chartAnalyticsFull" class="svg-chart-container"></div>
+                </div>
+              </div>
+
+              <div class="card-panel">
+                <div class="panel-header">
+                  <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M12 2a10 10 0 0 1 10 10"></path>
+                    </svg>
+                    <span>Punctuality & Status Distribution</span>
+                  </div>
+                  <span class="terminal-tag">RATIO BREAKDOWN</span>
+                </div>
+                <div class="chart-content flex-center-content">
+                  <div id="chartPunctualityDonut" class="donut-chart-container"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Workforce Punctuality & Overtime Ledger -->
+            <div class="card-panel" style="margin-top: 24px;">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <span>Shift Punctuality & Overtime Ledger</span>
+                </div>
+                <span class="terminal-tag">SCHEDULE AUDIT</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Department</th>
+                      <th>First Entry</th>
+                      <th>Last Exit</th>
+                      <th>Punctuality Status</th>
+                      <th>Early Departure</th>
+                      <th>Work Duration</th>
+                      <th>Confirmed Overtime</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablePunctualityBody">
+                    <!-- Rendered dynamically via JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Explainable Absenteeism-Risk Analysis Section -->
+            <div class="card-panel" style="margin-top: 24px;">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                  <span>Explainable Absenteeism-Risk Assessment</span>
+                </div>
+                <span class="terminal-tag" style="color: #D97706; border-color: #FDE68A;">HEURISTIC RISK MODEL</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Department / Role</th>
+                      <th>Assessed Risk Tier</th>
+                      <th>Attendance Regularity</th>
+                      <th>Documented Risk Factors</th>
+                      <th>Audit Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tableRiskIndicatorsBody">
+                    <!-- Rendered dynamically via JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Gate Sequence Discrepancies & Anomaly Log -->
+            <div class="card-panel" style="margin-top: 24px;">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <span>Gate Telemetry Discrepancies & Anomaly Log</span>
+                </div>
+                <span class="terminal-tag" style="color: #2563EB; border-color: #BFDBFE;">SEQUENCE AUDIT</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Discrepancy Type</th>
+                      <th>Severity</th>
+                      <th>Employee</th>
+                      <th>Event ID & Timestamp</th>
+                      <th>Gate Portal</th>
+                      <th>Telemetry Explanation & Recommendation</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tableAnomaliesBody">
+                    <!-- Rendered dynamically via JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+      </main>
+
+      <!-- Project Presentation Info Footer -->
+      <footer class="project-footer">
+        <div>
+          <strong>AI-Based Smart Workforce Intelligence System</strong> &bull; Phase 1 Prototype Dashboard
+          <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 2px;">
+            Final-Year Engineering Project Defense &bull; Zero external database dependencies &bull; 100% Offline Capable
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <span class="project-meta-pill">RFID 13.56MHz Contactless Protocol</span>
+          <span class="project-meta-pill">Pure HTML5 &bull; CSS3 &bull; ES6 JS</span>
+          <span class="project-meta-pill">Admin Sidebar Architecture</span>
+        </div>
+      </footer>
+
+    </div>
+
+  </div>
+
+  <!-- ========================================================
+       3. ADD EMPLOYEE MODAL (Employee Management)
+       ======================================================== -->
+  <div class="modal-overlay" id="modalAddEmployee">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg style="width: 20px; height: 20px; stroke: var(--accent-primary); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <line x1="20" y1="8" x2="20" y2="14"></line>
+            <line x1="23" y1="11" x2="17" y2="11"></line>
+          </svg>
+          <span>Register New Workforce Member</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseAddEmployeeModal">&times;</button>
+      </div>
+
+      <form id="formAddEmployee" class="modal-body">
+        <div class="modal-form-grid">
+          <div class="control-group">
+            <label class="control-label" for="newEmpId">Employee ID *</label>
+            <input type="text" id="newEmpId" class="text-input" placeholder="e.g. EMP-113" required>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="newEmpName">Full Name *</label>
+            <input type="text" id="newEmpName" class="text-input" placeholder="e.g. Rahul Sharma" required>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="newEmpDept">Department *</label>
+            <select id="newEmpDept" class="select-input" required>
+              <option value="Production">Production</option>
+              <option value="IT">IT & Software</option>
+              <option value="Quality">Quality</option>
+              <option value="Maintenance">Maintenance</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="newEmpRole">Designation / Role *</label>
+            <input type="text" id="newEmpRole" class="text-input" placeholder="e.g. PLC Programmer" required>
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="newEmpUid">Smart Card UID (RFID 13.56MHz Hex) *</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="newEmpUid" class="text-input" placeholder="e.g. 8A:4F:19:CE" required style="font-family: var(--font-mono);">
+              <button type="button" class="btn-action-secondary" id="btnGenUid" style="margin-top: 0; width: auto; white-space: nowrap;">
+                🎲 Generate UID
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-action-secondary" id="btnCancelAddEmployee" style="margin-top: 0; width: auto;">Cancel</button>
+          <button type="submit" class="btn-action-primary" style="margin-top: 0; width: auto;">Save & Enroll Badge</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer"></div>
+
+  <!-- Application Logic -->
+  <script src="script.js"></script>
+</body>
+</html>

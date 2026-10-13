@@ -3028,3 +3028,962 @@ footer.project-footer {
   flex-shrink: 0;
   font-size: 0.85rem;
 }
+
+/* ==========================================================================
+   LOGIN PORTAL & COMPANY REGISTRATION STYLES
+   Exact 1-to-1 match with approved visual reference image
+   ========================================================================== */
+
+/* Outer Portal Container with Mint Ambient Wave Background */
+.login-portal-wrapper,
+.company-registration-wrapper {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  background-color: #f3faf6;
+  background-image: 
+    radial-gradient(circle at 8% 18%, rgba(167, 243, 208, 0.5) 0%, transparent 38%),
+    radial-gradient(circle at 92% 14%, rgba(209, 250, 229, 0.75) 0%, transparent 42%),
+    radial-gradient(circle at 86% 88%, rgba(167, 243, 208, 0.55) 0%, transparent 40%),
+    radial-gradient(circle at 14% 82%, rgba(209, 250, 229, 0.65) 0%, transparent 42%);
+  box-sizing: border-box;
+  animation: portalFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100;
+}
+
+.login-portal-wrapper.hidden,
+.company-registration-wrapper.hidden,
+.dashboard-layout.hidden {
+  display: none !important;
+}
+
+@keyframes portalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.99) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Fluid Organic Wave Backdrop Elements */
+.login-bg-decor {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.login-bg-decor svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0.45;
+}
+
+/* Main Split Login Card */
+.login-card {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 980px;
+  background: #ffffff;
+  border-radius: 28px;
+  box-shadow: 
+    0 24px 60px -15px rgba(13, 94, 60, 0.18),
+    0 12px 24px -8px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(255, 255, 255, 0.9);
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* --------------------------------------------------------------------------
+   LEFT PANEL: Deep Emerald Green Brand Panel & Showcase
+   -------------------------------------------------------------------------- */
+.login-left-panel {
+  background: linear-gradient(155deg, #0d5e3c 0%, #0a4f30 50%, #063822 100%);
+  padding: 34px 32px 26px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  color: #ffffff;
+}
+
+.login-left-panel::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.16) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.login-left-panel::after {
+  content: "";
+  position: absolute;
+  bottom: 60px;
+  left: -80px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Brand Header */
+.login-brand-header {
+  position: relative;
+  z-index: 2;
+}
+
+.login-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.login-brand-icon svg {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 2px 8px rgba(52, 211, 153, 0.4));
+}
+
+.login-brand-title {
+  font-family: 'Plus Jakarta Sans', var(--font-heading), sans-serif;
+  font-size: 29px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  margin: 0 0 3px 0;
+  line-height: 1.15;
+}
+
+.login-brand-sub {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+/* Middle: Office Illustration Showcase with Tagline Overlay */
+.login-office-card {
+  position: relative;
+  z-index: 2;
+  margin: 18px 0 14px 0;
+  border-radius: 16px;
+  overflow: hidden;
+  height: 195px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.office-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center bottom;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.login-office-card:hover .office-preview-img {
+  transform: scale(1.02);
+}
+
+.office-tagline-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(13, 94, 60, 0) 25%, rgba(9, 74, 46, 0.72) 70%, rgba(6, 61, 36, 0.96) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 14px 16px;
+  pointer-events: none;
+}
+
+.tagline-line1,
+.tagline-line2 {
+  color: #ffffff;
+  font-family: 'Plus Jakarta Sans', var(--font-heading), sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.25;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Bottom Feature Cards (3 Frosted Glass Pills) */
+.login-feature-pills {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: auto;
+}
+
+.feature-pill {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  min-height: 74px;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.feature-pill:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.feature-pill-icon {
+  width: 20px;
+  height: 20px;
+  stroke: #ffffff;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+.feature-pill-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+/* --------------------------------------------------------------------------
+   RIGHT PANEL: Clean Crisp White Login Form
+   -------------------------------------------------------------------------- */
+.login-right-panel {
+  background: #ffffff;
+  padding: 32px 38px 24px 38px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+/* Top Tab Switcher (Company Admin vs Employee) */
+.portal-tabs-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.portal-tabs {
+  display: inline-flex;
+  background: #f3f4f6;
+  border-radius: 9999px;
+  padding: 3px;
+  border: 1px solid #e5e7eb;
+  gap: 3px;
+}
+
+.portal-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+  outline: none;
+}
+
+.portal-tab-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.portal-tab-btn:hover:not(.active) {
+  color: #111827;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.portal-tab-btn.active {
+  background: #0d5e3c;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(13, 94, 60, 0.25);
+}
+
+.portal-tab-btn.active svg {
+  stroke: #ffffff;
+}
+
+/* Form Headings */
+.login-form-header {
+  margin-bottom: 16px;
+}
+
+.login-heading {
+  font-family: 'Plus Jakarta Sans', var(--font-heading), sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 5px 0;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.login-subheading {
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Form Group & Controls */
+.login-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.login-field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.login-field-label svg {
+  width: 14px;
+  height: 14px;
+  stroke: #4b5563;
+  fill: none;
+  stroke-width: 2;
+}
+
+.login-input-field {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.login-input-field:focus {
+  border-color: #0d5e3c;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 94, 60, 0.12);
+}
+
+.login-input-field::placeholder {
+  color: #9ca3af;
+}
+
+.password-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-input-container .login-input-field {
+  padding-right: 40px;
+}
+
+.btn-toggle-password {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+  outline: none;
+}
+
+.btn-toggle-password:hover {
+  color: #111827;
+}
+
+.btn-toggle-password svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+/* Auxiliary Row: Remember Me & Forgot Password */
+.login-aux-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  margin-top: 1px;
+}
+
+.remember-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #4b5563;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+}
+
+.remember-checkbox-label input[type="checkbox"] {
+  accent-color: #0d5e3c;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.link-forgot-password {
+  color: #059669;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.link-forgot-password:hover {
+  color: #047857;
+  text-decoration: underline;
+}
+
+/* Employee Portal Instructions Box */
+.employee-portal-hint {
+  display: none;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 12px;
+  color: #065f46;
+  line-height: 1.4;
+  margin-top: -2px;
+}
+
+/* Sign In Submit Button */
+.btn-signin-submit {
+  width: 100%;
+  padding: 12px 20px;
+  background: #0d5e3c;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(13, 94, 60, 0.22);
+  margin-top: 4px;
+  font-family: inherit;
+}
+
+.btn-signin-submit:hover {
+  background: #094a2e;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(13, 94, 60, 0.28);
+}
+
+.btn-signin-submit:active {
+  transform: translateY(0);
+}
+
+.btn-signin-arrow {
+  font-size: 16px;
+  font-weight: 700;
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.btn-signin-submit:hover .btn-signin-arrow {
+  transform: translateX(3px);
+}
+
+/* Feedback Status Alert Banner */
+.login-status-banner {
+  display: none;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin-top: 4px;
+  animation: portalFadeIn 0.25s ease;
+}
+
+.login-status-banner.info {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #065f46;
+}
+
+.login-status-banner.warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.login-status-banner.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.login-status-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+}
+
+.btn-status-proceed {
+  background: #0d5e3c;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* OR Divider */
+.login-or-divider {
+  position: relative;
+  text-align: center;
+  margin: 12px 0 10px 0;
+}
+
+.login-or-divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.login-or-divider span {
+  position: relative;
+  background: #ffffff;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* New Company Registration Card */
+.new-company-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 11px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.new-company-card:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.12);
+}
+
+.new-company-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.new-company-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: #059669;
+  fill: none;
+  stroke-width: 2;
+}
+
+.new-company-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.new-company-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #065f46;
+  line-height: 1.25;
+}
+
+.new-company-desc {
+  font-size: 12px;
+  color: #374151;
+  margin-top: 1px;
+}
+
+.new-company-chevron {
+  width: 16px;
+  height: 16px;
+  stroke: #059669;
+  fill: none;
+  stroke-width: 2.5;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.new-company-card:hover .new-company-chevron {
+  transform: translateX(3px);
+}
+
+/* Bottom Authorized Security Stamp */
+.login-security-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: #9ca3af;
+}
+
+.login-security-footer svg {
+  width: 13px;
+  height: 13px;
+  stroke: #9ca3af;
+  fill: none;
+  stroke-width: 2;
+}
+
+/* Direct Dashboard Quick Access Bar */
+.direct-dashboard-bar {
+  margin-top: 6px;
+  text-align: center;
+}
+
+.btn-preview-dashboard-link {
+  background: none;
+  border: none;
+  color: #0d5e3c;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s, color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-preview-dashboard-link:hover {
+  background: rgba(13, 94, 60, 0.06);
+  color: #094a2e;
+}
+
+/* --------------------------------------------------------------------------
+   COMPANY REGISTRATION PORTAL STYLES
+   Dedicated registration page for onboarding new enterprise companies
+   -------------------------------------------------------------------------- */
+.registration-card {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 860px;
+  background: #ffffff;
+  border-radius: 26px;
+  box-shadow: 
+    0 24px 60px -15px rgba(13, 94, 60, 0.18),
+    0 12px 24px -8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 34px 40px;
+  box-sizing: border-box;
+}
+
+.reg-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.btn-back-to-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-back-to-login:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.reg-brand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 9999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.reg-title {
+  font-family: 'Plus Jakarta Sans', var(--font-heading), sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.015em;
+}
+
+.reg-subtitle {
+  font-size: 13.5px;
+  color: #64748b;
+  margin: 0 0 22px 0;
+}
+
+.reg-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+}
+
+.reg-form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.reg-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.reg-input,
+.reg-select {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #111827;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.reg-input:focus,
+.reg-select:focus {
+  border-color: #0d5e3c;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 94, 60, 0.12);
+}
+
+.reg-info-callout {
+  grid-column: 1 / -1;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 12.5px;
+  color: #065f46;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.reg-actions-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn-submit-registration {
+  background: #0d5e3c;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(13, 94, 60, 0.2);
+}
+
+.btn-submit-registration:hover {
+  background: #094a2e;
+  transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   DASHBOARD SIGN-OUT BUTTONS
+   Allows seamless return to the login portal from within the live dashboard
+   -------------------------------------------------------------------------- */
+.btn-header-signout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-header-signout:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.btn-header-signout svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+.btn-sidebar-signout {
+  margin-top: 8px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-sidebar-signout:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE ADAPTATIONS
+   -------------------------------------------------------------------------- */
+@media (max-width: 880px) {
+  .login-card {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+    border-radius: 20px;
+  }
+
+  .login-left-panel {
+    padding: 28px 24px 22px 24px;
+  }
+
+  .login-right-panel {
+    padding: 26px 24px 20px 24px;
+  }
+
+  .registration-card {
+    padding: 24px 20px;
+  }
+
+  .reg-form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

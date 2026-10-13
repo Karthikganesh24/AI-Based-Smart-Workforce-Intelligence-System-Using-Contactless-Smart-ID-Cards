@@ -39,8 +39,12 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
-const SERVER_PATH = path.join(PROJECT_ROOT, 'server.js');
-const REAL_DB_PATH = path.join(PROJECT_ROOT, 'smartworkforce.db');
+const SERVER_PATH = fs.existsSync(path.join(PROJECT_ROOT, 'backend', 'server.js'))
+  ? path.join(PROJECT_ROOT, 'backend', 'server.js')
+  : path.join(PROJECT_ROOT, 'server.js');
+const REAL_DB_PATH = fs.existsSync(path.join(PROJECT_ROOT, 'database', 'smartworkforce.db'))
+  ? path.join(PROJECT_ROOT, 'database', 'smartworkforce.db')
+  : path.join(PROJECT_ROOT, 'smartworkforce.db');
 const TEST_DB_PATH = path.join(__dirname, 'temp_test.db');
 const TEST_PORT = 3099;
 const TEST_GATEWAY_KEY = 'test-secret-gateway-key-xyz';
@@ -88,18 +92,51 @@ function cleanupTestDb() {
   }
 }
 
+function extractCookies(res) {
+  const setCookie = res.headers['set-cookie'];
+  if (!setCookie) return {};
+  const cookies = {};
+  const arr = Array.isArray(setCookie) ? setCookie : [setCookie];
+  for (const str of arr) {
+    const part = str.split(';')[0];
+    const idx = part.indexOf('=');
+    if (idx !== -1) {
+      cookies[part.substring(0, idx).trim()] = part.substring(idx + 1).trim();
+    }
+  }
+  return cookies;
+}
+
+function cookieHeader(cookiesObj) {
+  return Object.entries(cookiesObj).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+let activeTestCookies = {};
+let activeTestCsrf = '';
+
 function makeRequest(method, urlPath, payload = null, customHeaders = {}) {
   return new Promise((resolve, reject) => {
     const postData = payload ? JSON.stringify(payload) : null;
+    const headers = {
+      'Accept': 'application/json',
+      ...customHeaders
+    };
+
+    if (customHeaders['Cookie'] === undefined && Object.keys(activeTestCookies).length > 0) {
+      headers['Cookie'] = cookieHeader(activeTestCookies);
+    }
+    if (['POST', 'DELETE', 'PUT', 'PATCH'].includes(method.toUpperCase()) &&
+        customHeaders['X-CSRF-Token'] === undefined &&
+        activeTestCsrf) {
+      headers['X-CSRF-Token'] = activeTestCsrf;
+    }
+
     const options = {
       hostname: '127.0.0.1',
       port: TEST_PORT,
       path: urlPath,
       method: method,
-      headers: {
-        'Accept': 'application/json',
-        ...customHeaders
-      }
+      headers: headers
     };
 
     if (postData) {
@@ -224,12 +261,211 @@ async function runPersistenceSuite() {
 
   try {
     // -------------------------------------------------------------
-    // STEP 1: Launch Server Instance 1 & Verify Seed
+    // STEP 1: Launch Server Instance 1 & Phase 2 Auth Test Suite
     // -------------------------------------------------------------
     console.log(`${BOLD}[1/15] Initializing Isolated Server Instance 1...${RESET}`);
     serverInstance1 = await spawnServerInstance('Instance-1');
     logPass('Server Instance 1 started on isolated port', `Port ${TEST_PORT}`);
 
+    // --- PHASE 2 AUTH & MULTI-TENANCY SUITE ---
+    console.log(`\n${BOLD}[Phase 2: 1/10] Testing Unauthenticated Route Access Protection (401 Unauthorized)...${RESET}`);
+    const unauthEmps = await makeRequest('GET', '/api/employees');
+    assert(unauthEmps.status === 401, `Expected 401 for unauth /api/employees, got ${unauthEmps.status}`);
+    logPass('Unauthenticated /api/employees rejected with 401 Unauthorized');
+
+    const unauthLogs = await makeRequest('GET', '/api/attendance/logs');
+    assert(unauthLogs.status === 401, `Expected 401 for unauth /api/attendance/logs, got ${unauthLogs.status}`);
+    logPass('Unauthenticated /api/attendance/logs rejected with 401 Unauthorized');
+
+    const unauthAnalytics = await makeRequest('GET', '/api/analytics/overview');
+    assert(unauthAnalytics.status === 401, `Expected 401 for unauth /api/analytics/overview, got ${unauthAnalytics.status}`);
+    logPass('Unauthenticated /api/analytics/overview rejected with 401 Unauthorized');
+
+    const unauthMe = await makeRequest('GET', '/api/auth/me');
+    assert(unauthMe.status === 401, `Expected 401 for unauth /api/auth/me, got ${unauthMe.status}`);
+    logPass('Unauthenticated /api/auth/me rejected with 401 Unauthorized');
+
+    const unauthPostEmp = await makeRequest('POST', '/api/employees', { id: 'EMP-FAKE', name: 'Fake' });
+    assert(unauthPostEmp.status === 401, `Expected 401 for unauth POST /api/employees, got ${unauthPostEmp.status}`);
+    logPass('Unauthenticated POST /api/employees rejected with 401 Unauthorized');
+
+    const unauthDeleteLogs = await makeRequest('DELETE', '/api/attendance/logs');
+    assert(unauthDeleteLogs.status === 401, `Expected 401 for unauth DELETE /api/attendance/logs, got ${unauthDeleteLogs.status}`);
+    logPass('Unauthenticated DELETE /api/attendance/logs rejected with 401 Unauthorized');
+
+    console.log(`\n${BOLD}[Phase 2: 2/10] Testing Company Registration Input Validation (400 Bad Request)...${RESET}`);
+    const badComp1 = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: '', industry: 'IT', adminFullName: 'John Doe', email: 'test@comp.com', password: 'ValidPass123!'
+    });
+    assert(badComp1.status === 400, `Expected 400 for empty company name, got ${badComp1.status}`);
+    logPass('Empty company name rejected with 400', badComp1.body.error);
+
+    const badComp2 = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: 'Acme', industry: '', adminFullName: 'John Doe', email: 'test@comp.com', password: 'ValidPass123!'
+    });
+    assert(badComp2.status === 400, `Expected 400 for empty industry, got ${badComp2.status}`);
+    logPass('Missing industry rejected with 400', badComp2.body.error);
+
+    const badComp3 = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: 'Acme', industry: 'IT', adminFullName: '', email: 'test@comp.com', password: 'ValidPass123!'
+    });
+    assert(badComp3.status === 400, `Expected 400 for missing admin name, got ${badComp3.status}`);
+    logPass('Missing admin name rejected with 400', badComp3.body.error);
+
+    const badComp4 = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: 'Acme', industry: 'IT', adminFullName: 'John Doe', email: 'not-an-email', password: 'ValidPass123!'
+    });
+    assert(badComp4.status === 400, `Expected 400 for invalid email regex, got ${badComp4.status}`);
+    logPass('Invalid email format rejected with 400', badComp4.body.error);
+
+    const badComp5 = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: 'Acme', industry: 'IT', adminFullName: 'John Doe', email: 'john@acme.com', password: 'short'
+    });
+    assert(badComp5.status === 400, `Expected 400 for short password (<8 chars), got ${badComp5.status}`);
+    logPass('Weak password rejected with 400', badComp5.body.error);
+
+    console.log(`\n${BOLD}[Phase 2: 3/10] Testing Successful Company Registration & Secure Session Creation...${RESET}`);
+    const regCompRes = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: 'Titan Industrial Systems Ltd.',
+      industry: 'manufacturing',
+      adminFullName: 'Karthik Ganesh',
+      email: 'karthik@titan.internal',
+      password: 'TitanMasterSecure2024!'
+    });
+    assert(regCompRes.status === 201, `Expected 201 for registration, got ${regCompRes.status}`);
+    assert(regCompRes.body.success === true, 'Response must indicate success');
+    assert(regCompRes.body.company.id.startsWith('COMP-'), `Company ID must start with COMP-, got ${regCompRes.body.company.id}`);
+    assert(regCompRes.body.user.id.startsWith('USR-'), `User ID must start with USR-, got ${regCompRes.body.user.id}`);
+    assert(regCompRes.body.user.role === 'COMPANY_HEAD', `User role must be COMPANY_HEAD, got ${regCompRes.body.user.role}`);
+    assert(regCompRes.body.user.password_hash === undefined, 'Password hash must never be returned in API response');
+    assert(regCompRes.body.user.password_salt === undefined, 'Password salt must never be returned in API response');
+    assert(regCompRes.body.csrfToken && typeof regCompRes.body.csrfToken === 'string', 'CSRF token must be provided');
+
+    const titanCookies = extractCookies(regCompRes);
+    assert(titanCookies.sw_session, 'HttpOnly session cookie sw_session must be set');
+    assert(titanCookies.sw_csrf, 'CSRF cookie sw_csrf must be set');
+    const setCookieArr = Array.isArray(regCompRes.headers['set-cookie']) ? regCompRes.headers['set-cookie'] : [regCompRes.headers['set-cookie']];
+    const sessionCookieHeader = setCookieArr.find(c => c.startsWith('sw_session='));
+    assert(sessionCookieHeader.includes('HttpOnly'), 'sw_session cookie must include HttpOnly');
+    assert(sessionCookieHeader.includes('SameSite=Lax'), 'sw_session cookie must include SameSite=Lax');
+    const titanCsrfToken = regCompRes.body.csrfToken;
+    const titanUserId = regCompRes.body.user.id;
+    const titanCompId = regCompRes.body.company.id;
+    logPass('Company registered with atomic transaction, scrypt hash, and HttpOnly session', `Company: ${titanCompId}, User: ${titanUserId} (COMPANY_HEAD)`);
+
+    console.log(`\n${BOLD}[Phase 2: 4/10] Testing Duplicate Email Rejection & Transaction Rollback...${RESET}`);
+    const dupRegRes = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: 'Titan Clone Inc.',
+      industry: 'it',
+      adminFullName: 'Imposter Head',
+      email: 'karthik@titan.internal', // Duplicate email
+      password: 'AnotherPassword2024!'
+    });
+    assert(dupRegRes.status === 409, `Expected 409 for duplicate email, got ${dupRegRes.status}`);
+    logPass('Duplicate email registration rejected with 409 Conflict', dupRegRes.body.error);
+
+    console.log(`\n${BOLD}[Phase 2: 5/10] Testing GET /api/auth/me Session Verification...${RESET}`);
+    const meRes = await makeRequest('GET', '/api/auth/me', null, { 'Cookie': cookieHeader(titanCookies) });
+    assert(meRes.status === 200, `Expected 200 for authenticated /me, got ${meRes.status}`);
+    assert(meRes.body.authenticated === true, 'Session must be authenticated');
+    assert(meRes.body.user.email === 'karthik@titan.internal', 'User email mismatch');
+    assert(meRes.body.user.role === 'COMPANY_HEAD', 'User role mismatch');
+    assert(meRes.body.company.id === titanCompId, 'Company ID mismatch');
+    assert(meRes.body.company.name === 'Titan Industrial Systems Ltd.', 'Company name mismatch');
+    logPass('GET /api/auth/me successfully validated session and tenant profile');
+
+    console.log(`\n${BOLD}[Phase 2: 6/10] Testing Password Verification & Login Endpoint (POST /api/auth/login)...${RESET}`);
+    const badLogin1 = await makeRequest('POST', '/api/auth/login', { identity: 'nobody@domain.com', password: 'Password123!' });
+    assert(badLogin1.status === 401, `Expected 401 for non-existent identity, got ${badLogin1.status}`);
+    logPass('Non-existent user login rejected with 401');
+
+    const badLogin2 = await makeRequest('POST', '/api/auth/login', { identity: 'karthik@titan.internal', password: 'IncorrectPassword!' });
+    assert(badLogin2.status === 401, `Expected 401 for incorrect password, got ${badLogin2.status}`);
+    logPass('Incorrect password rejected with 401');
+
+    const goodLoginEmail = await makeRequest('POST', '/api/auth/login', { identity: 'karthik@titan.internal', password: 'TitanMasterSecure2024!' });
+    assert(goodLoginEmail.status === 200, `Expected 200 for correct email login, got ${goodLoginEmail.status}`);
+    assert(goodLoginEmail.body.user.id === titanUserId, 'User ID mismatch on login');
+    logPass('Login via company email verified successfully');
+
+    const goodLoginId = await makeRequest('POST', '/api/auth/login', { identity: titanUserId, password: 'TitanMasterSecure2024!' });
+    assert(goodLoginId.status === 200, `Expected 200 for login via Admin ID, got ${goodLoginId.status}`);
+    logPass('Login via Admin ID verified successfully', `Admin ID: ${titanUserId}`);
+
+    console.log(`\n${BOLD}[Phase 2: 7/10] Testing Anti-CSRF Token Validation on Protected Mutations...${RESET}`);
+    const csrfFailNoToken = await makeRequest('POST', '/api/employees', {
+      id: 'EMP-T01', name: 'Titan Tech', department: 'Production', role: 'Lead', uid: 'TI:TA:N0:01'
+    }, { 'Cookie': cookieHeader(titanCookies) });
+    assert(csrfFailNoToken.status === 403, `Expected 403 for missing CSRF token, got ${csrfFailNoToken.status}`);
+    logPass('Mutation without CSRF token blocked with 403 Forbidden');
+
+    const csrfFailBadToken = await makeRequest('POST', '/api/employees', {
+      id: 'EMP-T01', name: 'Titan Tech', department: 'Production', role: 'Lead', uid: 'TI:TA:N0:01'
+    }, { 'Cookie': cookieHeader(titanCookies), 'X-CSRF-Token': 'bogus-token-12345' });
+    assert(csrfFailBadToken.status === 403, `Expected 403 for invalid CSRF token, got ${csrfFailBadToken.status}`);
+    logPass('Mutation with invalid CSRF token blocked with 403 Forbidden');
+
+    const csrfSuccess = await makeRequest('POST', '/api/employees', {
+      id: 'EMP-T01', name: 'Titan Tech', department: 'Production', role: 'Lead', uid: 'TI:TA:N0:01'
+    }, { 'Cookie': cookieHeader(titanCookies), 'X-CSRF-Token': titanCsrfToken });
+    assert(csrfSuccess.status === 201, `Expected 201 with valid CSRF token, got ${csrfSuccess.status}`);
+    logPass('Mutation with valid CSRF token succeeded (201 Created)', `Created ${csrfSuccess.body.id} for Titan`);
+
+    console.log(`\n${BOLD}[Phase 2: 8/10] Testing Multi-Tenant Workspace Isolation...${RESET}`);
+    const regApexRes = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: 'Apex Innovations Ltd.',
+      industry: 'it',
+      adminFullName: 'Pooja Hegde',
+      email: 'pooja@apex.internal',
+      password: 'ApexMasterPassword2024!'
+    });
+    assert(regApexRes.status === 201, `Expected 201 for second company, got ${regApexRes.status}`);
+    const apexCookies = extractCookies(regApexRes);
+    const apexCsrf = regApexRes.body.csrfToken;
+
+    const apexEmps = await makeRequest('GET', '/api/employees', null, { 'Cookie': cookieHeader(apexCookies) });
+    assert(apexEmps.status === 200, `Expected 200 for Apex employees, got ${apexEmps.status}`);
+    assert(apexEmps.body.length === 0, `Apex must have 0 employees in fresh isolated tenant, got ${apexEmps.body.length}`);
+    logPass('New tenant starts with 0 employees and isolated tenant scope');
+
+    const apexCreateEmp = await makeRequest('POST', '/api/employees', {
+      id: 'EMP-A01', name: 'Apex Specialist', department: 'IT', role: 'DevOps', uid: 'AP:EX:00:01'
+    }, { 'Cookie': cookieHeader(apexCookies), 'X-CSRF-Token': apexCsrf });
+    assert(apexCreateEmp.status === 201, `Expected 201 for Apex employee, got ${apexCreateEmp.status}`);
+
+    const titanEmpsAfter = await makeRequest('GET', '/api/employees', null, { 'Cookie': cookieHeader(titanCookies) });
+    assert(titanEmpsAfter.body.length === 1, `Titan must see exactly 1 employee, got ${titanEmpsAfter.body.length}`);
+    assert(titanEmpsAfter.body[0].id === 'EMP-T01', `Titan must see EMP-T01 only, got ${titanEmpsAfter.body[0].id}`);
+
+    const apexEmpsAfter = await makeRequest('GET', '/api/employees', null, { 'Cookie': cookieHeader(apexCookies) });
+    assert(apexEmpsAfter.body.length === 1, `Apex must see exactly 1 employee, got ${apexEmpsAfter.body.length}`);
+    assert(apexEmpsAfter.body[0].id === 'EMP-A01', `Apex must see EMP-A01 only, got ${apexEmpsAfter.body[0].id}`);
+    logPass('Strict multi-tenant isolation confirmed: tenants cannot read or mutate other tenants records');
+
+    console.log(`\n${BOLD}[Phase 2: 9/10] Testing POST /api/auth/logout & Session Invalidation...${RESET}`);
+    const logoutRes = await makeRequest('POST', '/api/auth/logout', null, {
+      'Cookie': cookieHeader(apexCookies),
+      'X-CSRF-Token': apexCsrf
+    });
+    assert(logoutRes.status === 200, `Expected 200 for logout, got ${logoutRes.status}`);
+    const logoutSetCookie = Array.isArray(logoutRes.headers['set-cookie']) ? logoutRes.headers['set-cookie'] : [logoutRes.headers['set-cookie']];
+    assert(logoutSetCookie.some(c => c.includes('Max-Age=0')), 'Cookies must be expired with Max-Age=0 on logout');
+
+    const meAfterLogout = await makeRequest('GET', '/api/auth/me', null, { 'Cookie': cookieHeader(apexCookies) });
+    assert(meAfterLogout.status === 401, `Expected 401 for terminated session, got ${meAfterLogout.status}`);
+    logPass('Logout successfully terminated and invalidated session');
+
+    console.log(`\n${BOLD}[Phase 2: 10/10] Authenticating Baseline Administrator (COMP-DEFAULT-01)...${RESET}`);
+    const baselineLogin = await makeRequest('POST', '/api/auth/login', {
+      identity: 'admin@smartworkforce.internal',
+      password: 'SmartWorkforce2024!'
+    });
+    assert(baselineLogin.status === 200, `Expected 200 for baseline admin login, got ${baselineLogin.status}`);
+    activeTestCookies = extractCookies(baselineLogin);
+    activeTestCsrf = baselineLogin.body.csrfToken;
+    logPass('Baseline company administrator authenticated', `Company: ${baselineLogin.body.user.companyId}, User: ${baselineLogin.body.user.id}`);
+
+    // --- OPERATIONAL WORKFORCE & RFID SYSTEM TESTS ---
     const initialEmpsRes = await makeRequest('GET', '/api/employees');
     assert(initialEmpsRes.status === 200, `Expected 200, got ${initialEmpsRes.status}`);
     assert(initialEmpsRes.body.length === 12, `Expected 12 seeded employees, got ${initialEmpsRes.body.length}`);
@@ -698,6 +934,26 @@ async function runPersistenceSuite() {
     console.log(`  Starting Server Instance 2 pointing to the same SQLite database...`);
     serverInstance2 = await spawnServerInstance('Instance-2');
     logPass('Server Instance 2 started successfully', `Port ${TEST_PORT}`);
+
+    // Verify Titan admin can log in on restarted server
+    const titanLoginRestart = await makeRequest('POST', '/api/auth/login', {
+      identity: 'karthik@titan.internal',
+      password: 'TitanMasterSecure2024!'
+    });
+    assert(titanLoginRestart.status === 200, `Expected 200 for Titan login after restart, got ${titanLoginRestart.status}`);
+    const titanRestartCookies = extractCookies(titanLoginRestart);
+    const titanEmpsRestart = await makeRequest('GET', '/api/employees', null, { 'Cookie': cookieHeader(titanRestartCookies) });
+    assert(titanEmpsRestart.body.length === 1, `Titan must retain 1 employee after restart, got ${titanEmpsRestart.body.length}`);
+    logPass('Company registration and employee data persisted intact across full server restart');
+
+    // Re-verify baseline company on Instance 2
+    const baselineLoginRestart = await makeRequest('POST', '/api/auth/login', {
+      identity: 'admin@smartworkforce.internal',
+      password: 'SmartWorkforce2024!'
+    });
+    assert(baselineLoginRestart.status === 200, `Expected 200 for baseline login after restart, got ${baselineLoginRestart.status}`);
+    activeTestCookies = extractCookies(baselineLoginRestart);
+    activeTestCsrf = baselineLoginRestart.body.csrfToken;
 
     // Verify analytics work consistently after server restart
     const postRestartOverview = await makeRequest('GET', '/api/analytics/overview');

@@ -1,0 +1,36 @@
+# ====================================================================
+# SmartWorkforce Environment & Artifact Exclusions
+# ====================================================================
+
+# SQLite Database Files & WAL Journal Logs
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+smartworkforce.db
+database/smartworkforce.db
+tests/temp_*.db
+
+# Environment & Secret Credentials
+.env
+.env.*
+*.env
+*.pem
+*.key
+
+# Node Dependencies & Package Manager Logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS & Editor Metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary and Scratch Artifacts
+scratch/
+*.tmp
+*.bak

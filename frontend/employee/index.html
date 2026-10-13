@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartWorkforce | Employee Self-Service & Smart ID Portal</title>
+  <meta name="description" content="Employee personal attendance portal with contactless smart ID card badge status, real-time punch history, and simulated gate verification.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared/css/style.css">
+  <style>
+    .emp-portal-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+    .emp-portal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 16px 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .emp-brand-area {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .emp-brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #059669, #10B981);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .emp-brand-title {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0;
+    }
+    .emp-brand-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin: 2px 0 0;
+    }
+    .emp-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .emp-live-clock {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      background: var(--bg-subtle);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+    .emp-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) {
+      .emp-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .smart-card-badge-wrap {
+      background: linear-gradient(145deg, #0F172A, #1E293B);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 24px;
+      color: #fff;
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .smart-card-badge-wrap::after {
+      content: '';
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 140px;
+      height: 140px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .card-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .rfid-chip-icon {
+      width: 36px;
+      height: 28px;
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      border-radius: 4px;
+      border: 1px solid #B45309;
+      position: relative;
+    }
+    .rfid-chip-icon::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+    .emp-avatar-large {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #0284C7;
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    .card-emp-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .card-emp-role {
+      font-size: 0.85rem;
+      color: #94A3B8;
+      margin-bottom: 16px;
+    }
+    .card-uid-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #34D399;
+    }
+    .emp-status-box {
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+    }
+    .emp-tap-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .emp-history-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .emp-select-wrap {
+      margin-bottom: 18px;
+    }
+  </style>
+</head>
+<body data-theme="dark">
+
+  <div class="emp-portal-container">
+    <!-- Header -->
+    <header class="emp-portal-header">
+      <div class="emp-brand-area">
+        <div class="emp-brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 24px; height: 24px;">
+            <path d="M4.9 19.1a10 10 0 0 1 0-14.2M7.8 16.2a6 6 0 0 1 0-8.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 0v5m4.2-2.8a6 6 0 0 0 0-8.4m2.8 11.2a10 10 0 0 0 0-14.2"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="emp-brand-title">SmartWorkforce</h1>
+          <p class="emp-brand-sub">Employee Self-Service & Smart ID Portal</p>
+        </div>
+      </div>
+
+      <div class="emp-header-actions">
+        <div class="emp-live-clock" id="empLiveClock">--:--:-- --</div>
+        <button type="button" class="btn-theme-toggle" id="themeToggle" style="margin: 0; padding: 6px 12px; font-size: 0.8rem;">☀️ Light Mode</button>
+        <a href="/login" class="btn-action-secondary" style="margin: 0; padding: 6px 14px; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+          <span>Sign Out</span>
+        </a>
+      </div>
+    </header>
+
+    <div class="emp-grid">
+      <!-- Left Column: Smart ID Card Presentation -->
+      <aside>
+        <div class="emp-select-wrap">
+          <label class="control-label" for="employeeSelector">Select Active Workforce Member:</label>
+          <select id="employeeSelector" class="select-input">
+            <option value="">Loading workforce records...</option>
+          </select>
+        </div>
+
+        <div class="smart-card-badge-wrap">
+          <div class="card-top-row">
+            <div class="rfid-chip-icon"></div>
+            <div style="font-size: 0.75rem; letter-spacing: 0.05em; color: #94A3B8; text-transform: uppercase;">
+              Contactless Smart ID
+            </div>
+          </div>
+
+          <div class="emp-avatar-large" id="badgeAvatar">AK</div>
+          <div class="card-emp-name" id="badgeName">Aravind Kumar</div>
+          <div class="card-emp-role" id="badgeRole">CNC Lead Operator • Production</div>
+
+          <div style="margin-top: 16px;">
+            <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 4px; text-transform: uppercase;">Card UID (13.56 MHz HF / NFC)</div>
+            <div class="card-uid-pill" id="badgeUid">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+              </svg>
+              <span id="badgeUidText">7E:A1:39:B2</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; font-size: 0.72rem; color: #64748B;">
+            Employee Identifier: <span id="badgeEmpId" style="color: #CBD5E1; font-family: var(--font-mono);">EMP-101</span>
+          </div>
+        </div>
+
+        <!-- Live Presence Status Box -->
+        <div class="emp-status-box">
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">Current Presence Status</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="status-indicator" id="statusDot"></span>
+            <span style="font-weight: 700; font-size: 1.05rem;" id="statusText">OUTSIDE PREMISES</span>
+          </div>
+          <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-muted);">
+            Last detection: <strong id="statusLastSeen" style="color: var(--text-main);">Not detected today</strong>
+          </div>
+        </div>
+
+        <!-- Corporate Shift Policy -->
+        <div style="margin-top: 16px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">
+          <strong style="color: var(--text-main);">Shift Policy:</strong> Standard workday is 09:00 AM – 05:00 PM with a 15-minute grace window. Card scans within 5s at the same portal are debounced for fraud prevention.
+        </div>
+      </aside>
+
+      <!-- Right Column: Interactive Simulator & Personal Logs -->
+      <main>
+        <!-- Self Tap Simulated Station -->
+        <div class="emp-tap-box">
+          <h2 style="font-size: 1.1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" style="width: 20px; height: 20px;">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            Simulate Smart Card Presentation
+          </h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 18px;">
+            Tap your contactless smart ID card at a facility checkpoint to register real-time entry or departure.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
+            <div class="control-group" style="margin: 0;">
+              <label class="control-label" for="tapGateSelect">Target Gate Portal:</label>
+              <select id="tapGateSelect" class="select-input">
+                <option value="Gate 01 - Main Facility Turnstile">Gate 01 - Main Facility Turnstile</option>
+                <option value="Gate 02 - Production Bay">Gate 02 - Production Bay</option>
+                <option value="Gate 03 - IT Labs Secure Door">Gate 03 - IT Labs Secure Door</option>
+                <option value="Gate 04 - Maintenance Workshop Gate">Gate 04 - Maintenance Workshop Gate</option>
+              </select>
+            </div>
+
+            <div class="control-group" style="margin: 0;">
+              <label class="control-label" for="tapModeSelect">Detection Mode:</label>
+              <select id="tapModeSelect" class="select-input">
+                <option value="AUTO">AUTO (Toggle In / Out)</option>
+                <option value="ENTRY">Forced ENTRY</option>
+                <option value="EXIT">Forced EXIT</option>
+              </select>
+            </div>
+
+            <button type="button" class="btn-action-primary" id="btnSimulateTap" style="margin: 0; height: 42px; padding: 0 20px; white-space: nowrap;">
+              📡 Tap Smart Card
+            </button>
+          </div>
+        </div>
+
+        <!-- Personal Attendance Activity History -->
+        <div class="emp-history-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 style="font-size: 1.1rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" style="width: 20px; height: 20px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              My Punch History & Attendance Log
+            </h2>
+            <button type="button" class="btn-action-secondary" id="btnRefreshLogs" style="margin: 0; padding: 4px 12px; font-size: 0.8rem;">
+              🔄 Refresh
+            </button>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table" id="empLogsTable">
+              <thead>
+                <tr>
+                  <th>Log ID</th>
+                  <th>Timestamp</th>
+                  <th>Gate Location</th>
+                  <th>Event Type</th>
+                  <th>Verification</th>
+                </tr>
+              </thead>
+              <tbody id="empLogsTbody">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading personal attendance history...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer"></div>
+
+  <!-- Shared & Employee Scripts -->
+  <script src="../shared/js/common.js"></script>
+  <script src="employee.js"></script>
+</body>
+</html>

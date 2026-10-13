@@ -2071,7 +2071,10 @@
 
   async function resetSimulationReportMetrics() {
     try {
-      const res = await fetch('/api/simulation/report', { method: 'DELETE' });
+      const res = await fetch('/api/simulation/report', {
+        method: 'DELETE',
+        headers: { 'X-CSRF-Token': getCsrfToken() }
+      });
       if (!res.ok) throw new Error('Failed to reset simulation metrics');
       const data = await res.json();
       showToast('Simulation metrics reset to zero. Attendance logs & database remain intact.', 'entry');
@@ -2169,7 +2172,10 @@
     btnClearLogs.addEventListener('click', async () => {
       if (confirm('Clear attendance history log from persistent SQLite database? Active employee inside/outside states will remain preserved.')) {
         try {
-          const res = await fetch('/api/attendance/logs', { method: 'DELETE' });
+          const res = await fetch('/api/attendance/logs', {
+            method: 'DELETE',
+            headers: { 'X-CSRF-Token': getCsrfToken() }
+          });
           if (!res.ok) throw new Error('Server failed to clear database logs');
           attendanceLogs = [];
           updateKPIs();
@@ -2245,7 +2251,10 @@
       try {
         const res = await fetch('/api/employees', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrfToken()
+          },
           body: JSON.stringify(newEmployeeData)
         });
 
@@ -2398,6 +2407,86 @@
     startAutoSync();
   }
 
-  loadInitialData();
+
+  // ========================================================
+  // ADMIN DASHBOARD AUTHENTICATION, CSRF & PORTAL ROUTING
+  // ========================================================
+  function getCsrfToken() {
+    return window.__swCsrfToken || (function() {
+      const match = document.cookie.match(/(?:^|;\s*)sw_csrf=([^;]+)/);
+      return match ? decodeURIComponent(match[1]) : '';
+    })();
+  }
+
+  async function handleSignOut() {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrfToken()
+        }
+      });
+    } catch (_) {}
+    window.location.href = '/login';
+  }
+
+  async function initAdminPortal() {
+    const btnHeaderSignOut = document.getElementById('btnHeaderSignOut');
+    const btnSidebarSignOut = document.getElementById('btnSidebarSignOut');
+
+    if (btnHeaderSignOut) {
+      btnHeaderSignOut.addEventListener('click', handleSignOut);
+    }
+    if (btnSidebarSignOut) {
+      btnSidebarSignOut.addEventListener('click', handleSignOut);
+    }
+
+    try {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) {
+        window.location.href = '/login?redirect=/admin';
+        return;
+      }
+      const data = await res.json();
+      if (!data.authenticated) {
+        window.location.href = '/login?redirect=/admin';
+        return;
+      }
+      window.__swAuth = data;
+      if (data.csrfToken) {
+        window.__swCsrfToken = data.csrfToken;
+      }
+
+      // Update sidebar & header user info dynamically
+      const userNameEl = document.querySelector('.user-name');
+      if (userNameEl && data.user) {
+        userNameEl.textContent = data.user.fullName || data.user.name;
+      }
+      const userRoleEl = document.querySelector('.user-role');
+      if (userRoleEl && data.user) {
+        userRoleEl.textContent = data.user.role === 'COMPANY_HEAD' ? 'Company Head' : (data.user.role || 'Administrator');
+      }
+      const userAvatarEl = document.querySelector('.user-avatar');
+      if (userAvatarEl && data.user && (data.user.fullName || data.user.name)) {
+        const fullName = (data.user.fullName || data.user.name).trim();
+        const parts = fullName.split(/\s+/);
+        userAvatarEl.textContent = parts.length > 1
+          ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+          : fullName.slice(0, 2).toUpperCase();
+      }
+      const brandSubEl = document.querySelector('.brand-subtitle');
+      if (brandSubEl && data.company) {
+        brandSubEl.textContent = data.company.name;
+      }
+    } catch (_) {
+      window.location.href = '/login?redirect=/admin';
+      return;
+    }
+
+    loadInitialData();
+  }
+
+  initAdminPortal();
 
 })();
