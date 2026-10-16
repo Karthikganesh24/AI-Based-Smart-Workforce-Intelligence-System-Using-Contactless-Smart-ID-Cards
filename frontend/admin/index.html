@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../shared/css/style.css">
+  <link rel="stylesheet" href="/shared/css/style.css">
 </head>
 <body data-theme="dark">
 
@@ -992,10 +992,18 @@
                 </select>
 
                 <!-- Filter Status -->
-                <select id="filterEmpStatus" class="select-input" style="width: auto; min-width: 140px;">
-                  <option value="ALL">All Statuses</option>
+                <select id="filterEmpStatus" class="select-input" style="width: auto; min-width: 130px;">
+                  <option value="ALL">All Presence</option>
                   <option value="INSIDE">Currently Inside</option>
                   <option value="OUTSIDE">Currently Outside</option>
+                </select>
+
+                <!-- Filter Account Status -->
+                <select id="filterEmpAccountStatus" class="select-input" style="width: auto; min-width: 140px;">
+                  <option value="ALL">All Account Status</option>
+                  <option value="ACTIVE">Active Accounts</option>
+                  <option value="SUSPENDED">Suspended Accounts</option>
+                  <option value="ARCHIVED">Archived Records</option>
                 </select>
 
                 <!-- Add Employee Button -->
@@ -1018,9 +1026,10 @@
                     <th>Department</th>
                     <th>Designation</th>
                     <th>Smart Card UID</th>
-                    <th>Current Status</th>
+                    <th>Account Status</th>
+                    <th>Presence</th>
                     <th>Last Detection</th>
-                    <th style="text-align: right;">Simulate Gate Tap</th>
+                    <th style="text-align: right; min-width: 200px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="employeeTableBody">
@@ -1323,10 +1332,13 @@
   <!-- ========================================================
        3. ADD EMPLOYEE MODAL (Employee Management)
        ======================================================== -->
+  <!-- ========================================================
+       3. ADD EMPLOYEE MODAL (Employee Management & Phase 3 Accounts)
+       ======================================================== -->
   <div class="modal-overlay" id="modalAddEmployee">
     <div class="modal-card">
       <div class="modal-header">
-        <div class="modal-title">
+        <div class="modal-title" id="modalAddEmployeeTitle">
           <svg style="width: 20px; height: 20px; stroke: var(--accent-primary); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
             <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
             <circle cx="8.5" cy="7" r="4"></circle>
@@ -1335,19 +1347,22 @@
           </svg>
           <span>Register New Workforce Member</span>
         </div>
-        <button class="modal-close-btn" id="btnCloseAddEmployeeModal">&times;</button>
+        <button class="modal-close-btn" id="btnCloseAddEmployeeModal" aria-label="Close modal">&times;</button>
       </div>
 
+      <!-- Stage 1: Add Employee Form -->
       <form id="formAddEmployee" class="modal-body">
-        <div class="modal-form-grid">
-          <div class="control-group">
-            <label class="control-label" for="newEmpId">Employee ID *</label>
-            <input type="text" id="newEmpId" class="text-input" placeholder="e.g. EMP-113" required>
+        <div class="disclaimer-banner" style="margin-bottom: 16px; font-size: 0.78rem;">
+          <span style="font-size: 1.1rem; flex-shrink: 0;">🛡️</span>
+          <div>
+            <strong>Temporary Password Rule:</strong> Generated as <strong>First 4 letters of name + last 4 digits of phone</strong> (e.g. Arun Kumar & 9876543210 &rarr; <code>Arun3210</code>). Password change is required on first login.
           </div>
+        </div>
 
-          <div class="control-group">
+        <div class="modal-form-grid">
+          <div class="control-group" style="grid-column: 1 / -1;">
             <label class="control-label" for="newEmpName">Full Name *</label>
-            <input type="text" id="newEmpName" class="text-input" placeholder="e.g. Rahul Sharma" required>
+            <input type="text" id="newEmpName" class="text-input" placeholder="e.g. Rahul Sharma" required autocomplete="off">
           </div>
 
           <div class="control-group">
@@ -1362,35 +1377,312 @@
 
           <div class="control-group">
             <label class="control-label" for="newEmpRole">Designation / Role *</label>
-            <input type="text" id="newEmpRole" class="text-input" placeholder="e.g. PLC Programmer" required>
+            <input type="text" id="newEmpRole" class="text-input" placeholder="e.g. PLC Programmer" required autocomplete="off">
+          </div>
+
+          <!-- Employee Email below Department/Designation row -->
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="newEmpEmail">Employee Gmail / Email ID *</label>
+            <input type="email" id="newEmpEmail" class="text-input" placeholder="e.g. rahul.sharma@gmail.com" required autocomplete="off">
+            <div id="newEmpEmailError" class="field-error-msg" style="display: none; color: #EF4444; font-size: 0.74rem; margin-top: 4px; font-weight: 500;"></div>
+          </div>
+
+          <!-- Phone Number below Email -->
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="newEmpPhone">Phone Number *</label>
+            <input type="tel" id="newEmpPhone" class="text-input" placeholder="e.g. +91 98765 43210" required autocomplete="off">
+            <div id="newEmpPhoneError" class="field-error-msg" style="display: none; color: #EF4444; font-size: 0.74rem; margin-top: 4px; font-weight: 500;"></div>
           </div>
 
           <div class="control-group" style="grid-column: 1 / -1;">
-            <label class="control-label" for="newEmpUid">Smart Card UID (RFID 13.56MHz Hex) *</label>
-            <div style="display: flex; gap: 8px;">
-              <input type="text" id="newEmpUid" class="text-input" placeholder="e.g. 8A:4F:19:CE" required style="font-family: var(--font-mono);">
+            <div class="control-label-split" style="display: flex; justify-content: space-between; align-items: baseline;">
+              <label class="control-label" for="newEmpUid" style="margin-bottom: 0;">Smart Card UID (RFID / NFC)</label>
+              <span class="control-hint" style="font-size: 0.7rem; color: var(--text-dim);">Optional badge assignment</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <input type="text" id="newEmpUid" class="text-input" placeholder="Optional - Leave blank if not yet assigned" style="font-family: var(--font-mono); text-transform: uppercase;">
               <button type="button" class="btn-action-secondary" id="btnGenUid" style="margin-top: 0; width: auto; white-space: nowrap;">
+                🎲 Generate UID
+              </button>
+            </div>
+            <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 5px;">
+              Leave blank if physical smart card is not yet issued. Can be assigned later.
+            </p>
+          </div>
+        </div>
+
+        <div id="modalAddEmployeeError" style="display: none; margin-top: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-sm); color: #EF4444; font-size: 0.8rem; line-height: 1.45; font-weight: 500;"></div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-action-secondary" id="btnCancelAddEmployee" style="margin-top: 0; width: auto;">Cancel</button>
+          <button type="submit" class="btn-action-primary" id="btnSubmitAddEmployee" style="margin-top: 0; width: auto;">Create Employee & Account</button>
+        </div>
+      </form>
+
+      <!-- Stage 2: Generated Credentials Display (Shown Once) -->
+      <div id="stageEmployeeCredentials" class="modal-body" style="display: none;">
+        <div class="credential-display-card">
+          <div class="credential-success-banner">
+            <div class="credential-success-icon">✓</div>
+            <div>
+              <div class="credential-success-title" id="credEmpSummaryName">Employee Enrolled Successfully</div>
+              <div class="credential-success-desc" id="credEmpSummaryDept">Credentials generated and ready for delivery.</div>
+            </div>
+          </div>
+
+          <div class="credential-details-grid">
+            <div class="credential-field-row">
+              <span class="credential-field-label">Assigned Employee ID</span>
+              <div class="credential-field-content">
+                <span class="credential-code-box" id="dispCredEmpId">EMP-XXX</span>
+                <button type="button" class="btn-copy-credential" id="btnCopyCredId" title="Copy Employee ID">
+                  📋 Copy
+                </button>
+              </div>
+            </div>
+
+            <div class="credential-field-row">
+              <span class="credential-field-label">Temporary Password</span>
+              <div class="credential-field-content">
+                <span class="credential-code-box password-highlight" id="dispCredPassword">••••••••••••••</span>
+                <button type="button" class="btn-copy-credential" id="btnCopyCredPassword" title="Copy Temporary Password">
+                  📋 Copy
+                </button>
+              </div>
+            </div>
+
+            <div class="credential-field-row" id="rowCredEmail" style="display: none;">
+              <span class="credential-field-label">Employee Email</span>
+              <div class="credential-field-content">
+                <span class="credential-code-box" id="dispCredEmail" style="font-family: inherit; font-size: 0.85rem;">--</span>
+              </div>
+            </div>
+
+            <div class="credential-field-row" id="rowCredPhone" style="display: none;">
+              <span class="credential-field-label">Phone Number</span>
+              <div class="credential-field-content">
+                <span class="credential-code-box" id="dispCredPhone" style="font-family: inherit; font-size: 0.85rem;">--</span>
+              </div>
+            </div>
+
+            <div class="credential-field-row" id="rowCredCardUid" style="display: none;">
+              <span class="credential-field-label">Smart Card UID</span>
+              <div class="credential-field-content">
+                <span class="credential-code-box" id="dispCredCardUid">--:--:--:--</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end;">
+            <button type="button" class="btn-action-secondary" id="btnCopyAllCredentials" style="margin-top: 0; width: 100%; font-size: 0.82rem; padding: 10px;">
+              📋 Copy All Login Credentials to Clipboard
+            </button>
+          </div>
+
+          <div class="credential-warning-banner">
+            <span style="font-size: 1rem; flex-shrink: 0;">⚠️</span>
+            <div>
+              <strong>Single-Presentation Security Notice:</strong> This cryptographically random temporary password is only displayed once and is never stored in plaintext on the server. The employee will be forced to change their password (<code>must_change_password = 1</code>) upon their first sign-in.
+            </div>
+          </div>
+
+          <div class="modal-footer" style="margin-top: 10px;">
+            <button type="button" class="btn-action-primary" id="btnDoneAddEmployee" style="margin-top: 0; width: 100%;">Done & Return to Dashboard</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================
+       4. VIEW EMPLOYEE PROFILE MODAL
+       ======================================================== -->
+  <div class="modal-overlay" id="modalViewEmployee">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg style="width: 20px; height: 20px; stroke: var(--accent-cyan); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span id="viewEmpTitle">Employee Profile</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseViewEmployeeModal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px 24px;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-medium);">
+          <div id="viewEmpAvatar" class="emp-avatar-lg" style="width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; color: #fff; background-color: #0284C7;">--</div>
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 id="viewEmpName" style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin: 0;">Employee Name</h3>
+              <span id="viewEmpAccountBadge"></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 0.8rem; color: var(--text-muted);">
+              <span id="viewEmpIdBadge" class="emp-id-badge" style="font-size: 0.75rem;">EMP-XXX</span>
+              <span id="viewEmpRoleDept">Role &bull; Department</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="emp-details-grid">
+          <div class="emp-details-cell">
+            <div class="emp-details-label">Workforce Email</div>
+            <div class="emp-details-value" id="viewEmpEmail">--</div>
+          </div>
+          <div class="emp-details-cell">
+            <div class="emp-details-label">Contact Phone</div>
+            <div class="emp-details-value" id="viewEmpPhone">--</div>
+          </div>
+          <div class="emp-details-cell">
+            <div class="emp-details-label">Smart Card UID (RFID / NFC)</div>
+            <div class="emp-details-value" id="viewEmpUid" style="font-family: var(--font-mono); font-size: 0.82rem;">--</div>
+          </div>
+          <div class="emp-details-cell">
+            <div class="emp-details-label">Current Facility Presence</div>
+            <div class="emp-details-value" id="viewEmpPresence">--</div>
+          </div>
+          <div class="emp-details-cell">
+            <div class="emp-details-label">Last Detected At</div>
+            <div class="emp-details-value" id="viewEmpLastSeen" style="font-family: var(--font-mono); font-size: 0.82rem;">--</div>
+          </div>
+          <div class="emp-details-cell">
+            <div class="emp-details-label">First Login Password Change</div>
+            <div class="emp-details-value" id="viewEmpPwStatus">--</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px;">
+          <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">
+            Recent Attendance Telemetry (<span id="viewEmpTotalRecords">0</span> events recorded)
+          </div>
+          <div id="viewEmpRecentLogs" style="background: var(--bg-base-subtle); border: 1px solid var(--border-medium); border-radius: var(--radius-sm); max-height: 140px; overflow-y: auto; padding: 6px 12px; font-size: 0.78rem;">
+            <!-- Telemetry items -->
+          </div>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn-action-secondary" id="btnEditFromViewModal" style="margin-top: 0; width: auto;">✏️ Edit Member</button>
+          <button type="button" class="btn-action-primary" id="btnCloseViewModalBtn" style="margin-top: 0; width: auto;">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       5. EDIT EMPLOYEE MODAL
+       ======================================================== -->
+  <div class="modal-overlay" id="modalEditEmployee">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg style="width: 20px; height: 20px; stroke: var(--accent-cyan); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          <span>Edit Workforce Member</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseEditEmployeeModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="formEditEmployee" class="modal-body">
+        <div class="modal-form-grid">
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <label class="control-label" for="editEmpId">Employee ID</label>
+              <span style="font-size: 0.72rem; color: var(--text-dim); font-weight: 500;">Immutable System Identifier</span>
+            </div>
+            <input type="text" id="editEmpId" class="text-input" readonly disabled style="font-family: var(--font-mono); opacity: 0.7; cursor: not-allowed;">
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="editEmpName">Full Name *</label>
+            <input type="text" id="editEmpName" class="text-input" placeholder="e.g. Rahul Sharma" required autocomplete="off">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="editEmpDept">Department *</label>
+            <select id="editEmpDept" class="select-input" required>
+              <option value="Production">Production</option>
+              <option value="IT">IT & Software</option>
+              <option value="Quality">Quality</option>
+              <option value="Maintenance">Maintenance</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="editEmpRole">Designation / Role *</label>
+            <input type="text" id="editEmpRole" class="text-input" placeholder="e.g. PLC Programmer" required autocomplete="off">
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="editEmpEmail">Employee Gmail / Email ID *</label>
+            <input type="email" id="editEmpEmail" class="text-input" placeholder="e.g. rahul.sharma@gmail.com" required autocomplete="off">
+            <div id="editEmpEmailError" class="field-error-msg" style="display: none; color: #EF4444; font-size: 0.74rem; margin-top: 4px; font-weight: 500;"></div>
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="editEmpPhone">Phone Number *</label>
+            <input type="tel" id="editEmpPhone" class="text-input" placeholder="e.g. +91 98765 43210" required autocomplete="off">
+            <div id="editEmpPhoneError" class="field-error-msg" style="display: none; color: #EF4444; font-size: 0.74rem; margin-top: 4px; font-weight: 500;"></div>
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <div class="control-label-split" style="display: flex; justify-content: space-between; align-items: baseline;">
+              <label class="control-label" for="editEmpUid" style="margin-bottom: 0;">Smart Card UID (RFID / NFC)</label>
+              <span class="control-hint" style="font-size: 0.7rem; color: var(--text-dim);">Optional badge assignment</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <input type="text" id="editEmpUid" class="text-input" placeholder="Leave blank to unassign" style="font-family: var(--font-mono); text-transform: uppercase;">
+              <button type="button" class="btn-action-secondary" id="btnGenEditUid" style="margin-top: 0; width: auto; white-space: nowrap;">
                 🎲 Generate UID
               </button>
             </div>
           </div>
         </div>
 
+        <div id="modalEditEmployeeError" style="display: none; margin-top: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-sm); color: #EF4444; font-size: 0.8rem; line-height: 1.45; font-weight: 500;"></div>
+
         <div class="modal-footer">
-          <button type="button" class="btn-action-secondary" id="btnCancelAddEmployee" style="margin-top: 0; width: auto;">Cancel</button>
-          <button type="submit" class="btn-action-primary" style="margin-top: 0; width: auto;">Save & Enroll Badge</button>
+          <button type="button" class="btn-action-secondary" id="btnCancelEditEmployee" style="margin-top: 0; width: auto;">Cancel</button>
+          <button type="submit" class="btn-action-primary" id="btnSubmitEditEmployee" style="margin-top: 0; width: auto;">Save Changes</button>
         </div>
       </form>
     </div>
   </div>
 
-
+  <!-- ========================================================
+       6. CONFIRMATION DIALOG MODAL (Deactivation & Deletion)
+       ======================================================== -->
+  <div class="modal-overlay" id="modalConfirmAction">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span id="confirmActionIcon" style="font-size: 1.2rem;">⚠️</span>
+          <span id="confirmActionTitle">Confirm Action</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseConfirmModal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px 24px;">
+        <p id="confirmActionMessage" style="font-size: 0.88rem; line-height: 1.5; color: var(--text-main); margin-bottom: 14px;">
+          Are you sure you want to proceed with this action?
+        </p>
+        <div id="confirmActionWarning" style="padding: 10px 14px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: var(--radius-sm); color: #D97706; font-size: 0.78rem; line-height: 1.45; font-weight: 500;">
+          Notice details...
+        </div>
+        <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn-action-secondary" id="btnCancelConfirmAction" style="margin-top: 0; width: auto;">Cancel</button>
+          <button type="button" class="btn-action-primary" id="btnSubmitConfirmAction" style="margin-top: 0; width: auto;">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notification Container -->
   <div id="toastContainer"></div>
 
   <!-- Shared Utilities & Admin Controller -->
-  <script src="../shared/js/common.js"></script>
-  <script src="admin.js"></script>
+  <script src="/shared/js/common.js"></script>
+  <script src="/admin/admin.js"></script>
 </body>
 </html>

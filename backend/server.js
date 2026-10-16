@@ -145,14 +145,20 @@ function resolveSession(req) {
   } else if (session.user_type === 'EMPLOYEE') {
     const emp = db.getEmployeeById(session.account_id);
     if (!emp) return null;
+    const acc = db.getEmployeeAccountByEmpId(session.account_id);
+    if (!acc) return null;
+    // Reject suspended or pending accounts immediately
+    if (acc.account_status !== 'ACTIVE') return null;
     const company = db.getCompanyById(session.company_id);
     return {
       session,
       rawToken,
       user: emp,
+      account: acc,
       company,
       userType: 'EMPLOYEE',
       companyId: session.company_id,
+      mustChangePassword: Boolean(acc.must_change_password),
       isCookieAuth: Boolean(cookies.sw_session)
     };
   }
@@ -215,32 +221,12 @@ async function handleApiRequest(req, res, urlPath) {
         return sendError(res, status, regErr.message);
       }
 
-      // Generate server session with hashed token storage
-      const rawToken = auth.generateOpaqueToken();
-      const tokenHash = auth.hashToken(rawToken);
-      const csrfToken = auth.generateCsrfToken();
-      const expiresAt = new Date(Date.now() + 86400 * 1000).toISOString();
-
-      db.createSession({
-        id: tokenHash,
-        accountId: regResult.user.id,
-        userType: 'COMPANY_HEAD',
-        companyId: regResult.company.id,
-        csrfToken: csrfToken,
-        ipAddress: req.socket.remoteAddress,
-        userAgent: req.headers['user-agent'],
-        expiresAt: expiresAt
-      });
-
-      const cookies = [
-        auth.serializeCookie('sw_session', rawToken, { maxAge: 86400, httpOnly: true, sameSite: 'Lax', secure: isSecure, path: '/' }),
-        auth.serializeCookie('sw_csrf', csrfToken, { maxAge: 86400, httpOnly: false, sameSite: 'Lax', secure: isSecure, path: '/' })
-      ];
-
+      // Do not automatically create a session or set session cookies.
+      // The user must manually log in using their credentials after registration.
       return sendJson(res, 201, {
         success: true,
-        message: 'Company registered successfully.',
-        redirectTo: '/admin',
+        message: 'Company registered successfully! Please log in using your registered email and password.',
+        redirectTo: '/login',
         company: {
           id: regResult.company.id,
           name: regResult.company.name,
@@ -253,21 +239,87 @@ async function handleApiRequest(req, res, urlPath) {
           email: regResult.user.email,
           role: regResult.user.role,
           companyId: regResult.user.company_id
-        },
-        csrfToken: csrfToken
-      }, { 'Set-Cookie': cookies });
+        }
+      });
     }
 
-    // B. POST /api/auth/login - Server-side Company Head / Admin Login
+    // B. POST /api/auth/login - Server-side Company Head / Admin / Employee Login
     if (pathOnly === '/api/auth/login' && method === 'POST') {
       const body = await parseJsonBody(req);
-      const { identity, email, adminId, password } = body;
-      const targetIdentity = (identity || email || adminId || '').trim();
+      const { identity, email, adminId, employeeId, password, portalMode } = body;
+      const targetIdentity = (identity || email || adminId || employeeId || '').trim();
 
       if (!targetIdentity || !password) {
         return sendError(res, 400, 'Identity and password are required.');
       }
 
+      const isEmployeeMode = portalMode === 'EMPLOYEE' || (portalMode !== 'ADMIN' && targetIdentity.toUpperCase().startsWith('EMP-'));
+
+      if (isEmployeeMode) {
+        const normEmpId = targetIdentity.toUpperCase();
+        const emp = db.getEmployeeById(normEmpId) || db.getEmployeeById(targetIdentity);
+        const acc = db.getEmployeeAccountByEmpId(normEmpId) || db.getEmployeeAccountByEmpId(targetIdentity);
+
+        if (!emp || !acc) {
+          return sendError(res, 401, 'Invalid employee ID or password.');
+        }
+
+        const isValidPassword = auth.verifyPassword(password, acc.password_salt, acc.password_hash);
+        if (!isValidPassword) {
+          return sendError(res, 401, 'Invalid employee ID or password.');
+        }
+
+        if (acc.account_status === 'SUSPENDED') {
+          return sendError(res, 403, 'Account suspended. Contact your company administrator.');
+        }
+        if (acc.account_status === 'PENDING') {
+          return sendError(res, 403, 'Account pending activation. Contact your company administrator.');
+        }
+        if (acc.account_status !== 'ACTIVE') {
+          return sendError(res, 403, 'Account is not active.');
+        }
+
+        const rawToken = auth.generateOpaqueToken();
+        const tokenHash = auth.hashToken(rawToken);
+        const csrfToken = auth.generateCsrfToken();
+        const expiresAt = new Date(Date.now() + 86400 * 1000).toISOString();
+        const empCompanyId = emp.companyId || emp.company_id;
+
+        db.createSession({
+          id: tokenHash,
+          accountId: emp.id,
+          userType: 'EMPLOYEE',
+          companyId: empCompanyId,
+          csrfToken: csrfToken,
+          ipAddress: req.socket.remoteAddress,
+          userAgent: req.headers['user-agent'],
+          expiresAt: expiresAt
+        });
+
+        const cookies = [
+          auth.serializeCookie('sw_session', rawToken, { maxAge: 86400, httpOnly: true, sameSite: 'Lax', secure: isSecure, path: '/' }),
+          auth.serializeCookie('sw_csrf', csrfToken, { maxAge: 86400, httpOnly: false, sameSite: 'Lax', secure: isSecure, path: '/' })
+        ];
+
+        const mustChange = Boolean(acc.must_change_password);
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Authentication successful.',
+          mustChangePassword: mustChange,
+          redirectTo: mustChange ? '/employee?action=change-password' : '/employee',
+          user: {
+            id: emp.id,
+            fullName: emp.name,
+            role: emp.role,
+            department: emp.department,
+            companyId: empCompanyId,
+            userType: 'EMPLOYEE'
+          },
+          csrfToken: csrfToken
+        }, { 'Set-Cookie': cookies });
+      }
+
+      // Company Head / Admin Login Flow
       const user = db.getCompanyUserByEmailOrId(targetIdentity);
       if (!user) {
         return sendError(res, 401, 'Invalid email or password.');
@@ -326,10 +378,12 @@ async function handleApiRequest(req, res, urlPath) {
         user: {
           id: authCtx.user.id,
           fullName: authCtx.user.full_name || authCtx.user.name,
-          email: authCtx.user.email,
+          email: authCtx.user.email || null,
           role: authCtx.user.role || authCtx.userType,
-          companyId: authCtx.companyId
+          companyId: authCtx.companyId,
+          userType: authCtx.userType
         },
+        mustChangePassword: Boolean(authCtx.mustChangePassword),
         company: authCtx.company ? {
           id: authCtx.company.id,
           name: authCtx.company.name,
@@ -360,6 +414,176 @@ async function handleApiRequest(req, res, urlPath) {
     }
 
     // =========================================================
+    // EMPLOYEE PORTAL ENDPOINTS (AUTHENTICATED & ISOLATED)
+    // =========================================================
+
+    // E. POST /api/employee/change-password - Mandatory / Self Password Change
+    if (pathOnly === '/api/employee/change-password' && method === 'POST') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required.');
+      }
+      if (authCtx.userType !== 'EMPLOYEE') {
+        return sendError(res, 403, 'Permission denied: Employee portal only.');
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { currentPassword, newPassword, confirmPassword } = body;
+      if (!currentPassword || !newPassword) {
+        return sendError(res, 400, 'Current password and new password are required.');
+      }
+
+      if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+        return sendError(res, 400, 'New password and confirmation do not match.');
+      }
+
+      if (typeof newPassword !== 'string' || newPassword.length < 8) {
+        return sendError(res, 400, 'New password must be at least 8 characters long.');
+      }
+
+      const isValidCurrent = auth.verifyPassword(currentPassword, authCtx.account.password_salt, authCtx.account.password_hash);
+      if (!isValidCurrent) {
+        return sendError(res, 400, 'Current password is incorrect.');
+      }
+
+      if (currentPassword === newPassword) {
+        return sendError(res, 400, 'New password must be different from current password.');
+      }
+
+      const newSalt = auth.generateSalt();
+      const newHash = auth.hashPassword(newPassword, newSalt);
+      db.updateEmployeePassword(authCtx.user.id, newHash, newSalt);
+
+      return sendJson(res, 200, {
+        success: true,
+        message: 'Password updated successfully. You may now access your dashboard.',
+        mustChangePassword: false
+      });
+    }
+
+    // F. GET /api/employee/me - Authenticated Employee Personal Dashboard Data
+    if (pathOnly === '/api/employee/me' && method === 'GET') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to access employee dashboard.');
+      }
+      if (authCtx.userType !== 'EMPLOYEE') {
+        return sendError(res, 403, 'Permission denied: Employee portal only.');
+      }
+
+      // Mandatory password change enforcement: reject access until changed
+      if (authCtx.mustChangePassword) {
+        return sendJson(res, 403, {
+          error: 'Password change required before accessing employee dashboard.',
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          mustChangePassword: true,
+          employeeId: authCtx.user.id,
+          name: authCtx.user.name
+        });
+      }
+
+      // Strictly derive employee and company from session
+      const emp = db.getEmployeeById(authCtx.user.id);
+      const company = db.getCompanyById(authCtx.companyId);
+      const latestEvent = db.getLatestEventForEmployee(emp.id);
+
+      return sendJson(res, 200, {
+        success: true,
+        employee: {
+          id: emp.id,
+          name: emp.name,
+          companyId: authCtx.companyId,
+          companyName: company ? company.name : 'Unknown Company',
+          department: emp.department,
+          designation: emp.role,
+          cardUid: emp.uid || null,
+          cardStatus: emp.uid ? 'ACTIVE' : 'UNASSIGNED',
+          status: emp.status,
+          lastSeen: emp.lastSeen || emp.last_seen || 'Not detected today',
+          avatarBg: emp.avatarBg || emp.avatar_bg || '#0284C7'
+        },
+        latestEvent: latestEvent || null,
+        csrfToken: authCtx.session.csrf_token
+      });
+    }
+
+    // G. GET /api/employee/attendance - Authenticated Personal Attendance Records
+    if (pathOnly === '/api/employee/attendance' && method === 'GET') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view attendance history.');
+      }
+      if (authCtx.userType !== 'EMPLOYEE') {
+        return sendError(res, 403, 'Permission denied: Employee portal only.');
+      }
+
+      if (authCtx.mustChangePassword) {
+        return sendJson(res, 403, {
+          error: 'Password change required before accessing employee records.',
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          mustChangePassword: true
+        });
+      }
+
+      // Strictly derive empId and companyId from session
+      const logs = db.getAttendanceEventsForEmployee(authCtx.user.id, authCtx.companyId);
+      return sendJson(res, 200, logs);
+    }
+
+    // H. POST /api/employee/tap - Authenticated Self Smart Card Tap
+    if (pathOnly === '/api/employee/tap' && method === 'POST') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to tap card.');
+      }
+      if (authCtx.userType !== 'EMPLOYEE') {
+        return sendError(res, 403, 'Permission denied: Employee portal only.');
+      }
+
+      if (authCtx.mustChangePassword) {
+        return sendJson(res, 403, {
+          error: 'Password change required before tapping card.',
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          mustChangePassword: true
+        });
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { gate, mode } = body;
+      const targetGate = (gate && typeof gate === 'string' && gate.trim().length > 0)
+        ? gate.trim()
+        : 'Gate 01 - Main Facility Turnstile';
+      const targetMode = (mode && typeof mode === 'string' && ['AUTO', 'ENTRY', 'EXIT'].includes(mode.trim().toUpperCase()))
+        ? mode.trim().toUpperCase()
+        : 'AUTO';
+
+      const emp = db.getEmployeeById(authCtx.user.id);
+      if (!emp) {
+        return sendError(res, 404, 'Employee record not found.');
+      }
+
+      try {
+        const result = db.recordCardScan({
+          empId: emp.id,
+          uid: emp.uid || undefined,
+          mode: targetMode,
+          gate: targetGate
+        });
+        return sendJson(res, 200, result);
+      } catch (scanErr) {
+        return sendError(res, 400, scanErr.message);
+      }
+    }
+
+    // =========================================================
     // WORKFORCE OPERATIONAL ENDPOINTS (PROTECTED & SCOPED)
     // =========================================================
 
@@ -369,11 +593,21 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to access workforce roster.');
       }
-      const employees = db.getAllEmployees(authCtx.companyId);
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+      let includeArchived = false;
+      try {
+        const urlObj = new URL(req.url, 'http://localhost');
+        if (urlObj.searchParams.has('includeArchived')) {
+          includeArchived = urlObj.searchParams.get('includeArchived') === 'true';
+        }
+      } catch (_) {}
+      const employees = db.getAllEmployees(authCtx.companyId, includeArchived);
       return sendJson(res, 200, employees);
     }
 
-    // 2. POST /api/employees - Register new employee
+    // 2. POST /api/employees - Register new employee and create employee account (Phase 3)
     if (pathOnly === '/api/employees' && method === 'POST') {
       const authCtx = resolveSession(req);
       if (!authCtx) {
@@ -388,29 +622,347 @@ async function handleApiRequest(req, res, urlPath) {
         return sendError(res, 403, 'Invalid or missing CSRF token.');
       }
 
-      const { id, name, department, role, uid, avatarBg } = body;
+      const { id, name, department, role, uid, avatarBg, email, phone } = body;
 
-      if (!id || !name || !department || !role || !uid) {
-        return sendError(res, 400, 'Missing required fields: id, name, department, role, uid are required.');
+      if (!name || typeof name !== 'string' || name.trim().length < 2) {
+        return sendError(res, 400, 'Employee full name must be at least 2 characters long.');
+      }
+      if (!department || typeof department !== 'string' || !department.trim()) {
+        return sendError(res, 400, 'Department is required.');
+      }
+      if (!role || typeof role !== 'string' || role.trim().length < 2) {
+        return sendError(res, 400, 'Job designation/role must be at least 2 characters long.');
       }
 
-      if (db.getEmployeeById(id)) {
-        return sendError(res, 409, `Employee with ID ${id} already exists.`);
-      }
-      if (db.getEmployeeByUid(uid)) {
-        return sendError(res, 409, `Smart Card UID ${uid} is already assigned to another employee.`);
+      // Contact details validation (Employee Email and Phone Number)
+      let normEmail = null;
+      if (email !== undefined && email !== null && (typeof email !== 'string' || email.trim().length > 0)) {
+        if (typeof email !== 'string') {
+          return sendError(res, 400, 'Employee email must be a valid string.');
+        }
+        const trimmedEmail = email.trim();
+        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!EMAIL_REGEX.test(trimmedEmail)) {
+          return sendError(res, 400, 'Invalid email format. Please provide a valid email address (e.g. employee@company.com).');
+        }
+        normEmail = trimmedEmail.toLowerCase();
       }
 
-      const created = db.createEmployee({
-        id,
-        name,
-        department,
-        role,
-        uid,
-        avatarBg,
-        companyId: authCtx.companyId
+      let normPhone = null;
+      if (phone !== undefined && phone !== null && (typeof phone !== 'string' || phone.trim().length > 0)) {
+        if (typeof phone !== 'string') {
+          return sendError(res, 400, 'Phone number must be a valid string.');
+        }
+        const trimmedPhone = phone.trim();
+        const PHONE_REGEX = /^[+]?[\d\s\-().]{7,25}$/;
+        const digits = trimmedPhone.replace(/\D/g, '');
+        if (!PHONE_REGEX.test(trimmedPhone) || digits.length < 7 || digits.length > 15) {
+          return sendError(res, 400, 'Invalid phone number format. Please provide a valid phone number with 7 to 15 digits.');
+        }
+        normPhone = trimmedPhone;
+      }
+
+      // Generate or validate employee ID
+      let targetId = (typeof id === 'string' && id.trim()) ? id.trim() : null;
+      if (!targetId) {
+        targetId = db.generateUniqueEmployeeId();
+      } else if (db.getEmployeeById(targetId)) {
+        return sendError(res, 409, `Employee with ID ${targetId} already exists.`);
+      }
+
+      // Optional RFID card UID validation & normalization
+      let targetUid = null;
+      if (uid && typeof uid === 'string' && uid.trim().length > 0) {
+        targetUid = uid.trim().toUpperCase();
+        if (targetUid.length < 4 || targetUid.length > 64) {
+          return sendError(res, 400, 'Invalid UID format: Smart Card UID must be between 4 and 64 characters.');
+        }
+        if (db.getEmployeeByUid(targetUid)) {
+          return sendError(res, 409, `Smart Card UID ${targetUid} is already assigned to another employee.`);
+        }
+      }
+
+      // Derive company_id strictly from authenticated session
+      const targetCompanyId = authCtx.companyId;
+
+      // Duplicate email check scoped to authenticated company
+      if (normEmail) {
+        const existingWithEmail = db.getEmployeeByEmail(normEmail, targetCompanyId);
+        if (existingWithEmail) {
+          return sendError(res, 409, `An employee with email '${normEmail}' already exists in this organization.`);
+        }
+      }
+
+      // Generate temporary password following the SmartWorkforce rule:
+      // First 4 alphabetic letters of employee name + last 4 digits of phone number
+      let temporaryPassword;
+      if (normPhone) {
+        try {
+          temporaryPassword = auth.generateEmployeeTemporaryPassword(name.trim(), normPhone);
+        } catch (pwErr) {
+          return sendError(res, pwErr.statusCode || 400, pwErr.message);
+        }
+      } else {
+        // Fallback for legacy calls omitting phone
+        temporaryPassword = auth.generateTemporaryPassword(14);
+      }
+
+      let creationResult;
+      try {
+        creationResult = db.createEmployeeWithAccount({
+          id: targetId,
+          name: name.trim(),
+          department: department.trim(),
+          role: role.trim(),
+          uid: targetUid,
+          avatarBg,
+          companyId: targetCompanyId,
+          password: temporaryPassword,
+          email: normEmail,
+          phone: normPhone
+        });
+      } catch (creationErr) {
+        const status = creationErr.statusCode || 400;
+        return sendError(res, status, creationErr.message);
+      }
+
+      const created = creationResult.employee;
+      return sendJson(res, 201, {
+        ...created,
+        temporaryPassword: temporaryPassword,
+        mustChangePassword: true,
+        credentials: {
+          employeeId: created.id,
+          temporaryPassword: temporaryPassword,
+          mustChangePassword: true,
+          email: created.email,
+          phone: created.phone
+        }
       });
-      return sendJson(res, 201, created);
+    }
+
+    // 2B. GET /api/employees/:id - Retrieve Detailed Employee Profile
+    const empDetailMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)$/);
+    if (empDetailMatch && method === 'GET') {
+      const targetEmpId = decodeURIComponent(empDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view employee details.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      const recentEvents = db.getAttendanceEventsForEmployee(emp.id, authCtx.companyId);
+      const latestEvent = db.getLatestEventForEmployee(emp.id);
+
+      return sendJson(res, 200, {
+        ...emp,
+        latestEvent: latestEvent || null,
+        totalAttendanceRecords: recentEvents.length,
+        recentAttendance: recentEvents.slice(0, 10)
+      });
+    }
+
+    // 2C. PUT / PATCH /api/employees/:id - Update Employee Record
+    if (empDetailMatch && (method === 'PUT' || method === 'PATCH')) {
+      const targetEmpId = decodeURIComponent(empDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to update employee record.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      const { name, department, role, uid, email, phone } = body;
+
+      if (name !== undefined && (typeof name !== 'string' || name.trim().length < 2)) {
+        return sendError(res, 400, 'Employee full name must be at least 2 characters long.');
+      }
+      if (department !== undefined && (typeof department !== 'string' || !department.trim())) {
+        return sendError(res, 400, 'Department is required.');
+      }
+      if (role !== undefined && (typeof role !== 'string' || role.trim().length < 2)) {
+        return sendError(res, 400, 'Job designation / role must be at least 2 characters long.');
+      }
+
+      let normEmail = emp.email;
+      if (email !== undefined) {
+        if (email !== null && typeof email === 'string' && email.trim().length > 0) {
+          const trimmedEmail = email.trim();
+          const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!EMAIL_REGEX.test(trimmedEmail)) {
+            return sendError(res, 400, 'Invalid email format. Please provide a valid email address (e.g. employee@company.com).');
+          }
+          normEmail = trimmedEmail.toLowerCase();
+          const existingWithEmail = db.getEmployeeByEmail(normEmail, authCtx.companyId);
+          if (existingWithEmail && existingWithEmail.id !== targetEmpId) {
+            return sendError(res, 409, `An employee with email '${normEmail}' already exists in this organization.`);
+          }
+        } else {
+          normEmail = null;
+        }
+      }
+
+      let normPhone = emp.phone;
+      if (phone !== undefined) {
+        if (phone !== null && typeof phone === 'string' && phone.trim().length > 0) {
+          const trimmedPhone = phone.trim();
+          const PHONE_REGEX = /^[+]?[\d\s\-().]{7,25}$/;
+          const digits = trimmedPhone.replace(/\D/g, '');
+          if (!PHONE_REGEX.test(trimmedPhone) || digits.length < 7 || digits.length > 15) {
+            return sendError(res, 400, 'Invalid phone number format. Please provide a valid phone number with 7 to 15 digits.');
+          }
+          normPhone = trimmedPhone;
+        } else {
+          normPhone = null;
+        }
+      }
+
+      let normUid = emp.uid;
+      if (uid !== undefined) {
+        if (uid !== null && typeof uid === 'string' && uid.trim().length > 0) {
+          normUid = uid.trim().toUpperCase();
+          if (normUid.length < 4 || normUid.length > 64) {
+            return sendError(res, 400, 'Invalid UID format: Smart Card UID must be between 4 and 64 characters.');
+          }
+          const existingWithUid = db.getEmployeeByUid(normUid);
+          if (existingWithUid && existingWithUid.id !== targetEmpId) {
+            return sendError(res, 409, `Smart Card UID ${normUid} is already assigned to another employee.`);
+          }
+        } else {
+          normUid = null;
+        }
+      }
+
+      try {
+        const updated = db.updateEmployee({
+          id: targetEmpId,
+          name: name !== undefined ? name.trim() : emp.name,
+          department: department !== undefined ? department.trim() : emp.department,
+          role: role !== undefined ? role.trim() : emp.role,
+          uid: normUid,
+          email: normEmail,
+          phone: normPhone,
+          companyId: authCtx.companyId
+        });
+
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Employee record updated successfully.',
+          employee: updated
+        });
+      } catch (updateErr) {
+        return sendError(res, updateErr.statusCode || 400, updateErr.message);
+      }
+    }
+
+    // 2D. POST / PUT / PATCH /api/employees/:id/status - Deactivate or Reactivate Account
+    const empStatusMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/status$/);
+    if (empStatusMatch && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      const targetEmpId = decodeURIComponent(empStatusMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to modify account status.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      const targetStatus = (body.status || body.accountStatus || '').trim().toUpperCase();
+      if (!['ACTIVE', 'SUSPENDED'].includes(targetStatus)) {
+        return sendError(res, 400, "Invalid status. Allowed values: 'ACTIVE', 'SUSPENDED'.");
+      }
+
+      let result;
+      if (targetStatus === 'SUSPENDED') {
+        result = db.deactivateEmployee(targetEmpId, authCtx.companyId);
+      } else {
+        result = db.reactivateEmployee(targetEmpId, authCtx.companyId);
+      }
+
+      return sendJson(res, 200, result);
+    }
+
+    // 2E. DELETE /api/employees/:id - Safe Archive & Soft Delete Employee Record
+    if (empDetailMatch && method === 'DELETE') {
+      const targetEmpId = decodeURIComponent(empDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to delete employee.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      // Safe reversible archiving:
+      // Note: `attendance_events` table enforces `FOREIGN KEY (emp_id) REFERENCES employees(id) ON DELETE CASCADE`.
+      // A raw SQL `DELETE FROM employees` would permanently obliterate all attendance events for this employee.
+      // Safe soft-delete / archiving preserves audit records and attendance history intact.
+      const archiveResult = db.deleteOrArchiveEmployee(targetEmpId, authCtx.companyId);
+      return sendJson(res, 200, archiveResult);
+    }
+
+    // 2F. POST /api/employees/:id/restore - Restore Archived Employee Record
+    const empRestoreMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/restore$/);
+    if (empRestoreMatch && method === 'POST') {
+      const targetEmpId = decodeURIComponent(empRestoreMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to restore employee.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      const restoreResult = db.restoreArchivedEmployee(targetEmpId, authCtx.companyId);
+      return sendJson(res, 200, restoreResult);
     }
 
     // 3. GET /api/attendance/logs - Retrieve attendance event logs (Scoped to company)
@@ -418,6 +970,9 @@ async function handleApiRequest(req, res, urlPath) {
       const authCtx = resolveSession(req);
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to access attendance logs.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
       }
       const logs = db.getAllAttendanceEvents(authCtx.companyId);
       return sendJson(res, 200, logs);
@@ -552,6 +1107,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
       }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
       const overview = analytics.getAnalyticsOverview(authCtx.companyId);
       return sendJson(res, 200, overview);
     }
@@ -561,6 +1119,9 @@ async function handleApiRequest(req, res, urlPath) {
       const authCtx = resolveSession(req);
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
       }
       const deptData = analytics.getDepartmentAnalytics(authCtx.companyId);
       return sendJson(res, 200, deptData);
@@ -572,6 +1133,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
       }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
       const punctualityData = analytics.getPunctualityAndOvertime(authCtx.companyId);
       return sendJson(res, 200, punctualityData);
     }
@@ -581,6 +1145,9 @@ async function handleApiRequest(req, res, urlPath) {
       const authCtx = resolveSession(req);
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
       }
       const risks = analytics.getAbsenteeismRiskIndicators(authCtx.companyId);
       return sendJson(res, 200, risks);
@@ -592,6 +1159,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
       }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
       const anomalies = analytics.getAttendanceAnomalies(authCtx.companyId);
       return sendJson(res, 200, anomalies);
     }
@@ -601,6 +1171,9 @@ async function handleApiRequest(req, res, urlPath) {
       const authCtx = resolveSession(req);
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view simulation report.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
       }
       const employees = db.getAllEmployees(authCtx.companyId);
       const anomaliesData = analytics.getAttendanceAnomalies(authCtx.companyId);
@@ -664,6 +1237,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to reset simulation report.');
       }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
       simulationSessionStats.reset();
       return sendJson(res, 200, {
         success: true,
@@ -687,7 +1263,7 @@ function startServer(portToTry) {
   const server = http.createServer(async (req, res) => {
     // Enable CORS for local development
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Gateway-Key, X-Device-Id, X-CSRF-Token, Authorization');
 
     if (req.method === 'OPTIONS') {
@@ -723,11 +1299,19 @@ function startServer(portToTry) {
       }
       filePath = path.join(frontendDir, 'admin', 'index.html');
     } else if (safeUrl === '/employee' || safeUrl === '/employee/') {
-      // Protect Employee portal: require active session
+      // Protect Employee portal: require active employee session
       const authCtx = resolveSession(req);
       if (!authCtx) {
         res.writeHead(302, {
           'Location': '/login?redirect=/employee',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        res.end();
+        return;
+      }
+      if (authCtx.userType !== 'EMPLOYEE') {
+        res.writeHead(302, {
+          'Location': '/admin',
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         });
         res.end();
@@ -740,6 +1324,12 @@ function startServer(portToTry) {
       filePath = path.join(frontendDir, 'assets', 'office_building.jpg');
     } else if (safeUrl === '/script.js') {
       filePath = path.join(frontendDir, 'shared', 'js', 'common.js');
+    } else if (safeUrl === '/login.js') {
+      filePath = path.join(frontendDir, 'login', 'login.js');
+    } else if (safeUrl === '/admin.js') {
+      filePath = path.join(frontendDir, 'admin', 'admin.js');
+    } else if (safeUrl === '/employee.js') {
+      filePath = path.join(frontendDir, 'employee', 'employee.js');
     } else {
       const cleanPath = safeUrl.replace(/^\/+/, '');
       filePath = path.resolve(frontendDir, cleanPath);

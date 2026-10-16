@@ -308,6 +308,26 @@
 
     async resetSimulationReport() {
       return this.request('DELETE', '/api/simulation/report');
+    },
+
+    async getEmployeeMe() {
+      return this.request('GET', '/api/employee/me');
+    },
+
+    async getEmployeeAttendance() {
+      return this.request('GET', '/api/employee/attendance');
+    },
+
+    async employeeTapCard(data) {
+      return this.request('POST', '/api/employee/tap', data);
+    },
+
+    async changeEmployeePassword(data) {
+      return this.request('POST', '/api/employee/change-password', data);
+    },
+
+    async logout() {
+      return this.request('POST', '/api/auth/logout');
     }
   };
 

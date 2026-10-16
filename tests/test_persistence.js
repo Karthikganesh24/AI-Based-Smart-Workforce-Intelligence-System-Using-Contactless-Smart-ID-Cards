@@ -37,6 +37,8 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const { DatabaseSync } = require('node:sqlite');
+const auth = require('../backend/auth.js');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const SERVER_PATH = fs.existsSync(path.join(PROJECT_ROOT, 'backend', 'server.js'))
@@ -88,7 +90,7 @@ function cleanupTestDb() {
       if (fs.existsSync(f)) {
         fs.unlinkSync(f);
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 }
 
@@ -126,8 +128,8 @@ function makeRequest(method, urlPath, payload = null, customHeaders = {}) {
       headers['Cookie'] = cookieHeader(activeTestCookies);
     }
     if (['POST', 'DELETE', 'PUT', 'PATCH'].includes(method.toUpperCase()) &&
-        customHeaders['X-CSRF-Token'] === undefined &&
-        activeTestCsrf) {
+      customHeaders['X-CSRF-Token'] === undefined &&
+      activeTestCsrf) {
       headers['X-CSRF-Token'] = activeTestCsrf;
     }
 
@@ -232,7 +234,7 @@ function stopServerInstance(child) {
     child.once('exit', () => resolve());
     child.kill('SIGTERM');
     setTimeout(() => {
-      try { child.kill('SIGKILL'); } catch (_) {}
+      try { child.kill('SIGKILL'); } catch (_) { }
       resolve();
     }, 2000);
   });
@@ -339,19 +341,28 @@ async function runPersistenceSuite() {
     assert(regCompRes.body.user.role === 'COMPANY_HEAD', `User role must be COMPANY_HEAD, got ${regCompRes.body.user.role}`);
     assert(regCompRes.body.user.password_hash === undefined, 'Password hash must never be returned in API response');
     assert(regCompRes.body.user.password_salt === undefined, 'Password salt must never be returned in API response');
-    assert(regCompRes.body.csrfToken && typeof regCompRes.body.csrfToken === 'string', 'CSRF token must be provided');
+    const regCookies = extractCookies(regCompRes);
+    assert(!regCookies.sw_session, 'sw_session cookie must NOT be set on registration');
+    assert(regCompRes.body.redirectTo === '/login' || regCompRes.body.redirectTo === '/', 'Registration must redirect to login, not /admin');
 
-    const titanCookies = extractCookies(regCompRes);
-    assert(titanCookies.sw_session, 'HttpOnly session cookie sw_session must be set');
-    assert(titanCookies.sw_csrf, 'CSRF cookie sw_csrf must be set');
-    const setCookieArr = Array.isArray(regCompRes.headers['set-cookie']) ? regCompRes.headers['set-cookie'] : [regCompRes.headers['set-cookie']];
+    // Verify manual login is required to obtain authenticated session
+    const titanLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: 'karthik@titan.internal',
+      password: 'TitanMasterSecure2024!',
+      portalMode: 'ADMIN'
+    });
+    assert(titanLoginRes.status === 200, `Expected 200 for Titan admin login, got ${titanLoginRes.status}`);
+    const titanCookies = extractCookies(titanLoginRes);
+    assert(titanCookies.sw_session, 'HttpOnly session cookie sw_session must be set on manual login');
+    assert(titanCookies.sw_csrf, 'CSRF cookie sw_csrf must be set on manual login');
+    const setCookieArr = Array.isArray(titanLoginRes.headers['set-cookie']) ? titanLoginRes.headers['set-cookie'] : [titanLoginRes.headers['set-cookie']];
     const sessionCookieHeader = setCookieArr.find(c => c.startsWith('sw_session='));
     assert(sessionCookieHeader.includes('HttpOnly'), 'sw_session cookie must include HttpOnly');
     assert(sessionCookieHeader.includes('SameSite=Lax'), 'sw_session cookie must include SameSite=Lax');
-    const titanCsrfToken = regCompRes.body.csrfToken;
+    const titanCsrfToken = titanLoginRes.body.csrfToken;
     const titanUserId = regCompRes.body.user.id;
     const titanCompId = regCompRes.body.company.id;
-    logPass('Company registered with atomic transaction, scrypt hash, and HttpOnly session', `Company: ${titanCompId}, User: ${titanUserId} (COMPANY_HEAD)`);
+    logPass('Company registered without auto-session and manual login verified', `Company: ${titanCompId}, User: ${titanUserId} (COMPANY_HEAD)`);
 
     console.log(`\n${BOLD}[Phase 2: 4/10] Testing Duplicate Email Rejection & Transaction Rollback...${RESET}`);
     const dupRegRes = await makeRequest('POST', '/api/auth/register-company', {
@@ -420,8 +431,14 @@ async function runPersistenceSuite() {
       password: 'ApexMasterPassword2024!'
     });
     assert(regApexRes.status === 201, `Expected 201 for second company, got ${regApexRes.status}`);
-    const apexCookies = extractCookies(regApexRes);
-    const apexCsrf = regApexRes.body.csrfToken;
+    const apexLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: 'pooja@apex.internal',
+      password: 'ApexMasterPassword2024!',
+      portalMode: 'ADMIN'
+    });
+    assert(apexLoginRes.status === 200, `Expected 200 for Apex login, got ${apexLoginRes.status}`);
+    const apexCookies = extractCookies(apexLoginRes);
+    const apexCsrf = apexLoginRes.body.csrfToken;
 
     const apexEmps = await makeRequest('GET', '/api/employees', null, { 'Cookie': cookieHeader(apexCookies) });
     assert(apexEmps.status === 200, `Expected 200 for Apex employees, got ${apexEmps.status}`);
@@ -517,6 +534,522 @@ async function runPersistenceSuite() {
     });
     assert(dupUidRes.status === 409, `Expected 409, got ${dupUidRes.status}`);
     logPass('Duplicate Smart Card UID rejected with 409 Conflict', dupUidRes.body.error);
+
+    // =============================================================
+    // PHASE 3: ADMIN-CREATED EMPLOYEE ACCOUNTS & CREDENTIAL PROVISIONING
+    // =============================================================
+    console.log(`\n${BOLD}[Phase 3: 1/7] Testing Successful Employee Creation with Server-Generated ID & Temporary Password...${RESET}`);
+    // Register dedicated Phase 3 test company: Zeta Robotics Inc.
+    const regZetaRes = await makeRequest('POST', '/api/auth/register-company', {
+      companyName: 'Zeta Robotics Inc.',
+      industry: 'manufacturing',
+      adminFullName: 'Vikram Seth',
+      email: 'vikram@zeta.internal',
+      password: 'ZetaMasterKey2024!'
+    });
+    assert(regZetaRes.status === 201, `Expected 201 for Zeta registration, got ${regZetaRes.status}`);
+    const zetaLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: 'vikram@zeta.internal',
+      password: 'ZetaMasterKey2024!',
+      portalMode: 'ADMIN'
+    });
+    assert(zetaLoginRes.status === 200, `Expected 200 for Zeta login, got ${zetaLoginRes.status}`);
+    const zetaCookies = extractCookies(zetaLoginRes);
+    const zetaCsrf = zetaLoginRes.body.csrfToken;
+    const zetaCompanyId = regZetaRes.body.company.id;
+    logPass('Zeta company and admin registered successfully', `Company ID: ${zetaCompanyId}`);
+
+    // Create Employee 1: Auto-generated ID and explicit UID
+    const createEmp1Res = await makeRequest('POST', '/api/employees', {
+      name: 'Sunita Williams',
+      department: 'Production',
+      role: 'Robotics Specialist',
+      uid: 'ZE:TA:00:01'
+    }, {
+      'Cookie': cookieHeader(zetaCookies),
+      'X-CSRF-Token': zetaCsrf
+    });
+    assert(createEmp1Res.status === 201, `Expected 201 for employee creation, got ${createEmp1Res.status}`);
+    const emp1 = createEmp1Res.body;
+    assert(emp1.id && /^EMP-\d+$/.test(emp1.id), `Server must assign unique employee ID format (e.g. EMP-114), got ${emp1.id}`);
+    assert(emp1.name === 'Sunita Williams', 'Employee name mismatch');
+    assert(emp1.department === 'Production', 'Department mismatch');
+    assert(emp1.role === 'Robotics Specialist', 'Role mismatch');
+    assert(emp1.uid === 'ZE:TA:00:01', 'Card UID mismatch');
+    assert(emp1.companyId === zetaCompanyId, `Company ID must derive from authenticated session, got ${emp1.companyId}`);
+    assert(typeof emp1.temporaryPassword === 'string' && emp1.temporaryPassword.length >= 12, 'Cryptographically random temporary password must be returned');
+    assert(emp1.mustChangePassword === true, 'mustChangePassword flag must be true');
+    assert(emp1.credentials && emp1.credentials.temporaryPassword === emp1.temporaryPassword, 'Credentials payload must include temporary password');
+    logPass('Server-generated Employee ID and cryptographically random password verified', `ID: ${emp1.id}, Pass length: ${emp1.temporaryPassword.length}`);
+
+    // Verify employee_accounts SQLite database record and password hashing
+    console.log(`\n${BOLD}[Phase 3: 2/7] Testing SQLite employee_accounts Storage & Scrypt Hashing...${RESET}`);
+    const testDb = new DatabaseSync(TEST_DB_PATH);
+    const accRow = testDb.prepare('SELECT * FROM employee_accounts WHERE employee_id = ?').get(emp1.id);
+    assert(accRow, `employee_accounts record must exist for ${emp1.id}`);
+    assert(accRow.company_id === zetaCompanyId, 'Account company_id must match session company');
+    assert(accRow.must_change_password === 1, `must_change_password must be 1, got ${accRow.must_change_password}`);
+    assert(accRow.account_status === 'ACTIVE', `account_status must be ACTIVE, got ${accRow.account_status}`);
+    assert(accRow.password_hash !== emp1.temporaryPassword, 'Plaintext password must NEVER be stored in database');
+    assert(typeof accRow.password_salt === 'string' && accRow.password_salt.length >= 16, 'Password salt must be stored');
+    const isValidHash = auth.verifyPassword(emp1.temporaryPassword, accRow.password_salt, accRow.password_hash);
+    assert(isValidHash === true, 'Stored scrypt hash must verify against generated temporary password');
+    logPass('employee_accounts record verified with scrypt hash and must_change_password = 1');
+
+    // Create Employee 2: Optional Smart Card UID (Omitted / Null)
+    console.log(`\n${BOLD}[Phase 3: 3/7] Testing Optional Smart Card UID (Badge-less Employee)...${RESET}`);
+    const createEmp2Res = await makeRequest('POST', '/api/employees', {
+      name: 'Anil Deshmukh',
+      department: 'Quality',
+      role: 'Inspector'
+    }, {
+      'Cookie': cookieHeader(zetaCookies),
+      'X-CSRF-Token': zetaCsrf
+    });
+    assert(createEmp2Res.status === 201, `Expected 201 for badge-less employee, got ${createEmp2Res.status}`);
+    const emp2 = createEmp2Res.body;
+    assert(emp2.id !== emp1.id, 'New employee must have distinct unique ID');
+    assert(emp2.uid === null, `Omitted UID must be null, got ${emp2.uid}`);
+    assert(typeof emp2.temporaryPassword === 'string' && emp2.temporaryPassword !== emp1.temporaryPassword, 'Each employee must receive a unique random temporary password');
+
+    // Create Employee 3: Second employee with empty string UID
+    const createEmp3Res = await makeRequest('POST', '/api/employees', {
+      name: 'Farhan Akhtar',
+      department: 'IT',
+      role: 'Network Engineer',
+      uid: ''
+    }, {
+      'Cookie': cookieHeader(zetaCookies),
+      'X-CSRF-Token': zetaCsrf
+    });
+    assert(createEmp3Res.status === 201, `Expected 201 for empty UID employee, got ${createEmp3Res.status}`);
+    assert(createEmp3Res.body.uid === null, 'Empty string UID must normalize to null');
+    logPass('Optional RFID Card UID verified: multiple employees co-exist with null UIDs without collision');
+
+    // Duplicate ID and Duplicate UID prevention
+    console.log(`\n${BOLD}[Phase 3: 4/7] Testing Duplicate Record Prevention (ID & UID)...${RESET}`);
+    const dupEmpIdRes = await makeRequest('POST', '/api/employees', {
+      id: emp1.id,
+      name: 'Imposter Worker',
+      department: 'IT',
+      role: 'Technician'
+    }, {
+      'Cookie': cookieHeader(zetaCookies),
+      'X-CSRF-Token': zetaCsrf
+    });
+    assert(dupEmpIdRes.status === 409, `Expected 409 for duplicate employee ID, got ${dupEmpIdRes.status}`);
+    logPass('Duplicate employee ID rejected with 409 Conflict', dupEmpIdRes.body.error);
+
+    const dupCardUidRes = await makeRequest('POST', '/api/employees', {
+      name: 'Another Worker',
+      department: 'IT',
+      role: 'Technician',
+      uid: 'ZE:TA:00:01' // Same as Sunita Williams
+    }, {
+      'Cookie': cookieHeader(zetaCookies),
+      'X-CSRF-Token': zetaCsrf
+    });
+    assert(dupCardUidRes.status === 409, `Expected 409 for duplicate card UID, got ${dupCardUidRes.status}`);
+    logPass('Duplicate RFID card UID rejected with 409 Conflict', dupCardUidRes.body.error);
+
+    // Authorization & Permission Enforcement
+    console.log(`\n${BOLD}[Phase 3: 5/7] Testing Authorization & Permission Enforcement (COMPANY_HEAD / COMPANY_ADMIN)...${RESET}`);
+    // 1. Unauthenticated request
+    const unauthCreate = await makeRequest('POST', '/api/employees', {
+      name: 'Hacker User',
+      department: 'IT',
+      role: 'Root'
+    }, { 'Cookie': '' });
+    assert(unauthCreate.status === 401, `Expected 401 for unauthenticated creation, got ${unauthCreate.status}`);
+    logPass('Unauthenticated employee creation rejected with 401 Unauthorized');
+
+    // 2. Missing / Invalid CSRF
+    const badCsrfCreate = await makeRequest('POST', '/api/employees', {
+      name: 'CSRF Attack User',
+      department: 'IT',
+      role: 'Attacker'
+    }, {
+      'Cookie': cookieHeader(zetaCookies),
+      'X-CSRF-Token': 'fraudulent-csrf-token-123'
+    });
+    assert(badCsrfCreate.status === 403, `Expected 403 for bad CSRF, got ${badCsrfCreate.status}`);
+    logPass('Employee creation with invalid CSRF token rejected with 403 Forbidden');
+
+    // 3. Employee user cannot create employees or admin accounts
+    // Simulate an EMPLOYEE session in sessions table for Sunita Williams (emp1.id)
+    const empSessionToken = auth.generateOpaqueToken();
+    const empTokenHash = auth.hashToken(empSessionToken);
+    const empCsrf = auth.generateCsrfToken();
+    testDb.prepare(`
+      INSERT INTO sessions (id, account_id, user_type, company_id, csrf_token, created_at, expires_at)
+      VALUES (?, ?, 'EMPLOYEE', ?, ?, datetime('now'), datetime('now', '+1 day'))
+    `).run(empTokenHash, emp1.id, zetaCompanyId, empCsrf);
+
+    const empTriesAdminCreate = await makeRequest('POST', '/api/employees', {
+      name: 'Rogue Account',
+      department: 'IT',
+      role: 'Admin'
+    }, {
+      'Cookie': `sw_session=${empSessionToken}`,
+      'X-CSRF-Token': empCsrf
+    });
+    assert(empTriesAdminCreate.status === 403, `Expected 403 for EMPLOYEE role session, got ${empTriesAdminCreate.status}`);
+    logPass('Employees strictly barred from creating employee accounts (403 Forbidden)');
+
+    // Cross-Company Isolation
+    console.log(`\n${BOLD}[Phase 3: 6/7] Testing Multi-Tenant Scope & Company ID Derivation...${RESET}`);
+    // Fraudulent browser attempt to supply a different company_id
+    const spoofCompanyRes = await makeRequest('POST', '/api/employees', {
+      name: 'Tamper Target',
+      department: 'IT',
+      role: 'Tester',
+      companyId: 'COMP-DEFAULT-01',
+      company_id: 'COMP-DEFAULT-01'
+    }, {
+      'Cookie': cookieHeader(zetaCookies),
+      'X-CSRF-Token': zetaCsrf
+    });
+    assert(spoofCompanyRes.status === 201, `Expected 201, got ${spoofCompanyRes.status}`);
+    assert(spoofCompanyRes.body.companyId === zetaCompanyId, `Server must derive companyId strictly from session, got ${spoofCompanyRes.body.companyId}`);
+    assert(spoofCompanyRes.body.companyId !== 'COMP-DEFAULT-01', 'Browser-supplied company_id must be completely ignored');
+
+    // Verify tenant roster isolation
+    const zetaRoster = await makeRequest('GET', '/api/employees', null, { 'Cookie': cookieHeader(zetaCookies) });
+    assert(zetaRoster.status === 200, `Expected 200, got ${zetaRoster.status}`);
+    assert(zetaRoster.body.length === 4, `Zeta must see exactly its 4 created employees, got ${zetaRoster.body.length}`);
+    assert(zetaRoster.body.every(e => e.companyId === zetaCompanyId), 'All employees must belong to Zeta');
+    logPass('Strict multi-tenant isolation & server-side session derivation confirmed');
+
+    // Transactional Rollback
+    console.log(`\n${BOLD}[Phase 3: 7/7] Testing Atomic Transaction Rollback on Failure...${RESET}`);
+    const countEmpsBefore = testDb.prepare('SELECT COUNT(*) as c FROM employees WHERE company_id = ?').get(zetaCompanyId).c;
+    const countAccsBefore = testDb.prepare('SELECT COUNT(*) as c FROM employee_accounts WHERE company_id = ?').get(zetaCompanyId).c;
+
+    // Trigger failure by duplicate UID in creation
+    const rollbackRes = await makeRequest('POST', '/api/employees', {
+      name: 'Rollback Person',
+      department: 'IT',
+      role: 'Tester',
+      uid: 'ZE:TA:00:01' // Collision
+    }, {
+      'Cookie': cookieHeader(zetaCookies),
+      'X-CSRF-Token': zetaCsrf
+    });
+    assert(rollbackRes.status === 409, `Expected 409, got ${rollbackRes.status}`);
+
+    const countEmpsAfter = testDb.prepare('SELECT COUNT(*) as c FROM employees WHERE company_id = ?').get(zetaCompanyId).c;
+    const countAccsAfter = testDb.prepare('SELECT COUNT(*) as c FROM employee_accounts WHERE company_id = ?').get(zetaCompanyId).c;
+    assert(countEmpsBefore === countEmpsAfter, `Employee count must be unchanged after failure (${countEmpsBefore} === ${countEmpsAfter})`);
+    assert(countAccsBefore === countAccsAfter, `Account count must be unchanged after failure (${countAccsBefore} === ${countAccsAfter})`);
+    testDb.close();
+    logPass('Transaction rollback confirmed: zero orphaned employees or employee_accounts rows left on failure');
+
+    // =============================================================
+    // PHASE 4: EMPLOYEE AUTHENTICATION & PERSONAL DASHBOARD TESTS
+    // =============================================================
+    console.log(`\n${BOLD}[Phase 4 Employee: 1/9] Testing Employee Login & Credential Validation...${RESET}`);
+
+    // A. Invalid employee login rejection
+    // 1. Non-existent Employee ID
+    const badEmpIdRes = await makeRequest('POST', '/api/auth/login', {
+      identity: 'EMP-99999',
+      password: 'SomePassword123!',
+      portalMode: 'EMPLOYEE'
+    }, { 'Cookie': '' });
+    assert(badEmpIdRes.status === 401, `Expected 401 for non-existent employee ID, got ${badEmpIdRes.status}`);
+
+    // 2. Wrong password for real employee ID
+    const wrongEmpPwRes = await makeRequest('POST', '/api/auth/login', {
+      identity: emp1.id,
+      password: 'WrongPassword123!',
+      portalMode: 'EMPLOYEE'
+    }, { 'Cookie': '' });
+    assert(wrongEmpPwRes.status === 401, `Expected 401 for incorrect employee password, got ${wrongEmpPwRes.status}`);
+
+    // 3. Missing password or identity
+    const emptyLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: '',
+      password: '',
+      portalMode: 'EMPLOYEE'
+    }, { 'Cookie': '' });
+    assert(emptyLoginRes.status === 400, `Expected 400 for empty credentials, got ${emptyLoginRes.status}`);
+    logPass('Invalid employee credentials safely rejected (401/400)');
+
+    // B. Suspended & Pending Account Rejection
+    console.log(`\n${BOLD}[Phase 4 Employee: 2/9] Testing Suspended & Pending Account Rejection...${RESET}`);
+    const testDbPhase4 = new DatabaseSync(TEST_DB_PATH);
+
+    // Set account to SUSPENDED
+    testDbPhase4.prepare("UPDATE employee_accounts SET account_status = 'SUSPENDED' WHERE employee_id = ?").run(emp1.id);
+    const suspendedLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: emp1.id,
+      password: emp1.temporaryPassword,
+      portalMode: 'EMPLOYEE'
+    }, { 'Cookie': '' });
+    assert(suspendedLoginRes.status === 403, `Expected 403 for suspended account, got ${suspendedLoginRes.status}`);
+    assert(/suspended/i.test(suspendedLoginRes.body.error), 'Expected suspended message');
+
+    // Set account to PENDING
+    testDbPhase4.prepare("UPDATE employee_accounts SET account_status = 'PENDING' WHERE employee_id = ?").run(emp1.id);
+    const pendingLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: emp1.id,
+      password: emp1.temporaryPassword,
+      portalMode: 'EMPLOYEE'
+    }, { 'Cookie': '' });
+    assert(pendingLoginRes.status === 403, `Expected 403 for pending account, got ${pendingLoginRes.status}`);
+    assert(/pending/i.test(pendingLoginRes.body.error), 'Expected pending message');
+
+    // Restore to ACTIVE
+    testDbPhase4.prepare("UPDATE employee_accounts SET account_status = 'ACTIVE' WHERE employee_id = ?").run(emp1.id);
+    testDbPhase4.close();
+    logPass('Suspended and pending employee accounts rejected with 403 Forbidden');
+
+    // C. Valid Employee Login with Temporary Password
+    console.log(`\n${BOLD}[Phase 4 Employee: 3/9] Testing Valid Employee Login & Temporary Password Flow...${RESET}`);
+    const validEmpLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: emp1.id,
+      password: emp1.temporaryPassword,
+      portalMode: 'EMPLOYEE'
+    }, { 'Cookie': '' });
+    assert(validEmpLoginRes.status === 200, `Expected 200 for valid employee login, got ${validEmpLoginRes.status}`);
+    assert(validEmpLoginRes.body.mustChangePassword === true, 'mustChangePassword must be true on initial login');
+    assert(validEmpLoginRes.body.user.userType === 'EMPLOYEE', `Expected userType EMPLOYEE, got ${validEmpLoginRes.body.user.userType}`);
+    assert(validEmpLoginRes.body.user.id === emp1.id, 'User ID must match employee ID');
+    assert(validEmpLoginRes.body.redirectTo.includes('change-password'), 'Expected redirect to change-password');
+
+    let empCookies = extractCookies(validEmpLoginRes);
+    let empAuthCsrf = validEmpLoginRes.body.csrfToken;
+    assert(empCookies.sw_session, 'Session cookie must be set');
+    assert(empCookies.sw_csrf, 'CSRF cookie must be set');
+    logPass('Employee login verified with mustChangePassword = true and HttpOnly session');
+
+    // D. Employees Barred from Admin Routes
+    console.log(`\n${BOLD}[Phase 4 Employee: 4/9] Testing Employee Access Denial on Admin Endpoints...${RESET}`);
+    const empTriesAdminList = await makeRequest('GET', '/api/employees', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(empTriesAdminList.status === 403, `Expected 403 for employee calling GET /api/employees, got ${empTriesAdminList.status}`);
+
+    const empTriesAdminLogs = await makeRequest('GET', '/api/attendance/logs', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(empTriesAdminLogs.status === 403, `Expected 403 for employee calling GET /api/attendance/logs, got ${empTriesAdminLogs.status}`);
+
+    const empTriesAnalytics = await makeRequest('GET', '/api/analytics/overview', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(empTriesAnalytics.status === 403, `Expected 403 for employee calling GET /api/analytics/overview, got ${empTriesAnalytics.status}`);
+    logPass('Employees strictly denied access to admin endpoints (403 Forbidden)');
+
+    // E. Mandatory Password Change Enforcement
+    console.log(`\n${BOLD}[Phase 4 Employee: 5/9] Testing Mandatory First-Login Password Change Enforcement...${RESET}`);
+    // Blocked before password change:
+    const blockedMe = await makeRequest('GET', '/api/employee/me', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(blockedMe.status === 403, `Expected 403 for employee/me when must_change_password=1, got ${blockedMe.status}`);
+    assert(blockedMe.body.code === 'PASSWORD_CHANGE_REQUIRED', 'Expected PASSWORD_CHANGE_REQUIRED code');
+
+    const blockedLogs = await makeRequest('GET', '/api/employee/attendance', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(blockedLogs.status === 403, `Expected 403 for employee/attendance when must_change_password=1, got ${blockedLogs.status}`);
+
+    const blockedTap = await makeRequest('POST', '/api/employee/tap', { gate: 'Gate 01' }, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(blockedTap.status === 403, `Expected 403 for employee/tap when must_change_password=1, got ${blockedTap.status}`);
+
+    // Invalid password change attempts:
+    // 1. Wrong current password
+    const badCurrentPw = await makeRequest('POST', '/api/employee/change-password', {
+      currentPassword: 'WrongTemporaryPassword!',
+      newPassword: 'BrandNewSecurePassword123!',
+      confirmPassword: 'BrandNewSecurePassword123!'
+    }, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(badCurrentPw.status === 400, `Expected 400 for wrong current password, got ${badCurrentPw.status}`);
+
+    // 2. Short new password (<8 chars)
+    const shortNewPw = await makeRequest('POST', '/api/employee/change-password', {
+      currentPassword: emp1.temporaryPassword,
+      newPassword: 'short',
+      confirmPassword: 'short'
+    }, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(shortNewPw.status === 400, `Expected 400 for short new password, got ${shortNewPw.status}`);
+
+    // 3. New password identical to temporary password
+    const samePw = await makeRequest('POST', '/api/employee/change-password', {
+      currentPassword: emp1.temporaryPassword,
+      newPassword: emp1.temporaryPassword,
+      confirmPassword: emp1.temporaryPassword
+    }, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(samePw.status === 400, `Expected 400 for reused temporary password, got ${samePw.status}`);
+
+    // 4. Mismatched confirm password
+    const mismatchPw = await makeRequest('POST', '/api/employee/change-password', {
+      currentPassword: emp1.temporaryPassword,
+      newPassword: 'BrandNewSecurePassword123!',
+      confirmPassword: 'DifferentPassword123!'
+    }, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(mismatchPw.status === 400, `Expected 400 for mismatched confirm password, got ${mismatchPw.status}`);
+
+    // 5. Successful password change
+    const newEmpPassword = 'SunitaPermanentKey2026!';
+    const validChangeRes = await makeRequest('POST', '/api/employee/change-password', {
+      currentPassword: emp1.temporaryPassword,
+      newPassword: newEmpPassword,
+      confirmPassword: newEmpPassword
+    }, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(validChangeRes.status === 200, `Expected 200 for successful password change, got ${validChangeRes.status}`);
+    assert(validChangeRes.body.success === true, 'Response must indicate success');
+
+    // Verify in database that must_change_password is now 0
+    const testDbAfterChange = new DatabaseSync(TEST_DB_PATH);
+    const updatedAcc = testDbAfterChange.prepare('SELECT * FROM employee_accounts WHERE employee_id = ?').get(emp1.id);
+    assert(updatedAcc.must_change_password === 0, `must_change_password must now be 0, got ${updatedAcc.must_change_password}`);
+    assert(updatedAcc.password_updated_at !== null, 'password_updated_at must be populated');
+    testDbAfterChange.close();
+    logPass('Mandatory password change flow verified: blocked before change, successfully updated to permanent');
+
+    // F. Authenticated Dashboard & Profile Isolation
+    console.log(`\n${BOLD}[Phase 4 Employee: 6/9] Testing Authenticated Dashboard & Profile Isolation...${RESET}`);
+    const empMeRes = await makeRequest('GET', '/api/employee/me', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(empMeRes.status === 200, `Expected 200 for GET /api/employee/me, got ${empMeRes.status}`);
+    assert(empMeRes.body.employee.id === emp1.id, `Profile must show logged in employee ${emp1.id}, got ${empMeRes.body.employee.id}`);
+    assert(empMeRes.body.employee.name === 'Sunita Williams', 'Name must match');
+    assert(empMeRes.body.employee.companyId === zetaCompanyId, 'Company ID must match');
+    assert(empMeRes.body.employee.companyName === 'Zeta Robotics Inc.', 'Company name must match');
+    assert(empMeRes.body.employee.department === 'Production', 'Department must match');
+    assert(empMeRes.body.employee.designation === 'Robotics Specialist', 'Designation must match');
+    assert(empMeRes.body.employee.cardUid === 'ZE:TA:00:01', 'Card UID must match');
+    assert(empMeRes.body.employee.cardStatus === 'ACTIVE', 'Card status must be ACTIVE');
+    logPass('Authenticated employee profile retrieved with verified company, card status, and designation');
+
+    // G. Authenticated Tap & Attendance Isolation
+    console.log(`\n${BOLD}[Phase 4 Employee: 7/9] Testing Personal Tap & Attendance Record Isolation...${RESET}`);
+    // Employee self-tap
+    const tapRes = await makeRequest('POST', '/api/employee/tap', {
+      gate: 'Gate 02 - Production Bay',
+      mode: 'ENTRY'
+    }, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(tapRes.status === 200, `Expected 200 for self-tap, got ${tapRes.status}`);
+    assert(tapRes.body.event.empId === emp1.id, 'Tap event must belong to authenticated employee');
+    assert(tapRes.body.event.eventType === 'ENTRY', 'Expected ENTRY event');
+
+    // Verify employee presence status is now INSIDE
+    const meAfterTap = await makeRequest('GET', '/api/employee/me', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(meAfterTap.body.employee.status === 'INSIDE', 'Presence must now be INSIDE');
+
+    // Verify personal attendance records
+    const attendanceRes = await makeRequest('GET', '/api/employee/attendance', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(attendanceRes.status === 200, `Expected 200 for attendance records, got ${attendanceRes.status}`);
+    assert(Array.isArray(attendanceRes.body), 'Attendance response must be an array');
+    assert(attendanceRes.body.length >= 1, 'Attendance must contain at least 1 record');
+    assert(attendanceRes.body.every(log => log.empId === emp1.id), 'All attendance logs must belong strictly to authenticated employee');
+    assert(attendanceRes.body.every(log => log.companyId === zetaCompanyId), 'All attendance logs must belong strictly to authenticated company');
+    logPass('Personal card tap & strict attendance log isolation confirmed (zero leakage of other employees)');
+
+    // H. Cross-Company Access Denial & Query Parameter Tampering Immunization
+    console.log(`\n${BOLD}[Phase 4 Employee: 8/9] Testing Cross-Company Access Denial & Query Tampering Immunization...${RESET}`);
+    // 1. Employee query param injection spoofing attempt on GET /api/employee/me
+    const tamperMeRes = await makeRequest('GET', `/api/employee/me?empId=EMP-T01&companyId=${titanCompId}`, null, {
+      'Cookie': cookieHeader(empCookies)
+    });
+    assert(tamperMeRes.status === 200, `Expected 200, got ${tamperMeRes.status}`);
+    assert(tamperMeRes.body.employee.id === emp1.id, `Server must derive employee strictly from session, got ${tamperMeRes.body.employee.id}`);
+    assert(tamperMeRes.body.employee.companyId === zetaCompanyId, `Server must derive company strictly from session, got ${tamperMeRes.body.employee.companyId}`);
+    assert(tamperMeRes.body.employee.id !== 'EMP-T01', 'Browser-supplied empId in query param must be completely ignored');
+    assert(tamperMeRes.body.employee.companyId !== titanCompId, 'Browser-supplied companyId in query param must be completely ignored');
+
+    // 2. Query param injection attempt on GET /api/employee/attendance
+    const tamperAttRes = await makeRequest('GET', `/api/employee/attendance?empId=EMP-T01&companyId=${titanCompId}`, null, {
+      'Cookie': cookieHeader(empCookies)
+    });
+    assert(tamperAttRes.status === 200, `Expected 200, got ${tamperAttRes.status}`);
+    assert(Array.isArray(tamperAttRes.body), 'Attendance must be an array');
+    assert(tamperAttRes.body.every(log => log.empId === emp1.id), 'All attendance logs must belong strictly to authenticated employee');
+    assert(tamperAttRes.body.every(log => log.companyId === zetaCompanyId), 'All attendance logs must belong strictly to authenticated company');
+
+    // 3. Employee cross-portal access denial on simulation & delete routes
+    const crossSimReport = await makeRequest('GET', '/api/simulation/report', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(crossSimReport.status === 403, `Expected 403 for employee calling /api/simulation/report, got ${crossSimReport.status}`);
+
+    const crossDeleteLogs = await makeRequest('DELETE', '/api/attendance/logs', {}, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(crossDeleteLogs.status === 403, `Expected 403 for employee calling DELETE /api/attendance/logs, got ${crossDeleteLogs.status}`);
+
+    // 4. Employee credentials cannot log into Company Head / Admin mode
+    const crossPortalLogin = await makeRequest('POST', '/api/auth/login', {
+      identity: emp1.id,
+      password: newEmpPassword,
+      portalMode: 'ADMIN'
+    }, { 'Cookie': '' });
+    assert(crossPortalLogin.status === 401, `Expected 401 when employee attempts to log in as ADMIN, got ${crossPortalLogin.status}`);
+    logPass('Cross-company access denial, query tampering immunization, and portal segregation confirmed');
+
+    // I. Session Expiration & Logout
+    console.log(`\n${BOLD}[Phase 4 Employee: 9/9] Testing Session Expiration & Logout Invalidation...${RESET}`);
+    // 1. Session expiration test via past expires_at
+    const expiredSessionToken = auth.generateOpaqueToken();
+    const expiredTokenHash = auth.hashToken(expiredSessionToken);
+    const testDbExp = new DatabaseSync(TEST_DB_PATH);
+    testDbExp.prepare(`
+      INSERT INTO sessions (id, account_id, user_type, company_id, csrf_token, created_at, expires_at)
+      VALUES (?, ?, 'EMPLOYEE', ?, 'csrf-123', datetime('now', '-2 hours'), datetime('now', '-1 hour'))
+    `).run(expiredTokenHash, emp1.id, zetaCompanyId);
+    testDbExp.close();
+
+    const expiredReq = await makeRequest('GET', '/api/employee/me', null, {
+      'Cookie': `sw_session=${expiredSessionToken}`
+    });
+    assert(expiredReq.status === 401, `Expected 401 for expired session, got ${expiredReq.status}`);
+
+    // 2. Real logout test
+    const empLogoutRes = await makeRequest('POST', '/api/auth/logout', {}, {
+      'Cookie': cookieHeader(empCookies),
+      'X-CSRF-Token': empAuthCsrf
+    });
+    assert(empLogoutRes.status === 200, `Expected 200 for logout, got ${empLogoutRes.status}`);
+
+    // Verify session was destroyed in DB
+    const testDbPostLogout = new DatabaseSync(TEST_DB_PATH);
+    const empSessionHash = auth.hashToken(empCookies.sw_session);
+    const sessRow = testDbPostLogout.prepare('SELECT * FROM sessions WHERE id = ?').get(empSessionHash);
+    assert(!sessRow, 'Session record must be deleted from SQLite upon logout');
+    testDbPostLogout.close();
+
+    // Verify subsequent request with logged-out cookie is rejected
+    const postLogoutReq = await makeRequest('GET', '/api/employee/me', null, { 'Cookie': cookieHeader(empCookies) });
+    assert(postLogoutReq.status === 401, `Expected 401 after logout, got ${postLogoutReq.status}`);
+
+    // Verify login with new password succeeds
+    const newLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: emp1.id,
+      password: newEmpPassword,
+      portalMode: 'EMPLOYEE'
+    }, { 'Cookie': '' });
+    assert(newLoginRes.status === 200, `Expected 200 for login with new password, got ${newLoginRes.status}`);
+    assert(newLoginRes.body.mustChangePassword === false, 'mustChangePassword must be false after password change');
+
+    // Verify old temporary password is now rejected
+    const oldLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identity: emp1.id,
+      password: emp1.temporaryPassword,
+      portalMode: 'EMPLOYEE'
+    }, { 'Cookie': '' });
+    assert(oldLoginRes.status === 401, `Old temporary password must be rejected after change, got ${oldLoginRes.status}`);
+    logPass('Session expiration, server-side session logout deletion, and permanent password login verified');
 
     // -------------------------------------------------------------
     // STEP 4: Backward-Compatible Card Scan via empId
@@ -653,7 +1186,7 @@ async function runPersistenceSuite() {
     assert(Array.isArray(punctualityRes.body.records), 'Punctuality records must be an array');
     const checkedInRecords = punctualityRes.body.records.filter(r => r.hasCheckedIn);
     assert(checkedInRecords.length > 0, 'Checked-in records must exist from initial seed and test scans');
-    
+
     // Validate missing data empty state representation (employees not checked in)
     const absentRecords = punctualityRes.body.records.filter(r => !r.hasCheckedIn);
     assert(absentRecords.length > 0, 'Absent/unlogged employees must be identified');
@@ -685,7 +1218,7 @@ async function runPersistenceSuite() {
     // STEP 13: Phase 5A - Virtual RFID Hardware Simulation & Gate Telemetry
     // -------------------------------------------------------------
     console.log(`\n${BOLD}[13/15] Phase 5A: Testing Virtual RFID Hardware Simulator & Telemetry...${RESET}`);
-    
+
     // 1. Single scan with virtual reader RF telemetry & custom gate ID
     const simScanRes = await makeRequest('POST', '/api/attendance/scan', {
       uid: '7E:A1:39:B2',

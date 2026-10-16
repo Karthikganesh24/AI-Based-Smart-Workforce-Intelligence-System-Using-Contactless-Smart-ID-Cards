@@ -33,11 +33,16 @@ function initDatabase() {
       name TEXT NOT NULL,
       department TEXT NOT NULL,
       role TEXT NOT NULL,
-      uid TEXT UNIQUE NOT NULL,
+      uid TEXT UNIQUE,
       status TEXT NOT NULL DEFAULT 'OUTSIDE',
       last_seen TEXT NOT NULL DEFAULT 'Not detected today',
       avatar_bg TEXT NOT NULL DEFAULT '#0284C7',
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      company_id TEXT REFERENCES companies(id),
+      email TEXT,
+      phone TEXT,
+      is_archived INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT
     );
   `);
 
@@ -136,7 +141,13 @@ function formatEmployeeRow(row) {
     status: row.status,
     lastSeen: row.last_seen,
     avatarBg: row.avatar_bg,
-    companyId: row.company_id
+    companyId: row.company_id,
+    email: row.email || null,
+    phone: row.phone || null,
+    isArchived: Boolean(row.is_archived),
+    archivedAt: row.archived_at || null,
+    accountStatus: row.account_status || 'ACTIVE',
+    mustChangePassword: row.must_change_password !== undefined && row.must_change_password !== null ? Boolean(row.must_change_password) : true
   };
 }
 
@@ -159,34 +170,426 @@ function formatEventRow(row) {
 // Database Query Methods - Operational Workforce & Presence
 // -------------------------------------------------------------
 
-function getAllEmployees(companyId = null) {
+function getAllEmployees(companyId = null, includeArchived = true) {
+  let sql = `
+    SELECT e.*, a.account_status, a.must_change_password
+    FROM employees e
+    LEFT JOIN employee_accounts a ON e.id = a.employee_id
+  `;
+  const conditions = [];
+  const params = [];
   if (companyId) {
-    const stmt = db.prepare('SELECT * FROM employees WHERE company_id = ? ORDER BY id ASC');
-    return stmt.all(companyId).map(formatEmployeeRow);
+    conditions.push('e.company_id = ?');
+    params.push(companyId);
   }
-  const stmt = db.prepare('SELECT * FROM employees ORDER BY id ASC');
-  return stmt.all().map(formatEmployeeRow);
+  if (!includeArchived) {
+    conditions.push('(e.is_archived = 0 OR e.is_archived IS NULL)');
+  }
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+  sql += ' ORDER BY e.id ASC';
+  const stmt = db.prepare(sql);
+  return stmt.all(...params).map(formatEmployeeRow);
 }
 
 function getEmployeeById(id) {
-  const stmt = db.prepare('SELECT * FROM employees WHERE id = ?');
+  const stmt = db.prepare(`
+    SELECT e.*, a.account_status, a.must_change_password
+    FROM employees e
+    LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    WHERE e.id = ?
+  `);
   return formatEmployeeRow(stmt.get(id));
 }
 
 function getEmployeeByUid(uid) {
-  const stmt = db.prepare('SELECT * FROM employees WHERE uid = ?');
+  if (!uid || typeof uid !== 'string') return null;
+  const stmt = db.prepare(`
+    SELECT e.*, a.account_status, a.must_change_password
+    FROM employees e
+    LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    WHERE e.uid = ?
+  `);
   return formatEmployeeRow(stmt.get(uid));
 }
 
-function createEmployee({ id, name, department, role, uid, avatarBg, companyId }) {
+function getEmployeeByEmail(email, companyId = null) {
+  if (!email || typeof email !== 'string') return null;
+  const normEmail = email.trim().toLowerCase();
+  let sql = `
+    SELECT e.*, a.account_status, a.must_change_password
+    FROM employees e
+    LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    WHERE LOWER(e.email) = ?
+  `;
+  if (companyId) {
+    sql += ' AND e.company_id = ?';
+    const stmt = db.prepare(sql);
+    return formatEmployeeRow(stmt.get(normEmail, companyId));
+  }
+  const stmt = db.prepare(sql);
+  return formatEmployeeRow(stmt.get(normEmail));
+}
+
+function generateUniqueEmployeeId() {
+  const stmt = db.prepare("SELECT id FROM employees WHERE id LIKE 'EMP-%'");
+  const rows = stmt.all();
+  let maxNum = 100;
+  for (const row of rows) {
+    const match = row.id.match(/^EMP-(\d+)$/i);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+  }
+  let candidate = `EMP-${maxNum + 1}`;
+  while (getEmployeeById(candidate)) {
+    maxNum++;
+    candidate = `EMP-${maxNum + 1}`;
+  }
+  return candidate;
+}
+
+function createEmployee({ id, name, department, role, uid, avatarBg, companyId, email, phone }) {
   const now = new Date().toISOString();
   const cId = companyId || 'COMP-DEFAULT-01';
+  const normUid = (uid && typeof uid === 'string' && uid.trim()) ? uid.trim().toUpperCase() : null;
+  const normEmail = (email && typeof email === 'string' && email.trim()) ? email.trim().toLowerCase() : null;
+  const normPhone = (phone && typeof phone === 'string' && phone.trim()) ? phone.trim() : null;
   const stmt = db.prepare(`
-    INSERT INTO employees (id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id)
-    VALUES (?, ?, ?, ?, ?, 'OUTSIDE', 'Registered today', ?, ?, ?)
+    INSERT INTO employees (id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id, email, phone)
+    VALUES (?, ?, ?, ?, ?, 'OUTSIDE', 'Registered today', ?, ?, ?, ?, ?)
   `);
-  stmt.run(id, name, department, role, uid, avatarBg || '#0284C7', now, cId);
+  stmt.run(id, name, department, role, normUid, avatarBg || '#0284C7', now, cId, normEmail, normPhone);
   return getEmployeeById(id);
+}
+
+function createEmployeeWithAccount({ id, name, department, role, uid, avatarBg, companyId, password, email, phone }) {
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    const err = new Error('Employee name must be at least 2 characters long.');
+    err.code = 'INVALID_NAME';
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!department || typeof department !== 'string' || !department.trim()) {
+    const err = new Error('Department is required.');
+    err.code = 'INVALID_DEPARTMENT';
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!role || typeof role !== 'string' || role.trim().length < 2) {
+    const err = new Error('Job designation / role must be at least 2 characters long.');
+    err.code = 'INVALID_ROLE';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const empId = (id && typeof id === 'string' && id.trim()) ? id.trim() : generateUniqueEmployeeId();
+  const normUid = (uid && typeof uid === 'string' && uid.trim()) ? uid.trim().toUpperCase() : null;
+  const cId = companyId || 'COMP-DEFAULT-01';
+  const normEmail = (email && typeof email === 'string' && email.trim()) ? email.trim().toLowerCase() : null;
+  const normPhone = (phone && typeof phone === 'string' && phone.trim()) ? phone.trim() : null;
+
+  if (normEmail) {
+    const existingWithEmail = getEmployeeByEmail(normEmail, cId);
+    if (existingWithEmail) {
+      const err = new Error(`An employee with email '${normEmail}' already exists in this organization.`);
+      err.code = 'DUPLICATE_EMPLOYEE_EMAIL';
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  let empPassword = password;
+  if (!empPassword) {
+    if (normPhone) {
+      empPassword = auth.generateEmployeeTemporaryPassword(name.trim(), normPhone);
+    } else {
+      empPassword = auth.generateTemporaryPassword(14);
+    }
+  }
+
+  if (!empPassword || typeof empPassword !== 'string' || empPassword.length < 8) {
+    const err = new Error('Password must be at least 8 characters long.');
+    err.code = 'WEAK_PASSWORD';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Duplicate Employee ID check
+  if (getEmployeeById(empId)) {
+    const err = new Error(`Employee with ID ${empId} already exists.`);
+    err.code = 'DUPLICATE_EMPLOYEE_ID';
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // Duplicate UID check (only if UID is provided)
+  if (normUid && getEmployeeByUid(normUid)) {
+    const err = new Error(`Smart Card UID ${normUid} is already assigned to another employee.`);
+    err.code = 'DUPLICATE_CARD_UID';
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const now = new Date().toISOString();
+  const salt = auth.generateSalt();
+  const passwordHash = auth.hashPassword(empPassword, salt);
+  const accountId = auth.generateId('ACC');
+  const bg = avatarBg || '#0284C7';
+
+  // Atomic SQLite transaction ensures no inconsistent/orphaned records
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    const insertEmp = db.prepare(`
+      INSERT INTO employees (id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id, email, phone)
+      VALUES (?, ?, ?, ?, ?, 'OUTSIDE', 'Registered today', ?, ?, ?, ?, ?)
+    `);
+    insertEmp.run(empId, name.trim(), department.trim(), role.trim(), normUid, bg, now, cId, normEmail, normPhone);
+
+    const insertAcc = db.prepare(`
+      INSERT INTO employee_accounts (id, employee_id, company_id, password_hash, password_salt, must_change_password, account_status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 1, 'ACTIVE', ?, ?)
+    `);
+    insertAcc.run(accountId, empId, cId, passwordHash, salt, now, now);
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return {
+    employee: getEmployeeById(empId),
+    account: getEmployeeAccountByEmpId(empId),
+    temporaryPassword: empPassword
+  };
+}
+
+function updateEmployee({ id, name, department, role, uid, email, phone, companyId }) {
+  if (!id || typeof id !== 'string') {
+    const err = new Error('Employee ID is required.');
+    err.code = 'INVALID_EMPLOYEE_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const existing = getEmployeeById(id);
+  if (!existing) {
+    const err = new Error(`Employee with ID '${id}' not found.`);
+    err.code = 'EMPLOYEE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (companyId && existing.companyId && existing.companyId !== companyId) {
+    const err = new Error(`Employee with ID '${id}' not found in your organization.`);
+    err.code = 'EMPLOYEE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    const err = new Error('Employee full name must be at least 2 characters long.');
+    err.code = 'INVALID_NAME';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!department || typeof department !== 'string' || !department.trim()) {
+    const err = new Error('Department is required.');
+    err.code = 'INVALID_DEPARTMENT';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!role || typeof role !== 'string' || role.trim().length < 2) {
+    const err = new Error('Job designation / role must be at least 2 characters long.');
+    err.code = 'INVALID_ROLE';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let normEmail = null;
+  if (email !== undefined && email !== null && typeof email === 'string' && email.trim().length > 0) {
+    const trimmedEmail = email.trim();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      const err = new Error('Invalid email format. Please provide a valid email address.');
+      err.code = 'INVALID_EMAIL';
+      err.statusCode = 400;
+      throw err;
+    }
+    normEmail = trimmedEmail.toLowerCase();
+    const targetCompId = companyId || existing.companyId;
+    if (targetCompId) {
+      const dupStmt = db.prepare('SELECT id FROM employees WHERE LOWER(email) = ? AND company_id = ? AND id != ?');
+      const dup = dupStmt.get(normEmail, targetCompId, id);
+      if (dup) {
+        const err = new Error(`An employee with email '${normEmail}' already exists in this organization.`);
+        err.code = 'DUPLICATE_EMPLOYEE_EMAIL';
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+  }
+
+  let normPhone = null;
+  if (phone !== undefined && phone !== null && typeof phone === 'string' && phone.trim().length > 0) {
+    const trimmedPhone = phone.trim();
+    const PHONE_REGEX = /^[+]?[\d\s\-().]{7,25}$/;
+    const digits = trimmedPhone.replace(/\D/g, '');
+    if (!PHONE_REGEX.test(trimmedPhone) || digits.length < 7 || digits.length > 15) {
+      const err = new Error('Invalid phone number format. Please provide a valid phone number with 7 to 15 digits.');
+      err.code = 'INVALID_PHONE';
+      err.statusCode = 400;
+      throw err;
+    }
+    normPhone = trimmedPhone;
+  }
+
+  let normUid = null;
+  if (uid !== undefined && uid !== null && typeof uid === 'string' && uid.trim().length > 0) {
+    normUid = uid.trim().toUpperCase();
+    if (normUid.length < 4 || normUid.length > 64) {
+      const err = new Error('Invalid UID format: Smart Card UID must be between 4 and 64 characters.');
+      err.code = 'INVALID_UID';
+      err.statusCode = 400;
+      throw err;
+    }
+    const dupUidStmt = db.prepare('SELECT id FROM employees WHERE UPPER(uid) = ? AND id != ?');
+    const dupUid = dupUidStmt.get(normUid, id);
+    if (dupUid) {
+      const err = new Error(`Smart Card UID ${normUid} is already assigned to another employee.`);
+      err.code = 'DUPLICATE_CARD_UID';
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  const updateStmt = db.prepare(`
+    UPDATE employees
+    SET name = ?, department = ?, role = ?, uid = ?, email = ?, phone = ?
+    WHERE id = ? AND company_id = ?
+  `);
+  updateStmt.run(name.trim(), department.trim(), role.trim(), normUid, normEmail, normPhone, id, companyId || existing.companyId);
+
+  return getEmployeeById(id);
+}
+
+function deactivateEmployee(id, companyId) {
+  const emp = getEmployeeById(id);
+  if (!emp || (companyId && emp.companyId && emp.companyId !== companyId)) {
+    const err = new Error(`Employee with ID '${id}' not found in your organization.`);
+    err.code = 'EMPLOYEE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  updateEmployeeAccountStatus(id, 'SUSPENDED');
+  deleteSessionsByAccount(id);
+
+  return {
+    success: true,
+    message: `Employee '${emp.name}' (${emp.id}) deactivated. All active sessions terminated.`,
+    accountStatus: 'SUSPENDED',
+    employee: getEmployeeById(id)
+  };
+}
+
+function reactivateEmployee(id, companyId) {
+  const emp = getEmployeeById(id);
+  if (!emp || (companyId && emp.companyId && emp.companyId !== companyId)) {
+    const err = new Error(`Employee with ID '${id}' not found in your organization.`);
+    err.code = 'EMPLOYEE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  updateEmployeeAccountStatus(id, 'ACTIVE');
+
+  return {
+    success: true,
+    message: `Employee '${emp.name}' (${emp.id}) reactivated successfully.`,
+    accountStatus: 'ACTIVE',
+    employee: getEmployeeById(id)
+  };
+}
+
+function deleteOrArchiveEmployee(id, companyId) {
+  const emp = getEmployeeById(id);
+  if (!emp || (companyId && emp.companyId && emp.companyId !== companyId)) {
+    const err = new Error(`Employee with ID '${id}' not found in your organization.`);
+    err.code = 'EMPLOYEE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Schema Inspection Notice:
+  // `attendance_events` defines `FOREIGN KEY (emp_id) REFERENCES employees(id) ON DELETE CASCADE`.
+  // Executing a physical `DELETE FROM employees` would permanently destroy all attendance event history!
+  // Therefore, a safe reversible archiving/soft-delete is enforced to guarantee audit and data preservation.
+  const now = new Date().toISOString();
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    const stmt = db.prepare(`
+      UPDATE employees
+      SET is_archived = 1, archived_at = ?
+      WHERE id = ? AND company_id = ?
+    `);
+    stmt.run(now, id, companyId || emp.companyId);
+
+    // Also suspend account and terminate sessions
+    updateEmployeeAccountStatus(id, 'SUSPENDED');
+    deleteSessionsByAccount(id);
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return {
+    success: true,
+    archived: true,
+    message: `Employee '${emp.name}' (${emp.id}) safely archived. Historical attendance logs preserved.`,
+    employee: getEmployeeById(id)
+  };
+}
+
+function restoreArchivedEmployee(id, companyId) {
+  const emp = getEmployeeById(id);
+  if (!emp || (companyId && emp.companyId && emp.companyId !== companyId)) {
+    const err = new Error(`Employee with ID '${id}' not found in your organization.`);
+    err.code = 'EMPLOYEE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    const stmt = db.prepare(`
+      UPDATE employees
+      SET is_archived = 0, archived_at = NULL
+      WHERE id = ? AND company_id = ?
+    `);
+    stmt.run(id, companyId || emp.companyId);
+
+    updateEmployeeAccountStatus(id, 'ACTIVE');
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return {
+    success: true,
+    message: `Employee '${emp.name}' (${emp.id}) successfully restored from archive.`,
+    employee: getEmployeeById(id)
+  };
 }
 
 function getAllAttendanceEvents(companyId = null) {
@@ -207,6 +610,15 @@ const recentScansCache = new Map();
 function getLatestEventForEmployee(empId) {
   const stmt = db.prepare('SELECT * FROM attendance_events WHERE emp_id = ? ORDER BY rowid DESC LIMIT 1');
   return formatEventRow(stmt.get(empId));
+}
+
+function getAttendanceEventsForEmployee(empId, companyId = null) {
+  if (companyId) {
+    const stmt = db.prepare('SELECT * FROM attendance_events WHERE emp_id = ? AND company_id = ? ORDER BY rowid DESC');
+    return stmt.all(empId, companyId).map(formatEventRow);
+  }
+  const stmt = db.prepare('SELECT * FROM attendance_events WHERE emp_id = ? ORDER BY rowid DESC');
+  return stmt.all(empId).map(formatEventRow);
 }
 
 function recordCardScan({ empId, uid, mode, gate }) {
@@ -234,6 +646,13 @@ function recordCardScan({ empId, uid, mode, gate }) {
   } else {
     const err = new Error('Either "uid" or "empId" must be provided to record card scan.');
     err.code = 'MISSING_IDENTIFIER';
+    throw err;
+  }
+
+  if (emp.isArchived) {
+    const err = new Error(`Employee record '${emp.name}' (${emp.id}) has been archived.`);
+    err.code = 'EMPLOYEE_ARCHIVED';
+    err.empId = emp.id;
     throw err;
   }
 
@@ -547,6 +966,17 @@ function updateEmployeePassword(employeeId, passwordHash, passwordSalt) {
   return getEmployeeAccountByEmpId(employeeId);
 }
 
+function updateEmployeeAccountStatus(employeeId, status) {
+  const now = new Date().toISOString();
+  const stmt = db.prepare(`
+    UPDATE employee_accounts
+    SET account_status = ?, updated_at = ?
+    WHERE employee_id = ?
+  `);
+  stmt.run(status, now, employeeId);
+  return getEmployeeAccountByEmpId(employeeId);
+}
+
 function createSession({ id, accountId, userType, companyId, csrfToken, ipAddress, userAgent, expiresAt }) {
   const now = new Date().toISOString();
   const stmt = db.prepare(`
@@ -592,9 +1022,18 @@ module.exports = {
   getAllEmployees,
   getEmployeeById,
   getEmployeeByUid,
+  getEmployeeByEmail,
   getLatestEventForEmployee,
+  generateUniqueEmployeeId,
   createEmployee,
+  createEmployeeWithAccount,
+  updateEmployee,
+  deactivateEmployee,
+  reactivateEmployee,
+  deleteOrArchiveEmployee,
+  restoreArchivedEmployee,
   getAllAttendanceEvents,
+  getAttendanceEventsForEmployee,
   recordCardScan,
   clearAttendanceEvents,
   // Auth & Multi-Tenancy Exports
@@ -609,6 +1048,7 @@ module.exports = {
   getEmployeeAccountByEmpId,
   createEmployeeAccount,
   updateEmployeePassword,
+  updateEmployeeAccountStatus,
   createSession,
   getSession,
   deleteSession,

@@ -280,6 +280,7 @@
   const inputSearchEmployees = document.getElementById('inputSearchEmployees');
   const filterEmpDept = document.getElementById('filterEmpDept');
   const filterEmpStatus = document.getElementById('filterEmpStatus');
+  const filterEmpAccountStatus = document.getElementById('filterEmpAccountStatus');
 
   const inputSearchLogs = document.getElementById('inputSearchLogs');
   const filterLogEventType = document.getElementById('filterLogEventType');
@@ -316,18 +317,85 @@
   const btnRefreshSimReport = document.getElementById('btnRefreshSimReport');
   const btnResetSimReport = document.getElementById('btnResetSimReport');
 
-  // Modal: Add Employee
+  // Modal: Add Employee & Phase 3 Credential Display
   const modalAddEmployee = document.getElementById('modalAddEmployee');
+  const modalAddEmployeeTitle = document.getElementById('modalAddEmployeeTitle');
   const btnOpenAddEmployeeModal = document.getElementById('btnOpenAddEmployeeModal');
   const btnCloseAddEmployeeModal = document.getElementById('btnCloseAddEmployeeModal');
   const btnCancelAddEmployee = document.getElementById('btnCancelAddEmployee');
   const formAddEmployee = document.getElementById('formAddEmployee');
+  const stageEmployeeCredentials = document.getElementById('stageEmployeeCredentials');
   const btnGenUid = document.getElementById('btnGenUid');
-  const newEmpId = document.getElementById('newEmpId');
   const newEmpName = document.getElementById('newEmpName');
   const newEmpDept = document.getElementById('newEmpDept');
   const newEmpRole = document.getElementById('newEmpRole');
+  const newEmpEmail = document.getElementById('newEmpEmail');
+  const newEmpEmailError = document.getElementById('newEmpEmailError');
+  const newEmpPhone = document.getElementById('newEmpPhone');
+  const newEmpPhoneError = document.getElementById('newEmpPhoneError');
   const newEmpUid = document.getElementById('newEmpUid');
+  const modalAddEmployeeError = document.getElementById('modalAddEmployeeError');
+  const dispCredEmpId = document.getElementById('dispCredEmpId');
+  const dispCredPassword = document.getElementById('dispCredPassword');
+  const dispCredCardUid = document.getElementById('dispCredCardUid');
+  const rowCredCardUid = document.getElementById('rowCredCardUid');
+  const dispCredEmail = document.getElementById('dispCredEmail');
+  const rowCredEmail = document.getElementById('rowCredEmail');
+  const dispCredPhone = document.getElementById('dispCredPhone');
+  const rowCredPhone = document.getElementById('rowCredPhone');
+  const credEmpSummaryName = document.getElementById('credEmpSummaryName');
+  const credEmpSummaryDept = document.getElementById('credEmpSummaryDept');
+  const btnCopyCredId = document.getElementById('btnCopyCredId');
+  const btnCopyCredPassword = document.getElementById('btnCopyCredPassword');
+  const btnCopyAllCredentials = document.getElementById('btnCopyAllCredentials');
+  const btnDoneAddEmployee = document.getElementById('btnDoneAddEmployee');
+
+  // Modal: View Employee Profile
+  const modalViewEmployee = document.getElementById('modalViewEmployee');
+  const btnCloseViewEmployeeModal = document.getElementById('btnCloseViewEmployeeModal');
+  const btnCloseViewModalBtn = document.getElementById('btnCloseViewModalBtn');
+  const btnEditFromViewModal = document.getElementById('btnEditFromViewModal');
+  const viewEmpAvatar = document.getElementById('viewEmpAvatar');
+  const viewEmpName = document.getElementById('viewEmpName');
+  const viewEmpAccountBadge = document.getElementById('viewEmpAccountBadge');
+  const viewEmpIdBadge = document.getElementById('viewEmpIdBadge');
+  const viewEmpRoleDept = document.getElementById('viewEmpRoleDept');
+  const viewEmpEmail = document.getElementById('viewEmpEmail');
+  const viewEmpPhone = document.getElementById('viewEmpPhone');
+  const viewEmpUid = document.getElementById('viewEmpUid');
+  const viewEmpPresence = document.getElementById('viewEmpPresence');
+  const viewEmpLastSeen = document.getElementById('viewEmpLastSeen');
+  const viewEmpPwStatus = document.getElementById('viewEmpPwStatus');
+  const viewEmpTotalRecords = document.getElementById('viewEmpTotalRecords');
+  const viewEmpRecentLogs = document.getElementById('viewEmpRecentLogs');
+
+  // Modal: Edit Employee
+  const modalEditEmployee = document.getElementById('modalEditEmployee');
+  const btnCloseEditEmployeeModal = document.getElementById('btnCloseEditEmployeeModal');
+  const btnCancelEditEmployee = document.getElementById('btnCancelEditEmployee');
+  const formEditEmployee = document.getElementById('formEditEmployee');
+  const editEmpId = document.getElementById('editEmpId');
+  const editEmpName = document.getElementById('editEmpName');
+  const editEmpDept = document.getElementById('editEmpDept');
+  const editEmpRole = document.getElementById('editEmpRole');
+  const editEmpEmail = document.getElementById('editEmpEmail');
+  const editEmpEmailError = document.getElementById('editEmpEmailError');
+  const editEmpPhone = document.getElementById('editEmpPhone');
+  const editEmpPhoneError = document.getElementById('editEmpPhoneError');
+  const editEmpUid = document.getElementById('editEmpUid');
+  const btnGenEditUid = document.getElementById('btnGenEditUid');
+  const modalEditEmployeeError = document.getElementById('modalEditEmployeeError');
+  const btnSubmitEditEmployee = document.getElementById('btnSubmitEditEmployee');
+
+  // Modal: Confirmation Dialog
+  const modalConfirmAction = document.getElementById('modalConfirmAction');
+  const btnCloseConfirmModal = document.getElementById('btnCloseConfirmModal');
+  const btnCancelConfirmAction = document.getElementById('btnCancelConfirmAction');
+  const btnSubmitConfirmAction = document.getElementById('btnSubmitConfirmAction');
+  const confirmActionTitle = document.getElementById('confirmActionTitle');
+  const confirmActionMessage = document.getElementById('confirmActionMessage');
+  const confirmActionWarning = document.getElementById('confirmActionWarning');
+  const confirmActionIcon = document.getElementById('confirmActionIcon');
 
   // ==========================================
   // 3. AUDIO FEEDBACK (Synthesized Web Audio API)
@@ -1004,12 +1072,16 @@
   // ==========================================
   // 11. RENDER EMPLOYEE DIRECTORY TABLE
   // ==========================================
+  // ==========================================
+  // 11. RENDER EMPLOYEE DIRECTORY TABLE
+  // ==========================================
   function renderEmployeeTable() {
     if (!employeeTableBody) return;
 
     const query = inputSearchEmployees ? inputSearchEmployees.value.trim().toLowerCase() : '';
     const deptFilter = filterEmpDept ? filterEmpDept.value : 'ALL';
     const statusFilter = filterEmpStatus ? filterEmpStatus.value : 'ALL';
+    const accountFilter = filterEmpAccountStatus ? filterEmpAccountStatus.value : 'ALL';
 
     const filtered = employees.filter(emp => {
       const matchQuery =
@@ -1017,18 +1089,33 @@
         emp.id.toLowerCase().includes(query) ||
         emp.name.toLowerCase().includes(query) ||
         emp.role.toLowerCase().includes(query) ||
-        emp.uid.toLowerCase().includes(query);
+        (emp.uid && emp.uid.toLowerCase().includes(query)) ||
+        (emp.email && emp.email.toLowerCase().includes(query)) ||
+        (emp.phone && emp.phone.includes(query));
 
       const matchDept = deptFilter === 'ALL' || emp.department === deptFilter;
       const matchStatus = statusFilter === 'ALL' || emp.status === statusFilter;
 
-      return matchQuery && matchDept && matchStatus;
+      let matchAccount = true;
+      if (accountFilter === 'ACTIVE') {
+        matchAccount = !emp.isArchived && emp.accountStatus === 'ACTIVE';
+      } else if (accountFilter === 'SUSPENDED') {
+        matchAccount = !emp.isArchived && emp.accountStatus === 'SUSPENDED';
+      } else if (accountFilter === 'ARCHIVED') {
+        matchAccount = Boolean(emp.isArchived);
+      } else if (accountFilter === 'ALL') {
+        matchAccount = !emp.isArchived;
+      } else if (accountFilter === 'EVERYTHING') {
+        matchAccount = true;
+      }
+
+      return matchQuery && matchDept && matchStatus && matchAccount;
     });
 
     if (filtered.length === 0) {
       employeeTableBody.innerHTML = `
         <tr>
-          <td colspan="8" class="empty-state">
+          <td colspan="9" class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="8" y1="12" x2="16" y2="12"></line>
@@ -1044,6 +1131,15 @@
     filtered.forEach(emp => {
       const tr = document.createElement('tr');
       const isInside = emp.status === 'INSIDE';
+      const isSuspended = emp.accountStatus === 'SUSPENDED';
+      const isArchived = Boolean(emp.isArchived);
+
+      let accountBadge = '<span class="badge-status-active">● Active</span>';
+      if (isArchived) {
+        accountBadge = '<span class="badge-status-archived">● Archived</span>';
+      } else if (isSuspended) {
+        accountBadge = '<span class="badge-status-suspended">● Suspended</span>';
+      }
 
       tr.innerHTML = `
         <td><span class="emp-id-badge">${emp.id}</span></td>
@@ -1055,7 +1151,8 @@
         </td>
         <td>${emp.department}</td>
         <td style="color: var(--text-muted); font-size: 0.8rem;">${emp.role}</td>
-        <td><span style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim);">${emp.uid}</span></td>
+        <td><span style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim);">${emp.uid || '<em style="color:var(--text-muted);">None</em>'}</span></td>
+        <td>${accountBadge}</td>
         <td>
           <span class="status-badge ${isInside ? 'present' : 'checked-out'}">
             ${isInside ? '● INSIDE' : '○ OUTSIDE'}
@@ -1063,24 +1160,140 @@
         </td>
         <td style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim);">${emp.lastSeen}</td>
         <td style="text-align: right;">
-          <button class="btn-quick-tap" data-emp-id="${emp.id}" title="Tap Smart ID at Gate">
-            <svg style="width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
-              <path d="M4.9 19.1C2.5 16.7 2.5 12.8 4.9 10.4M7.8 16.2C6.2 14.6 6.2 12 7.8 10.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-            </svg>
-            Tap ${isInside ? 'Exit' : 'Entry'}
-          </button>
+          <div class="action-cell">
+            <button type="button" class="btn-quick-tap" data-emp-id="${emp.id}" title="Tap Smart ID at Gate" ${isArchived ? 'disabled style="opacity: 0.45; cursor: not-allowed;"' : ''}>
+              <svg style="width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+                <path d="M4.9 19.1C2.5 16.7 2.5 12.8 4.9 10.4M7.8 16.2C6.2 14.6 6.2 12 7.8 10.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+              </svg>
+              Tap ${isInside ? 'Exit' : 'Entry'}
+            </button>
+
+            <button type="button" class="btn-action-menu" data-emp-id="${emp.id}" title="Manage Employee Actions" aria-label="Manage Employee">
+              &bull;&bull;&bull;
+            </button>
+
+            <div class="action-menu-dropdown" id="actionMenu-${emp.id}">
+              <button type="button" class="action-menu-item btn-act-view" data-emp-id="${emp.id}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <span>View Details</span>
+              </button>
+              <button type="button" class="action-menu-item btn-act-edit" data-emp-id="${emp.id}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span>Edit Employee</span>
+              </button>
+              ${!isArchived ? `
+                <button type="button" class="action-menu-item btn-act-status" data-emp-id="${emp.id}" data-current-status="${emp.accountStatus}">
+                  ${isSuspended ? `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <span style="color: #10B981;">Reactivate</span>
+                  ` : `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                    <span style="color: #F59E0B;">Deactivate</span>
+                  `}
+                </button>
+                <button type="button" class="action-menu-item danger btn-act-delete" data-emp-id="${emp.id}">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  <span>Delete Employee</span>
+                </button>
+              ` : `
+                <button type="button" class="action-menu-item btn-act-restore" data-emp-id="${emp.id}">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+                  <span style="color: #10B981;">Restore Employee</span>
+                </button>
+              `}
+            </div>
+          </div>
         </td>
       `;
       employeeTableBody.appendChild(tr);
     });
 
+    // Wire Quick Tap buttons
     employeeTableBody.querySelectorAll('.btn-quick-tap').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const empId = btn.getAttribute('data-emp-id');
         executeSmartCardScan(empId, 'AUTO');
       });
     });
+
+    // Wire Action Menu dropdown toggles
+    employeeTableBody.querySelectorAll('.btn-action-menu').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const empId = btn.getAttribute('data-emp-id');
+        const targetMenu = document.getElementById(`actionMenu-${empId}`);
+        const isOpen = targetMenu && targetMenu.classList.contains('show');
+
+        // Close any other open dropdown menus first
+        document.querySelectorAll('.action-menu-dropdown.show').forEach(m => m.classList.remove('show'));
+
+        if (targetMenu && !isOpen) {
+          targetMenu.classList.add('show');
+        }
+      });
+    });
+
+    // Wire View Details action
+    employeeTableBody.querySelectorAll('.btn-act-view').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllActionDropdowns();
+        const empId = btn.getAttribute('data-emp-id');
+        openViewEmployeeModal(empId);
+      });
+    });
+
+    // Wire Edit Employee action
+    employeeTableBody.querySelectorAll('.btn-act-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllActionDropdowns();
+        const empId = btn.getAttribute('data-emp-id');
+        openEditEmployeeModal(empId);
+      });
+    });
+
+    // Wire Deactivate / Reactivate action
+    employeeTableBody.querySelectorAll('.btn-act-status').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllActionDropdowns();
+        const empId = btn.getAttribute('data-emp-id');
+        const currentStatus = btn.getAttribute('data-current-status');
+        promptToggleEmployeeStatus(empId, currentStatus);
+      });
+    });
+
+    // Wire Delete Employee action
+    employeeTableBody.querySelectorAll('.btn-act-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllActionDropdowns();
+        const empId = btn.getAttribute('data-emp-id');
+        promptDeleteEmployee(empId);
+      });
+    });
+
+    // Wire Restore Employee action
+    employeeTableBody.querySelectorAll('.btn-act-restore').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllActionDropdowns();
+        const empId = btn.getAttribute('data-emp-id');
+        restoreEmployee(empId);
+      });
+    });
   }
+
+  function closeAllActionDropdowns() {
+    document.querySelectorAll('.action-menu-dropdown.show').forEach(m => m.classList.remove('show'));
+  }
+
+  // Global listener to close dropdowns when clicking anywhere outside
+  document.addEventListener('click', () => {
+    closeAllActionDropdowns();
+  });
 
   // ==========================================
   // 12. RENDER ATTENDANCE HISTORY LOG TABLE
@@ -2193,43 +2406,229 @@
   }
 
   // ==========================================
-  // 16. EMPLOYEE MANAGEMENT MODAL (ADD EMPLOYEE BACKED BY SQLITE)
+  // 16. EMPLOYEE MANAGEMENT MODAL (PHASE 3: ADMIN-CREATED EMPLOYEE ACCOUNTS)
   // ==========================================
+  let activeCreatedCredentials = null;
+
+  function resetAddEmployeeModalState() {
+    if (formAddEmployee) {
+      formAddEmployee.reset();
+      formAddEmployee.style.display = 'block';
+    }
+    if (stageEmployeeCredentials) {
+      stageEmployeeCredentials.style.display = 'none';
+    }
+    if (modalAddEmployeeTitle) {
+      const span = modalAddEmployeeTitle.querySelector('span');
+      if (span) span.textContent = 'Register New Workforce Member';
+    }
+    // Clear validation error displays
+    if (newEmpEmailError) {
+      newEmpEmailError.textContent = '';
+      newEmpEmailError.style.display = 'none';
+    }
+    if (newEmpPhoneError) {
+      newEmpPhoneError.textContent = '';
+      newEmpPhoneError.style.display = 'none';
+    }
+    if (modalAddEmployeeError) {
+      modalAddEmployeeError.textContent = '';
+      modalAddEmployeeError.style.display = 'none';
+    }
+    if (newEmpEmail) newEmpEmail.style.borderColor = '';
+    if (newEmpPhone) newEmpPhone.style.borderColor = '';
+
+    // Clear displayed credentials from memory and DOM
+    activeCreatedCredentials = null;
+    if (dispCredEmpId) dispCredEmpId.textContent = 'EMP-XXX';
+    if (dispCredPassword) dispCredPassword.textContent = '••••••••••••••';
+    if (dispCredEmail) dispCredEmail.textContent = '--';
+    if (rowCredEmail) rowCredEmail.style.display = 'none';
+    if (dispCredPhone) dispCredPhone.textContent = '--';
+    if (rowCredPhone) rowCredPhone.style.display = 'none';
+    if (dispCredCardUid) dispCredCardUid.textContent = '--:--:--:--';
+    if (rowCredCardUid) rowCredCardUid.style.display = 'none';
+    const btnSubmit = document.getElementById('btnSubmitAddEmployee');
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Create Employee & Account';
+    }
+  }
+
+  function closeAddEmployeeModal() {
+    if (modalAddEmployee) {
+      modalAddEmployee.classList.remove('open');
+    }
+    resetAddEmployeeModalState();
+  }
+
   if (btnOpenAddEmployeeModal) {
     btnOpenAddEmployeeModal.addEventListener('click', () => {
-      newEmpId.value = `EMP-${100 + employees.length + 1}`;
-      newEmpUid.value = generateRandomCardUid();
-      newEmpName.value = '';
-      newEmpRole.value = '';
+      resetAddEmployeeModalState();
       modalAddEmployee.classList.add('open');
+      if (newEmpName) newEmpName.focus();
     });
   }
 
   if (btnCloseAddEmployeeModal) {
-    btnCloseAddEmployeeModal.addEventListener('click', () => modalAddEmployee.classList.remove('open'));
+    btnCloseAddEmployeeModal.addEventListener('click', closeAddEmployeeModal);
   }
   if (btnCancelAddEmployee) {
-    btnCancelAddEmployee.addEventListener('click', () => modalAddEmployee.classList.remove('open'));
+    btnCancelAddEmployee.addEventListener('click', closeAddEmployeeModal);
+  }
+  if (btnDoneAddEmployee) {
+    btnDoneAddEmployee.addEventListener('click', closeAddEmployeeModal);
   }
 
   if (btnGenUid) {
     btnGenUid.addEventListener('click', () => {
-      newEmpUid.value = generateRandomCardUid();
+      if (newEmpUid) {
+        newEmpUid.value = generateRandomCardUid();
+      }
+    });
+  }
+
+  if (newEmpEmail) {
+    newEmpEmail.addEventListener('input', () => {
+      if (newEmpEmailError) {
+        newEmpEmailError.textContent = '';
+        newEmpEmailError.style.display = 'none';
+      }
+      newEmpEmail.style.borderColor = '';
+      if (modalAddEmployeeError) modalAddEmployeeError.style.display = 'none';
+    });
+  }
+
+  if (newEmpPhone) {
+    newEmpPhone.addEventListener('input', () => {
+      if (newEmpPhoneError) {
+        newEmpPhoneError.textContent = '';
+        newEmpPhoneError.style.display = 'none';
+      }
+      newEmpPhone.style.borderColor = '';
+      if (modalAddEmployeeError) modalAddEmployeeError.style.display = 'none';
     });
   }
 
   if (formAddEmployee) {
     formAddEmployee.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const id = newEmpId.value.trim();
-      const name = newEmpName.value.trim();
-      const department = newEmpDept.value;
-      const role = newEmpRole.value.trim();
-      const uid = newEmpUid.value.trim();
 
-      if (!id || !name || !role || !uid) {
-        alert('Please fill out all required fields.');
+      // Clear previous validation errors
+      if (newEmpEmailError) {
+        newEmpEmailError.textContent = '';
+        newEmpEmailError.style.display = 'none';
+      }
+      if (newEmpPhoneError) {
+        newEmpPhoneError.textContent = '';
+        newEmpPhoneError.style.display = 'none';
+      }
+      if (modalAddEmployeeError) {
+        modalAddEmployeeError.textContent = '';
+        modalAddEmployeeError.style.display = 'none';
+      }
+      if (newEmpEmail) newEmpEmail.style.borderColor = '';
+      if (newEmpPhone) newEmpPhone.style.borderColor = '';
+
+      const name = newEmpName ? newEmpName.value.trim() : '';
+      const department = newEmpDept ? newEmpDept.value : '';
+      const role = newEmpRole ? newEmpRole.value.trim() : '';
+      const email = newEmpEmail ? newEmpEmail.value.trim() : '';
+      const phone = newEmpPhone ? newEmpPhone.value.trim() : '';
+      const rawUid = newEmpUid ? newEmpUid.value.trim() : '';
+      const uid = rawUid ? rawUid.toUpperCase() : null;
+
+      if (!name || !department || !role) {
+        if (modalAddEmployeeError) {
+          modalAddEmployeeError.textContent = 'Please fill out all required fields: Full Name, Department, and Designation.';
+          modalAddEmployeeError.style.display = 'block';
+        } else {
+          alert('Please fill out all required fields: Full Name, Department, and Designation.');
+        }
         return;
+      }
+
+      // Validate name has at least 4 alphabetic letters for temporary password generation
+      const nameLetters = name.match(/[a-zA-Z]/g);
+      if (!nameLetters || nameLetters.length < 4) {
+        if (modalAddEmployeeError) {
+          modalAddEmployeeError.textContent = 'Employee full name must contain at least 4 alphabetic letters to generate the temporary password.';
+          modalAddEmployeeError.style.display = 'block';
+        }
+        if (newEmpName) {
+          newEmpName.style.borderColor = '#EF4444';
+          newEmpName.focus();
+        }
+        return;
+      }
+
+      // 1. Email format and duplicate validation
+      const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email) {
+        if (newEmpEmailError) {
+          newEmpEmailError.textContent = 'Employee Gmail / Email ID is required.';
+          newEmpEmailError.style.display = 'block';
+        }
+        if (newEmpEmail) {
+          newEmpEmail.style.borderColor = '#EF4444';
+          newEmpEmail.focus();
+        }
+        return;
+      }
+      if (!EMAIL_REGEX.test(email)) {
+        if (newEmpEmailError) {
+          newEmpEmailError.textContent = 'Please enter a valid email address (e.g. employee@gmail.com).';
+          newEmpEmailError.style.display = 'block';
+        }
+        if (newEmpEmail) {
+          newEmpEmail.style.borderColor = '#EF4444';
+          newEmpEmail.focus();
+        }
+        return;
+      }
+      const duplicateEmp = employees.find(e => e.email && e.email.toLowerCase() === email.toLowerCase());
+      if (duplicateEmp) {
+        if (newEmpEmailError) {
+          newEmpEmailError.textContent = `An employee with email "${email}" already exists in this company (${duplicateEmp.name} - ${duplicateEmp.id}).`;
+          newEmpEmailError.style.display = 'block';
+        }
+        if (newEmpEmail) {
+          newEmpEmail.style.borderColor = '#EF4444';
+          newEmpEmail.focus();
+        }
+        return;
+      }
+
+      // 2. Phone format validation
+      const PHONE_REGEX = /^[+]?[\d\s\-().]{7,25}$/;
+      const phoneDigits = phone.replace(/\D/g, '');
+      if (!phone) {
+        if (newEmpPhoneError) {
+          newEmpPhoneError.textContent = 'Phone number is required.';
+          newEmpPhoneError.style.display = 'block';
+        }
+        if (newEmpPhone) {
+          newEmpPhone.style.borderColor = '#EF4444';
+          newEmpPhone.focus();
+        }
+        return;
+      }
+      if (!PHONE_REGEX.test(phone) || phoneDigits.length < 7 || phoneDigits.length > 15) {
+        if (newEmpPhoneError) {
+          newEmpPhoneError.textContent = 'Please enter a valid phone number with 7 to 15 digits (e.g. +91 98765 43210).';
+          newEmpPhoneError.style.display = 'block';
+        }
+        if (newEmpPhone) {
+          newEmpPhone.style.borderColor = '#EF4444';
+          newEmpPhone.focus();
+        }
+        return;
+      }
+
+      const btnSubmit = document.getElementById('btnSubmitAddEmployee');
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Creating Account...';
       }
 
       const deptColors = {
@@ -2240,12 +2639,13 @@
       };
 
       const newEmployeeData = {
-        id,
         name,
         department,
         role,
-        uid,
-        avatarBg: deptColors[department] || '#3B82F6'
+        email,
+        phone,
+        uid: uid || undefined,
+        avatarBg: deptColors[department] || '#0284C7'
       };
 
       try {
@@ -2260,15 +2660,71 @@
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `Registration failed with status ${res.status}`);
+          const errMsg = errData.error || `Registration failed with status ${res.status}`;
+          if (errMsg.toLowerCase().includes('email') && newEmpEmailError) {
+            newEmpEmailError.textContent = errMsg;
+            newEmpEmailError.style.display = 'block';
+            if (newEmpEmail) newEmpEmail.style.borderColor = '#EF4444';
+          }
+          if (errMsg.toLowerCase().includes('phone') && newEmpPhoneError) {
+            newEmpPhoneError.textContent = errMsg;
+            newEmpPhoneError.style.display = 'block';
+            if (newEmpPhone) newEmpPhone.style.borderColor = '#EF4444';
+          }
+          if (modalAddEmployeeError) {
+            modalAddEmployeeError.textContent = errMsg;
+            modalAddEmployeeError.style.display = 'block';
+          }
+          throw new Error(errMsg);
         }
 
         const createdEmployee = await res.json();
+        activeCreatedCredentials = createdEmployee;
+
+        // Push to local employee roster
         employees.push(createdEmployee);
 
-        modalAddEmployee.classList.remove('open');
-        formAddEmployee.reset();
+        // Switch modal view to Phase 3 Credential Presentation
+        formAddEmployee.style.display = 'none';
+        stageEmployeeCredentials.style.display = 'block';
 
+        if (modalAddEmployeeTitle) {
+          const span = modalAddEmployeeTitle.querySelector('span');
+          if (span) span.textContent = 'Employee Credentials Generated';
+        }
+
+        if (credEmpSummaryName) {
+          credEmpSummaryName.textContent = `${createdEmployee.name} (${createdEmployee.id})`;
+        }
+        if (credEmpSummaryDept) {
+          credEmpSummaryDept.textContent = `${createdEmployee.department} • ${createdEmployee.role}`;
+        }
+        if (dispCredEmpId) {
+          dispCredEmpId.textContent = createdEmployee.id;
+        }
+        if (dispCredPassword) {
+          dispCredPassword.textContent = createdEmployee.temporaryPassword || (createdEmployee.credentials && createdEmployee.credentials.temporaryPassword) || '';
+        }
+        if (createdEmployee.email) {
+          if (rowCredEmail) rowCredEmail.style.display = 'flex';
+          if (dispCredEmail) dispCredEmail.textContent = createdEmployee.email;
+        } else {
+          if (rowCredEmail) rowCredEmail.style.display = 'none';
+        }
+        if (createdEmployee.phone) {
+          if (rowCredPhone) rowCredPhone.style.display = 'flex';
+          if (dispCredPhone) dispCredPhone.textContent = createdEmployee.phone;
+        } else {
+          if (rowCredPhone) rowCredPhone.style.display = 'none';
+        }
+        if (createdEmployee.uid) {
+          if (rowCredCardUid) rowCredCardUid.style.display = 'flex';
+          if (dispCredCardUid) dispCredCardUid.textContent = createdEmployee.uid;
+        } else {
+          if (rowCredCardUid) rowCredCardUid.style.display = 'none';
+        }
+
+        // Synchronize all dashboard views
         populateEmployeeSelect();
         selectEmployee.value = createdEmployee.id;
         updateVirtualCardPreview(createdEmployee.id);
@@ -2279,11 +2735,606 @@
         renderEmployeeTable();
         renderAttendanceCharts();
 
-        showToast(`Enrolled ${createdEmployee.name} (${createdEmployee.id}) into SQLite database`, 'entry');
+        showToast(`Created employee ${createdEmployee.name} (${createdEmployee.id}) with secure credentials`, 'entry');
       } catch (err) {
-        alert(err.message);
+        if (modalAddEmployeeError) {
+          modalAddEmployeeError.textContent = err.message;
+          modalAddEmployeeError.style.display = 'block';
+        } else {
+          alert(err.message);
+        }
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Create Employee & Account';
+        }
       }
     });
+  }
+
+  // Copy Action Helpers
+  function copyTextToClipboard(text, btnElement, successMsg = '✓ Copied!') {
+    if (!navigator.clipboard) {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    } else {
+      navigator.clipboard.writeText(text);
+    }
+
+    if (btnElement) {
+      const origText = btnElement.innerHTML;
+      btnElement.textContent = successMsg;
+      setTimeout(() => {
+        btnElement.innerHTML = origText;
+      }, 1800);
+    }
+  }
+
+  if (btnCopyCredId) {
+    btnCopyCredId.addEventListener('click', () => {
+      const empId = dispCredEmpId ? dispCredEmpId.textContent : '';
+      if (empId) {
+        copyTextToClipboard(empId, btnCopyCredId, '✓ Copied!');
+        showToast(`Copied Employee ID ${empId} to clipboard`, 'entry');
+      }
+    });
+  }
+
+  if (btnCopyCredPassword) {
+    btnCopyCredPassword.addEventListener('click', () => {
+      const pass = dispCredPassword ? dispCredPassword.textContent : '';
+      if (pass) {
+        copyTextToClipboard(pass, btnCopyCredPassword, '✓ Copied!');
+        showToast('Temporary password copied to clipboard', 'entry');
+      }
+    });
+  }
+
+  if (btnCopyAllCredentials) {
+    btnCopyAllCredentials.addEventListener('click', () => {
+      if (!activeCreatedCredentials) return;
+      const pass = activeCreatedCredentials.temporaryPassword || (activeCreatedCredentials.credentials && activeCreatedCredentials.credentials.temporaryPassword) || '';
+      const text = [
+        '========================================',
+        'SmartWorkforce Employee Credentials',
+        '========================================',
+        `Employee Name:       ${activeCreatedCredentials.name}`,
+        `Employee ID:         ${activeCreatedCredentials.id}`,
+        `Temporary Password:  ${pass}`,
+        `Department:          ${activeCreatedCredentials.department}`,
+        `Designation:         ${activeCreatedCredentials.role}`,
+        `Employee Email:      ${activeCreatedCredentials.email || 'None'}`,
+        `Phone Number:        ${activeCreatedCredentials.phone || 'None'}`,
+        `Smart Card UID:      ${activeCreatedCredentials.uid || 'None Assigned (Pending)'}`,
+        '----------------------------------------',
+        'Notice: You will be required to change your temporary password on your first sign-in.',
+        '========================================'
+      ].join('\r\n');
+
+      copyTextToClipboard(text, btnCopyAllCredentials, '✓ All Credentials Copied to Clipboard!');
+      showToast('All employee credentials copied to clipboard', 'entry');
+    });
+  }
+
+  // ==========================================
+  // 16B. WORKFORCE DIRECTORY ACTIONS: VIEW DETAILS, EDIT, DEACTIVATE/REACTIVATE, DELETE
+  // ==========================================
+
+  // A. View Details Modal
+  async function openViewEmployeeModal(empId) {
+    if (!modalViewEmployee) return;
+
+    let emp = employees.find(e => e.id === empId);
+
+    // Initial placeholder population while fetching full telemetry
+    if (emp) {
+      populateViewModalContent(emp);
+    }
+
+    modalViewEmployee.classList.add('open');
+
+    // Fetch full profile and telemetry history
+    try {
+      const res = await fetch(`/api/employees/${encodeURIComponent(empId)}`);
+      if (res.ok) {
+        const fullEmp = await res.json();
+        populateViewModalContent(fullEmp);
+      }
+    } catch (err) {
+      console.warn('Error loading employee telemetry details:', err);
+    }
+  }
+
+  function populateViewModalContent(emp) {
+    if (viewEmpAvatar) {
+      viewEmpAvatar.textContent = getInitials(emp.name);
+      viewEmpAvatar.style.backgroundColor = emp.avatarBg || '#0284C7';
+    }
+    if (viewEmpName) viewEmpName.textContent = emp.name;
+    if (viewEmpIdBadge) viewEmpIdBadge.textContent = emp.id;
+    if (viewEmpRoleDept) viewEmpRoleDept.textContent = `${emp.role} • ${emp.department}`;
+
+    if (viewEmpAccountBadge) {
+      if (emp.isArchived) {
+        viewEmpAccountBadge.innerHTML = '<span class="badge-status-archived">Archived</span>';
+      } else if (emp.accountStatus === 'SUSPENDED') {
+        viewEmpAccountBadge.innerHTML = '<span class="badge-status-suspended">Suspended</span>';
+      } else {
+        viewEmpAccountBadge.innerHTML = '<span class="badge-status-active">Active</span>';
+      }
+    }
+
+    if (viewEmpEmail) viewEmpEmail.textContent = emp.email || 'None registered';
+    if (viewEmpPhone) viewEmpPhone.textContent = emp.phone || 'None registered';
+    if (viewEmpUid) viewEmpUid.textContent = emp.uid || 'No smart card assigned';
+    if (viewEmpPresence) {
+      const isInside = emp.status === 'INSIDE';
+      viewEmpPresence.innerHTML = `<span class="status-badge ${isInside ? 'present' : 'checked-out'}">${isInside ? '● CURRENTLY INSIDE' : '○ CURRENTLY OUTSIDE'}</span>`;
+    }
+    if (viewEmpLastSeen) viewEmpLastSeen.textContent = emp.lastSeen || emp.last_seen || 'Not detected today';
+    if (viewEmpPwStatus) {
+      viewEmpPwStatus.textContent = emp.mustChangePassword ? 'Pending First-Login Password Change' : 'Established';
+    }
+
+    if (viewEmpTotalRecords) {
+      viewEmpTotalRecords.textContent = emp.totalAttendanceRecords !== undefined ? emp.totalAttendanceRecords : 0;
+    }
+
+    if (viewEmpRecentLogs) {
+      if (emp.recentAttendance && emp.recentAttendance.length > 0) {
+        viewEmpRecentLogs.innerHTML = emp.recentAttendance.map(log => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--border-subtle);">
+            <div>
+              <strong style="color: ${log.eventType === 'ENTRY' ? '#10B981' : '#F59E0B'};">${log.eventType}</strong>
+              <span style="color: var(--text-muted); margin-left: 6px;">${log.gate}</span>
+            </div>
+            <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim);">${log.timestamp}</span>
+          </div>
+        `).join('');
+      } else {
+        viewEmpRecentLogs.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 8px;">No gate detections recorded yet.</div>';
+      }
+    }
+
+    if (btnEditFromViewModal) {
+      btnEditFromViewModal.onclick = () => {
+        closeViewEmployeeModal();
+        openEditEmployeeModal(emp.id);
+      };
+    }
+  }
+
+  function closeViewEmployeeModal() {
+    if (modalViewEmployee) modalViewEmployee.classList.remove('open');
+  }
+
+  if (btnCloseViewEmployeeModal) btnCloseViewEmployeeModal.addEventListener('click', closeViewEmployeeModal);
+  if (btnCloseViewModalBtn) btnCloseViewModalBtn.addEventListener('click', closeViewEmployeeModal);
+
+  // B. Edit Employee Modal
+  let activeEditingEmpId = null;
+
+  function openEditEmployeeModal(empId) {
+    if (!modalEditEmployee) return;
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+
+    activeEditingEmpId = emp.id;
+    if (editEmpId) editEmpId.value = emp.id;
+    if (editEmpName) editEmpName.value = emp.name;
+    if (editEmpDept) editEmpDept.value = emp.department;
+    if (editEmpRole) editEmpRole.value = emp.role;
+    if (editEmpEmail) editEmpEmail.value = emp.email || '';
+    if (editEmpPhone) editEmpPhone.value = emp.phone || '';
+    if (editEmpUid) editEmpUid.value = emp.uid || '';
+
+    if (modalEditEmployeeError) {
+      modalEditEmployeeError.textContent = '';
+      modalEditEmployeeError.style.display = 'none';
+    }
+    if (editEmpEmailError) {
+      editEmpEmailError.textContent = '';
+      editEmpEmailError.style.display = 'none';
+    }
+    if (editEmpPhoneError) {
+      editEmpPhoneError.textContent = '';
+      editEmpPhoneError.style.display = 'none';
+    }
+    if (editEmpEmail) editEmpEmail.style.borderColor = '';
+    if (editEmpPhone) editEmpPhone.style.borderColor = '';
+
+    if (btnSubmitEditEmployee) {
+      btnSubmitEditEmployee.disabled = false;
+      btnSubmitEditEmployee.textContent = 'Save Changes';
+    }
+
+    modalEditEmployee.classList.add('open');
+  }
+
+  function closeEditEmployeeModal() {
+    if (modalEditEmployee) modalEditEmployee.classList.remove('open');
+    activeEditingEmpId = null;
+  }
+
+  if (btnCloseEditEmployeeModal) btnCloseEditEmployeeModal.addEventListener('click', closeEditEmployeeModal);
+  if (btnCancelEditEmployee) btnCancelEditEmployee.addEventListener('click', closeEditEmployeeModal);
+
+  if (btnGenEditUid) {
+    btnGenEditUid.addEventListener('click', () => {
+      const hex = '0123456789ABCDEF';
+      let uid = '';
+      for (let i = 0; i < 4; i++) {
+        uid += (i > 0 ? ':' : '') + hex[Math.floor(Math.random() * 16)] + hex[Math.floor(Math.random() * 16)];
+      }
+      if (editEmpUid) editEmpUid.value = uid;
+    });
+  }
+
+  if (formEditEmployee) {
+    formEditEmployee.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!activeEditingEmpId) return;
+
+      const empId = activeEditingEmpId;
+      const nameVal = editEmpName ? editEmpName.value.trim() : '';
+      const deptVal = editEmpDept ? editEmpDept.value.trim() : '';
+      const roleVal = editEmpRole ? editEmpRole.value.trim() : '';
+      const emailVal = editEmpEmail ? editEmpEmail.value.trim() : '';
+      const phoneVal = editEmpPhone ? editEmpPhone.value.trim() : '';
+      const uidVal = editEmpUid ? editEmpUid.value.trim().toUpperCase() : '';
+
+      // Reset errors
+      if (modalEditEmployeeError) {
+        modalEditEmployeeError.textContent = '';
+        modalEditEmployeeError.style.display = 'none';
+      }
+      if (editEmpEmailError) {
+        editEmpEmailError.textContent = '';
+        editEmpEmailError.style.display = 'none';
+      }
+      if (editEmpPhoneError) {
+        editEmpPhoneError.textContent = '';
+        editEmpPhoneError.style.display = 'none';
+      }
+      if (editEmpEmail) editEmpEmail.style.borderColor = '';
+      if (editEmpPhone) editEmpPhone.style.borderColor = '';
+
+      if (!nameVal || !deptVal || !roleVal) {
+        if (modalEditEmployeeError) {
+          modalEditEmployeeError.textContent = 'Full name, department, and designation are required.';
+          modalEditEmployeeError.style.display = 'block';
+        }
+        return;
+      }
+
+      // Email validation
+      if (emailVal) {
+        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!EMAIL_REGEX.test(emailVal)) {
+          if (editEmpEmailError) {
+            editEmpEmailError.textContent = 'Invalid email format. Please provide a valid email address.';
+            editEmpEmailError.style.display = 'block';
+          }
+          if (editEmpEmail) editEmpEmail.style.borderColor = '#EF4444';
+          return;
+        }
+
+        // Duplicate email check
+        const dupEmail = employees.find(emp => emp.id !== empId && emp.email && emp.email.toLowerCase() === emailVal.toLowerCase());
+        if (dupEmail) {
+          if (editEmpEmailError) {
+            editEmpEmailError.textContent = `An employee with email '${emailVal}' already exists in this organization.`;
+            editEmpEmailError.style.display = 'block';
+          }
+          if (editEmpEmail) editEmpEmail.style.borderColor = '#EF4444';
+          return;
+        }
+      }
+
+      // Phone validation
+      if (phoneVal) {
+        const PHONE_REGEX = /^[+]?[\d\s\-().]{7,25}$/;
+        const digits = phoneVal.replace(/\D/g, '');
+        if (!PHONE_REGEX.test(phoneVal) || digits.length < 7 || digits.length > 15) {
+          if (editEmpPhoneError) {
+            editEmpPhoneError.textContent = 'Invalid phone number format. Please enter 7 to 15 digits.';
+            editEmpPhoneError.style.display = 'block';
+          }
+          if (editEmpPhone) editEmpPhone.style.borderColor = '#EF4444';
+          return;
+        }
+      }
+
+      // UID duplicate check
+      if (uidVal) {
+        if (uidVal.length < 4 || uidVal.length > 64) {
+          if (modalEditEmployeeError) {
+            modalEditEmployeeError.textContent = 'Smart Card UID must be between 4 and 64 characters.';
+            modalEditEmployeeError.style.display = 'block';
+          }
+          return;
+        }
+        const dupUid = employees.find(emp => emp.id !== empId && emp.uid && emp.uid.toUpperCase() === uidVal.toUpperCase());
+        if (dupUid) {
+          if (modalEditEmployeeError) {
+            modalEditEmployeeError.textContent = `Smart Card UID '${uidVal}' is already assigned to another employee (${dupUid.name}).`;
+            modalEditEmployeeError.style.display = 'block';
+          }
+          return;
+        }
+      }
+
+      if (btnSubmitEditEmployee) {
+        btnSubmitEditEmployee.disabled = true;
+        btnSubmitEditEmployee.textContent = 'Saving Changes...';
+      }
+
+      try {
+        const csrfToken = getCsrfToken();
+        const res = await fetch(`/api/employees/${encodeURIComponent(empId)}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({
+            name: nameVal,
+            department: deptVal,
+            role: roleVal,
+            email: emailVal || null,
+            phone: phoneVal || null,
+            uid: uidVal || null
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to update employee record.');
+        }
+
+        // Update local state
+        const updated = data.employee;
+        const idx = employees.findIndex(e => e.id === empId);
+        if (idx !== -1) {
+          employees[idx] = { ...employees[idx], ...updated };
+        }
+
+        closeEditEmployeeModal();
+        showToast(`Employee ${updated.name} (${updated.id}) updated successfully.`, 'entry');
+
+        renderEmployeeTable();
+        renderAttendanceRosterTable();
+        updateKPIs();
+        populateEmployeeSelect();
+        updateSyncFingerprint();
+      } catch (err) {
+        if (modalEditEmployeeError) {
+          modalEditEmployeeError.textContent = err.message;
+          modalEditEmployeeError.style.display = 'block';
+        }
+      } finally {
+        if (btnSubmitEditEmployee) {
+          btnSubmitEditEmployee.disabled = false;
+          btnSubmitEditEmployee.textContent = 'Save Changes';
+        }
+      }
+    });
+  }
+
+  // C. Confirmation Dialog System (Deactivation & Deletion)
+  let pendingConfirmAction = null;
+
+  function openConfirmModal({ title, icon, message, warning, confirmBtnText, confirmBtnClass, onConfirm }) {
+    if (!modalConfirmAction) return;
+
+    if (confirmActionTitle) confirmActionTitle.textContent = title;
+    if (confirmActionIcon) confirmActionIcon.textContent = icon || '⚠️';
+    if (confirmActionMessage) confirmActionMessage.textContent = message;
+    if (confirmActionWarning) {
+      if (warning) {
+        confirmActionWarning.textContent = warning;
+        confirmActionWarning.style.display = 'block';
+      } else {
+        confirmActionWarning.style.display = 'none';
+      }
+    }
+
+    if (btnSubmitConfirmAction) {
+      btnSubmitConfirmAction.textContent = confirmBtnText || 'Confirm';
+      btnSubmitConfirmAction.className = confirmBtnClass || 'btn-action-primary';
+      btnSubmitConfirmAction.style.width = 'auto';
+      btnSubmitConfirmAction.style.marginTop = '0';
+    }
+
+    pendingConfirmAction = onConfirm;
+    modalConfirmAction.classList.add('open');
+  }
+
+  function closeConfirmModal() {
+    if (modalConfirmAction) modalConfirmAction.classList.remove('open');
+    pendingConfirmAction = null;
+  }
+
+  if (btnCloseConfirmModal) btnCloseConfirmModal.addEventListener('click', closeConfirmModal);
+  if (btnCancelConfirmAction) btnCancelConfirmAction.addEventListener('click', closeConfirmModal);
+
+  if (btnSubmitConfirmAction) {
+    btnSubmitConfirmAction.addEventListener('click', async () => {
+      if (typeof pendingConfirmAction === 'function') {
+        const action = pendingConfirmAction;
+        closeConfirmModal();
+        await action();
+      } else {
+        closeConfirmModal();
+      }
+    });
+  }
+
+  function promptToggleEmployeeStatus(empId, currentStatus) {
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+
+    const willSuspend = currentStatus !== 'SUSPENDED';
+
+    if (willSuspend) {
+      openConfirmModal({
+        title: 'Deactivate Employee Account',
+        icon: '⏸️',
+        message: `Are you sure you want to deactivate ${emp.name} (${emp.id})?`,
+        warning: 'Immediate Effect: The employee will be marked as SUSPENDED, all active login sessions terminated, and access to employee services revoked. Historical attendance records remain 100% intact.',
+        confirmBtnText: 'Deactivate Employee',
+        confirmBtnClass: 'btn-action-secondary',
+        onConfirm: async () => {
+          try {
+            const csrfToken = getCsrfToken();
+            const res = await fetch(`/api/employees/${encodeURIComponent(empId)}/status`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+              },
+              body: JSON.stringify({ status: 'SUSPENDED' })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to deactivate employee.');
+
+            const idx = employees.findIndex(e => e.id === empId);
+            if (idx !== -1) {
+              employees[idx].accountStatus = 'SUSPENDED';
+            }
+
+            showToast(`Employee ${emp.name} deactivated. Active sessions revoked.`, 'exit');
+            renderEmployeeTable();
+            updateKPIs();
+            updateSyncFingerprint();
+          } catch (err) {
+            alert(`Error deactivating employee: ${err.message}`);
+          }
+        }
+      });
+    } else {
+      openConfirmModal({
+        title: 'Reactivate Employee Account',
+        icon: '▶️',
+        message: `Are you sure you want to reactivate ${emp.name} (${emp.id})?`,
+        warning: 'The employee account will be restored to ACTIVE status and they will be able to sign in to the workforce portal again.',
+        confirmBtnText: 'Reactivate Employee',
+        confirmBtnClass: 'btn-action-primary',
+        onConfirm: async () => {
+          try {
+            const csrfToken = getCsrfToken();
+            const res = await fetch(`/api/employees/${encodeURIComponent(empId)}/status`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+              },
+              body: JSON.stringify({ status: 'ACTIVE' })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to reactivate employee.');
+
+            const idx = employees.findIndex(e => e.id === empId);
+            if (idx !== -1) {
+              employees[idx].accountStatus = 'ACTIVE';
+            }
+
+            showToast(`Employee ${emp.name} reactivated successfully.`, 'entry');
+            renderEmployeeTable();
+            updateKPIs();
+            updateSyncFingerprint();
+          } catch (err) {
+            alert(`Error reactivating employee: ${err.message}`);
+          }
+        }
+      });
+    }
+  }
+
+  function promptDeleteEmployee(empId) {
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+
+    openConfirmModal({
+      title: 'Safe Delete & Archive Employee',
+      icon: '🗑️',
+      message: `Are you sure you want to delete ${emp.name} (${emp.id}) from the active workforce?`,
+      warning: 'Database Integrity Guarantee: To prevent cascade-deletion of historical gate logs and telemetry, this employee will be safely archived and their account suspended. All attendance history remains completely intact.',
+      confirmBtnText: 'Archive & Delete Member',
+      confirmBtnClass: 'btn-action-secondary',
+      onConfirm: async () => {
+        try {
+          const csrfToken = getCsrfToken();
+          const res = await fetch(`/api/employees/${encodeURIComponent(empId)}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': csrfToken
+            }
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to delete/archive employee.');
+
+          const idx = employees.findIndex(e => e.id === empId);
+          if (idx !== -1) {
+            employees[idx].isArchived = true;
+            employees[idx].accountStatus = 'SUSPENDED';
+          }
+
+          showToast(`Employee ${emp.name} safely archived. Attendance records preserved.`, 'exit');
+          renderEmployeeTable();
+          renderAttendanceRosterTable();
+          updateKPIs();
+          populateEmployeeSelect();
+          updateSyncFingerprint();
+        } catch (err) {
+          alert(`Error deleting employee: ${err.message}`);
+        }
+      }
+    });
+  }
+
+  async function restoreEmployee(empId) {
+    const emp = employees.find(e => e.id === empId);
+    try {
+      const csrfToken = getCsrfToken();
+      const res = await fetch(`/api/employees/${encodeURIComponent(empId)}/restore`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        }
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to restore employee.');
+
+      const idx = employees.findIndex(e => e.id === empId);
+      if (idx !== -1) {
+        employees[idx].isArchived = false;
+        employees[idx].accountStatus = 'ACTIVE';
+      }
+
+      showToast(`Employee ${emp ? emp.name : empId} restored from archive successfully.`, 'entry');
+      renderEmployeeTable();
+      renderAttendanceRosterTable();
+      updateKPIs();
+      populateEmployeeSelect();
+      updateSyncFingerprint();
+    } catch (err) {
+      alert(`Error restoring employee: ${err.message}`);
+    }
+  }
+
+  if (filterEmpAccountStatus) {
+    filterEmpAccountStatus.addEventListener('change', renderEmployeeTable);
   }
 
   // ==========================================
@@ -2299,7 +3350,8 @@
     const logId = lastLog ? lastLog.id : 'NONE';
     const logTimestamp = lastLog ? lastLog.timestamp : 'NONE';
     const presentCount = emps ? emps.filter(e => e.status === 'INSIDE').length : 0;
-    return `${emps ? emps.length : 0}_${presentCount}_${logs ? logs.length : 0}_${logId}_${logTimestamp}`;
+    const empStatuses = emps ? emps.map(e => `${e.id}:${e.accountStatus}:${Boolean(e.isArchived)}:${e.name}`).join('|') : '';
+    return `${emps ? emps.length : 0}_${presentCount}_${logs ? logs.length : 0}_${logId}_${logTimestamp}_${empStatuses}`;
   }
 
   function updateSyncFingerprint() {
@@ -2312,7 +3364,7 @@
 
     try {
       const [empRes, logsRes] = await Promise.all([
-        fetch('/api/employees'),
+        fetch('/api/employees?includeArchived=true'),
         fetch('/api/attendance/logs')
       ]);
 
@@ -2373,7 +3425,7 @@
   async function loadInitialData() {
     try {
       const [empRes, logsRes] = await Promise.all([
-        fetch('/api/employees'),
+        fetch('/api/employees?includeArchived=true'),
         fetch('/api/attendance/logs')
       ]);
 

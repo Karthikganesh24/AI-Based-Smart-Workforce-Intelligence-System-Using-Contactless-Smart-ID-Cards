@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SmartWorkforce | Employee Self-Service & Smart ID Portal</title>
-  <meta name="description" content="Employee personal attendance portal with contactless smart ID card badge status, real-time punch history, and simulated gate verification.">
+  <title>SmartWorkforce | Employee Self-Service & Personal Attendance Portal</title>
+  <meta name="description" content="Authenticated personal workforce portal with contactless smart ID card badge status, real-time punch history, and verified gate telemetry.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../shared/css/style.css">
+  <link rel="stylesheet" href="/shared/css/style.css">
   <style>
     .emp-portal-container {
       max-width: 1200px;
@@ -25,6 +25,8 @@
       padding: 16px 24px;
       margin-bottom: 24px;
       box-shadow: var(--shadow-sm);
+      gap: 16px;
+      flex-wrap: wrap;
     }
     .emp-brand-area {
       display: flex;
@@ -56,11 +58,12 @@
     .emp-header-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      flex-wrap: wrap;
     }
     .emp-live-clock {
       font-family: var(--font-mono);
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
       padding: 6px 12px;
       background: var(--bg-subtle);
@@ -76,6 +79,31 @@
       .emp-grid {
         grid-template-columns: 1fr;
       }
+    }
+    .emp-company-pill {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.22);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 18px;
+    }
+    .emp-company-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .emp-company-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+      margin-top: 2px;
+    }
+    .emp-company-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
     }
     .smart-card-badge-wrap {
       background: linear-gradient(145deg, #0F172A, #1E293B);
@@ -147,7 +175,7 @@
     .card-uid-pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       background: rgba(15, 23, 42, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 6px;
@@ -155,6 +183,23 @@
       font-family: var(--font-mono);
       font-size: 0.85rem;
       color: #34D399;
+    }
+    .card-uid-status {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .card-uid-status.active {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .card-uid-status.unassigned {
+      background: rgba(245, 158, 11, 0.2);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
     }
     .emp-status-box {
       margin-top: 20px;
@@ -178,8 +223,163 @@
       padding: 24px;
       box-shadow: var(--shadow-sm);
     }
-    .emp-select-wrap {
-      margin-bottom: 18px;
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-indicator.status-inside {
+      background: #10B981;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+    .status-indicator.status-outside {
+      background: #F59E0B;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+    }
+    .badge-entry {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-exit {
+      background: rgba(239, 68, 68, 0.15);
+      color: #F87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .badge-verified {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60A5FA;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    /* Mandatory Password Change Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .modal-overlay.hidden {
+      display: none !important;
+    }
+    .modal-dialog {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      width: 100%;
+      max-width: 480px;
+      padding: 30px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+    .modal-icon-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #F59E0B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .modal-title {
+      font-family: var(--font-heading);
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0 0 6px;
+    }
+    .modal-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin: 0 0 20px;
+      line-height: 1.45;
+    }
+    .form-group-modal {
+      margin-bottom: 16px;
+    }
+    .form-label-modal {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 6px;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s ease;
+      box-sizing: border-box;
+    }
+    .modal-input:focus {
+      border-color: var(--accent-primary);
+    }
+    .modal-feedback {
+      display: none;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      margin-bottom: 16px;
+    }
+    .modal-feedback.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #F87171;
+    }
+    .modal-feedback.success {
+      display: block;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34D399;
+    }
+    .btn-submit-pwd {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent-primary);
+      color: #fff;
+      font-weight: 600;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.92rem;
+      transition: background 0.15s ease;
+    }
+    .btn-submit-pwd:hover {
+      background: #047857;
+    }
+    .btn-submit-pwd:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -196,29 +396,40 @@
         </div>
         <div>
           <h1 class="emp-brand-title">SmartWorkforce</h1>
-          <p class="emp-brand-sub">Employee Self-Service & Smart ID Portal</p>
+          <p class="emp-brand-sub">Employee Self-Service & Personal Attendance Portal</p>
         </div>
       </div>
 
       <div class="emp-header-actions">
         <div class="emp-live-clock" id="empLiveClock">--:--:-- --</div>
-        <button type="button" class="btn-theme-toggle" id="themeToggle" style="margin: 0; padding: 6px 12px; font-size: 0.8rem;">☀️ Light Mode</button>
-        <a href="/login" class="btn-action-secondary" style="margin: 0; padding: 6px 14px; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn-action-secondary" id="btnOpenPasswordModal" style="margin: 0; padding: 6px 12px; font-size: 0.8rem;">
+          🔑 Change Password
+        </button>
+        <button type="button" class="btn-theme-toggle" id="themeToggle" style="margin: 0; padding: 6px 12px; font-size: 0.8rem;">
+          ☀️ Light Mode
+        </button>
+        <button type="button" class="btn-action-secondary" id="btnSignOut" style="margin: 0; padding: 6px 14px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
           <span>Sign Out</span>
-        </a>
+        </button>
       </div>
     </header>
 
     <div class="emp-grid">
-      <!-- Left Column: Smart ID Card Presentation -->
+      <!-- Left Column: Authenticated Employee Smart ID Badge Presentation -->
       <aside>
-        <div class="emp-select-wrap">
-          <label class="control-label" for="employeeSelector">Select Active Workforce Member:</label>
-          <select id="employeeSelector" class="select-input">
-            <option value="">Loading workforce records...</option>
-          </select>
+        <!-- Affiliated Enterprise Scope -->
+        <div class="emp-company-pill">
+          <div class="emp-company-label">Affiliated Enterprise</div>
+          <div class="emp-company-name" id="empCompanyName">Loading Company...</div>
+          <div class="emp-company-meta" id="empCompanyMeta">Scoped Corporate Identity</div>
         </div>
 
+        <!-- Contactless Smart ID Card -->
         <div class="smart-card-badge-wrap">
           <div class="card-top-row">
             <div class="rfid-chip-icon"></div>
@@ -227,9 +438,9 @@
             </div>
           </div>
 
-          <div class="emp-avatar-large" id="badgeAvatar">AK</div>
-          <div class="card-emp-name" id="badgeName">Aravind Kumar</div>
-          <div class="card-emp-role" id="badgeRole">CNC Lead Operator • Production</div>
+          <div class="emp-avatar-large" id="badgeAvatar">--</div>
+          <div class="card-emp-name" id="badgeName">Loading...</div>
+          <div class="card-emp-role" id="badgeRole">Job Designation • Department</div>
 
           <div style="margin-top: 16px;">
             <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 4px; text-transform: uppercase;">Card UID (13.56 MHz HF / NFC)</div>
@@ -238,12 +449,13 @@
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="2" y1="12" x2="22" y2="12"></line>
               </svg>
-              <span id="badgeUidText">7E:A1:39:B2</span>
+              <span id="badgeUidText">--:--:--:--</span>
+              <span class="card-uid-status active" id="badgeUidStatus">ACTIVE</span>
             </div>
           </div>
 
           <div style="margin-top: 14px; font-size: 0.72rem; color: #64748B;">
-            Employee Identifier: <span id="badgeEmpId" style="color: #CBD5E1; font-family: var(--font-mono);">EMP-101</span>
+            Employee Identifier: <span id="badgeEmpId" style="color: #CBD5E1; font-family: var(--font-mono);">--</span>
           </div>
         </div>
 
@@ -252,10 +464,10 @@
           <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">Current Presence Status</div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="status-indicator" id="statusDot"></span>
-            <span style="font-weight: 700; font-size: 1.05rem;" id="statusText">OUTSIDE PREMISES</span>
+            <span style="font-weight: 700; font-size: 1.05rem;" id="statusText">CHECKING STATUS...</span>
           </div>
           <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-muted);">
-            Last detection: <strong id="statusLastSeen" style="color: var(--text-main);">Not detected today</strong>
+            Last detection: <strong id="statusLastSeen" style="color: var(--text-main);">--</strong>
           </div>
         </div>
 
@@ -276,7 +488,7 @@
             Simulate Smart Card Presentation
           </h2>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 18px;">
-            Tap your contactless smart ID card at a facility checkpoint to register real-time entry or departure.
+            Tap your contactless smart ID card at a facility checkpoint to register verified entry or departure.
           </p>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
@@ -313,7 +525,7 @@
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
-              My Punch History & Attendance Log
+              My Punch History & Attendance Records
             </h2>
             <button type="button" class="btn-action-secondary" id="btnRefreshLogs" style="margin: 0; padding: 4px 12px; font-size: 0.8rem;">
               🔄 Refresh
@@ -343,11 +555,55 @@
     </div>
   </div>
 
+  <!-- Mandatory / Voluntary Password Change Modal -->
+  <div id="passwordChangeModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-dialog">
+      <div class="modal-icon-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 26px; height: 26px;">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+
+      <h2 class="modal-title" id="modalTitle">Credential Security Update</h2>
+      <p class="modal-sub" id="modalSub">
+        Your account requires establishing a secure permanent password before you can access your workforce dashboard and attendance history.
+      </p>
+
+      <div id="pwdStatusBanner" class="modal-feedback"></div>
+
+      <form id="passwordChangeForm" novalidate>
+        <div class="form-group-modal">
+          <label class="form-label-modal" for="pwdCurrentInput">Current / Temporary Password</label>
+          <input type="password" id="pwdCurrentInput" class="modal-input" placeholder="Enter current temporary password" autocomplete="current-password" required>
+        </div>
+
+        <div class="form-group-modal">
+          <label class="form-label-modal" for="pwdNewInput">New Permanent Password</label>
+          <input type="password" id="pwdNewInput" class="modal-input" placeholder="Minimum 8 characters" autocomplete="new-password" required>
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Must be at least 8 characters and differ from temporary password.</div>
+        </div>
+
+        <div class="form-group-modal">
+          <label class="form-label-modal" for="pwdConfirmInput">Confirm New Password</label>
+          <input type="password" id="pwdConfirmInput" class="modal-input" placeholder="Re-enter new password" autocomplete="new-password" required>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="button" id="btnCancelModal" class="btn-action-secondary" style="flex: 1; padding: 10px; display: none;">Cancel</button>
+          <button type="submit" id="btnSavePassword" class="btn-submit-pwd" style="flex: 2;">
+            Save Password & Continue
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toastContainer"></div>
 
   <!-- Shared & Employee Scripts -->
-  <script src="../shared/js/common.js"></script>
-  <script src="employee.js"></script>
+  <script src="/shared/js/common.js"></script>
+  <script src="/employee/employee.js"></script>
 </body>
 </html>

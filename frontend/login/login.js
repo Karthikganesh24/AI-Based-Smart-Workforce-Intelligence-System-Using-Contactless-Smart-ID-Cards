@@ -50,25 +50,63 @@
     }
   }
 
+  function selectCompanyAdminTab(clearInputs = true) {
+    currentPortalMode = 'ADMIN';
+    if (tabCompanyAdmin) {
+      tabCompanyAdmin.classList.add('active');
+      tabCompanyAdmin.setAttribute('aria-selected', 'true');
+    }
+    if (tabEmployee) {
+      tabEmployee.classList.remove('active');
+      tabEmployee.setAttribute('aria-selected', 'false');
+    }
+
+    if (loginHeading) loginHeading.textContent = 'Welcome Back';
+    if (loginSubheading) loginSubheading.textContent = 'Sign in to access your SmartWorkforce dashboard';
+    if (loginIdentityLabel) loginIdentityLabel.textContent = 'Company Email / Admin ID';
+    if (loginIdentityInput) loginIdentityInput.placeholder = 'Enter your company email or admin ID';
+    if (clearInputs) {
+      if (loginIdentityInput) loginIdentityInput.value = '';
+      if (loginPasswordInput) loginPasswordInput.value = '';
+    }
+
+    if (employeePortalHint) employeePortalHint.style.display = 'none';
+  }
+
+  // Check for one-time registration success flash message
+  const regSuccessMsg = sessionStorage.getItem('sw_reg_success');
+  const regEmail = sessionStorage.getItem('sw_reg_email');
+  if (regSuccessMsg) {
+    // Immediately remove from sessionStorage so it NEVER shows again on page refresh or later visits
+    sessionStorage.removeItem('sw_reg_success');
+    sessionStorage.removeItem('sw_reg_email');
+
+    // Select Company Admin tab by default
+    selectCompanyAdminTab(false);
+
+    // Pre-fill registered admin email
+    if (regEmail && loginIdentityInput) {
+      loginIdentityInput.value = regEmail;
+    }
+
+    // Display clear success message on the login card
+    if (loginStatusBanner) {
+      loginStatusBanner.className = 'login-status-banner info';
+      loginStatusBanner.innerHTML = `✓ ${escapeHtml(regSuccessMsg)}`;
+      loginStatusBanner.style.display = 'block';
+    }
+
+    if (loginPasswordInput) {
+      loginPasswordInput.focus();
+    }
+  }
+
   // Tab Switching
   if (tabCompanyAdmin) {
     tabCompanyAdmin.addEventListener('click', () => {
-      currentPortalMode = 'ADMIN';
-      tabCompanyAdmin.classList.add('active');
-      tabCompanyAdmin.setAttribute('aria-selected', 'true');
-      tabEmployee.classList.remove('active');
-      tabEmployee.setAttribute('aria-selected', 'false');
-
-      loginHeading.textContent = 'Welcome Back';
-      loginSubheading.textContent = 'Sign in to access your SmartWorkforce dashboard';
-      loginIdentityLabel.textContent = 'Company Email / Admin ID';
-      loginIdentityInput.placeholder = 'Enter your company email or admin ID';
-      loginIdentityInput.value = '';
-      loginPasswordInput.value = '';
-
-      if (employeePortalHint) employeePortalHint.style.display = 'none';
+      selectCompanyAdminTab(true);
       if (loginStatusBanner) loginStatusBanner.style.display = 'none';
-      loginIdentityInput.focus();
+      if (loginIdentityInput) loginIdentityInput.focus();
     });
   }
 
@@ -131,48 +169,73 @@
         return;
       }
 
-      if (currentPortalMode === 'ADMIN') {
-        const submitBtn = document.getElementById('btnSignInSubmit');
-        const origContent = submitBtn ? submitBtn.innerHTML : '';
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = '<span>Signing In...</span>';
+      const submitBtn = document.getElementById('btnSignInSubmit');
+      const origContent = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Signing In...</span>';
+      }
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identity: identityVal,
+            password: passwordVal,
+            portalMode: currentPortalMode
+          })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          loginStatusBanner.className = 'login-status-banner error';
+          loginStatusBanner.innerHTML = `⚠️ Sign in failed: ${escapeHtml(data.error || 'Invalid credentials.')}`;
+          loginStatusBanner.style.display = 'block';
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origContent;
+          }
+          return;
         }
 
-        try {
-          const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              identity: identityVal,
-              password: passwordVal
-            })
-          });
+        if (data.csrfToken) {
+          window.__swCsrfToken = data.csrfToken;
+        }
 
-          const data = await res.json().catch(() => ({}));
-
-          if (!res.ok) {
-            loginStatusBanner.className = 'login-status-banner error';
-            loginStatusBanner.innerHTML = `⚠️ Sign in failed: ${escapeHtml(data.error || 'Invalid email/ID or password.')}`;
+        if (currentPortalMode === 'EMPLOYEE') {
+          if (data.mustChangePassword) {
+            loginStatusBanner.className = 'login-status-banner warning';
+            loginStatusBanner.innerHTML = `
+              <div><strong>Authentication Verified:</strong> Mandatory password change required on initial login.</div>
+              <div style="margin-top: 6px; font-size: 12px; opacity: 0.85;">Transferring to credential setup portal...</div>
+            `;
             loginStatusBanner.style.display = 'block';
-            if (submitBtn) {
-              submitBtn.disabled = false;
-              submitBtn.innerHTML = origContent;
-            }
-            return;
+            showToast('Authentication verified. Password change required.', 'warning');
+          } else {
+            loginStatusBanner.className = 'login-status-banner info';
+            loginStatusBanner.innerHTML = `
+              <div><strong>Authenticated:</strong> Welcome, <em>${escapeHtml(data.user ? data.user.fullName : 'Employee')}</em>.</div>
+              <div style="margin-top: 6px; font-size: 12px; opacity: 0.85;">Opening personal employee dashboard...</div>
+            `;
+            loginStatusBanner.style.display = 'block';
+            showToast('Sign in successful. Redirecting...', 'success');
           }
 
-          if (data.csrfToken) {
-            window.__swCsrfToken = data.csrfToken;
-          }
+          setTimeout(() => {
+            const redirectTarget = data.redirectTo || '/employee';
+            window.location.href = redirectTarget;
+          }, 500);
 
+        } else {
+          // Admin portal mode
           loginStatusBanner.className = 'login-status-banner info';
           loginStatusBanner.innerHTML = `
             <div><strong>Authenticated:</strong> Welcome, <em>${escapeHtml(data.user ? data.user.fullName : 'Administrator')}</em>.</div>
             <div style="margin-top: 6px; font-size: 12px; opacity: 0.85;">Launching company dashboard...</div>
           `;
           loginStatusBanner.style.display = 'block';
-
           showToast('Sign in successful. Redirecting...', 'success');
 
           setTimeout(() => {
@@ -180,24 +243,16 @@
             const redirectTarget = urlParams.get('redirect') || data.redirectTo || '/admin';
             window.location.href = redirectTarget;
           }, 500);
-
-        } catch (err) {
-          loginStatusBanner.className = 'login-status-banner error';
-          loginStatusBanner.innerHTML = `⚠️ Network error: ${escapeHtml(err.message || 'Server unreachable')}`;
-          loginStatusBanner.style.display = 'block';
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = origContent;
-          }
         }
-      } else {
-        // Employee Portal mode
-        loginStatusBanner.className = 'login-status-banner info';
-        loginStatusBanner.innerHTML = `
-          <div><strong>Employee Portal:</strong> Accessing badge profile for <em>${escapeHtml(identityVal)}</em>...</div>
-        `;
+
+      } catch (err) {
+        loginStatusBanner.className = 'login-status-banner error';
+        loginStatusBanner.innerHTML = `⚠️ Network error: ${escapeHtml(err.message || 'Server unreachable')}`;
         loginStatusBanner.style.display = 'block';
-        window.location.href = `/employee?id=${encodeURIComponent(identityVal)}`;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = origContent;
+        }
       }
     });
   }
@@ -279,22 +334,22 @@
           return;
         }
 
-        if (data.csrfToken) {
-          window.__swCsrfToken = data.csrfToken;
-        }
+        // Clear sensitive registration password fields
+        const pwField = document.getElementById('regAdminPassword');
+        const pwConfirmField = document.getElementById('regAdminPasswordConfirm');
+        if (pwField) pwField.value = '';
+        if (pwConfirmField) pwConfirmField.value = '';
 
-        regStatusNotice.className = 'login-status-banner info';
-        regStatusNotice.innerHTML = `
-          <div><strong>Registration Successful!</strong> Organization <em>${escapeHtml(data.company ? data.company.name : companyName)}</em> provisioned.</div>
-          <div style="margin-top: 6px; font-size: 12px; opacity: 0.85;">Setting up isolated workspace and redirecting...</div>
-        `;
-        regStatusNotice.style.display = 'block';
+        // Store one-time success message and email in sessionStorage
+        sessionStorage.setItem('sw_reg_success', 'Company registered successfully! Please log in using your registered email and password.');
+        sessionStorage.setItem('sw_reg_email', email);
 
-        showToast('Company registered successfully. Redirecting...', 'success');
+        showToast('Company registered successfully! Please log in.', 'success');
 
+        // Redirect to login portal (never /admin)
         setTimeout(() => {
-          window.location.href = data.redirectTo || '/admin';
-        }, 700);
+          window.location.href = data.redirectTo || '/login';
+        }, 400);
 
       } catch (err) {
         regStatusNotice.className = 'login-status-banner error';

@@ -27,8 +27,8 @@ function runMigration(dbOrPath) {
     shouldClose = true;
   }
 
-  // 1. Foreign keys and WAL checkpoint
-  db.exec('PRAGMA foreign_keys = ON;');
+  // 1. Disable foreign keys before transaction to safely allow table schema alterations without cascading child deletions
+  db.exec('PRAGMA foreign_keys = OFF;');
   db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
 
   // 2. Pre-migration verification checks
@@ -147,6 +147,53 @@ function runMigration(dbOrPath) {
     db.exec("UPDATE employees SET company_id = 'COMP-DEFAULT-01' WHERE company_id IS NULL;");
     db.exec("CREATE INDEX IF NOT EXISTS idx_employees_company_id ON employees(company_id);");
 
+    // F2. Safely ensure employees.uid is nullable (to support employees without physical RFID cards)
+    const empColDefs = db.prepare("PRAGMA table_info(employees)").all();
+    const uidColDef = empColDefs.find(c => c.name === 'uid');
+    if (uidColDef && uidColDef.notnull === 1) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS employees_dg_tmp (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          department TEXT NOT NULL,
+          role TEXT NOT NULL,
+          uid TEXT UNIQUE,
+          status TEXT NOT NULL DEFAULT 'OUTSIDE',
+          last_seen TEXT NOT NULL DEFAULT 'Not detected today',
+          avatar_bg TEXT NOT NULL DEFAULT '#0284C7',
+          created_at TEXT NOT NULL,
+          company_id TEXT REFERENCES companies(id),
+          email TEXT,
+          phone TEXT
+        );
+        INSERT INTO employees_dg_tmp (id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id)
+          SELECT id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id FROM employees;
+        DROP TABLE employees;
+        ALTER TABLE employees_dg_tmp RENAME TO employees;
+        CREATE INDEX IF NOT EXISTS idx_employees_company_id ON employees(company_id);
+        CREATE INDEX IF NOT EXISTS idx_employees_uid ON employees(uid);
+      `);
+    }
+
+    // F3. Safely add email and phone columns to employees (scoped to company)
+    const empColsAfter = db.prepare("PRAGMA table_info(employees)").all().map(c => c.name);
+    if (!empColsAfter.includes('email')) {
+      db.exec("ALTER TABLE employees ADD COLUMN email TEXT;");
+    }
+    if (!empColsAfter.includes('phone')) {
+      db.exec("ALTER TABLE employees ADD COLUMN phone TEXT;");
+    }
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_company_email ON employees(company_id, email) WHERE email IS NOT NULL;");
+
+    // F4. Safely add is_archived and archived_at columns for safe soft-delete
+    if (!empColsAfter.includes('is_archived')) {
+      db.exec("ALTER TABLE employees ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;");
+    }
+    if (!empColsAfter.includes('archived_at')) {
+      db.exec("ALTER TABLE employees ADD COLUMN archived_at TEXT;");
+    }
+    db.exec("CREATE INDEX IF NOT EXISTS idx_employees_is_archived ON employees(is_archived);");
+
     // G. Safely add company_id to attendance_events and index after column creation
     const eventColumns = db.prepare("PRAGMA table_info(attendance_events)").all().map(c => c.name);
     if (!eventColumns.includes('company_id')) {
@@ -155,11 +202,35 @@ function runMigration(dbOrPath) {
     db.exec("UPDATE attendance_events SET company_id = 'COMP-DEFAULT-01' WHERE company_id IS NULL;");
     db.exec("CREATE INDEX IF NOT EXISTS idx_attendance_events_company_id ON attendance_events(company_id);");
 
+    // H. Seed baseline employee accounts for baseline employees if missing
+    const missingAccStmt = db.prepare(`
+      SELECT e.id, e.company_id 
+      FROM employees e 
+      LEFT JOIN employee_accounts a ON e.id = a.employee_id 
+      WHERE a.id IS NULL AND e.company_id = 'COMP-DEFAULT-01'
+    `);
+    const missing = missingAccStmt.all();
+    if (missing.length > 0) {
+      const insertAcc = db.prepare(`
+        INSERT INTO employee_accounts (id, employee_id, company_id, password_hash, password_salt, must_change_password, account_status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 1, 'ACTIVE', ?, ?)
+      `);
+      const now = new Date().toISOString();
+      for (const m of missing) {
+        const salt = auth.generateSalt();
+        const hash = auth.hashPassword('EmployeePass2024!', salt);
+        const accId = auth.generateId('ACC');
+        insertAcc.run(accId, m.id, m.company_id || 'COMP-DEFAULT-01', hash, salt, now, now);
+      }
+    }
+
     // Commit Transaction
     db.exec('COMMIT;');
   } catch (err) {
     db.exec('ROLLBACK;');
     throw err;
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON;');
   }
 
   // 5. Post-migration verification

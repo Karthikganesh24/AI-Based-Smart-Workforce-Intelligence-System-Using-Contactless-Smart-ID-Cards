@@ -39,15 +39,21 @@ CREATE TABLE IF NOT EXISTS employees (
   name TEXT NOT NULL,
   department TEXT NOT NULL,
   role TEXT NOT NULL,
-  uid TEXT UNIQUE NOT NULL,
+  uid TEXT UNIQUE,
   status TEXT NOT NULL DEFAULT 'OUTSIDE',
   last_seen TEXT NOT NULL DEFAULT 'Not detected today',
   avatar_bg TEXT NOT NULL DEFAULT '#0284C7',
   created_at TEXT NOT NULL,
-  company_id TEXT REFERENCES companies(id)
+  company_id TEXT REFERENCES companies(id),
+  email TEXT,
+  phone TEXT,
+  is_archived INTEGER NOT NULL DEFAULT 0,
+  archived_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_employees_company_id ON employees(company_id);
 CREATE INDEX IF NOT EXISTS idx_employees_uid ON employees(uid);
+CREATE INDEX IF NOT EXISTS idx_employees_is_archived ON employees(is_archived);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_company_email ON employees(company_id, email) WHERE email IS NOT NULL;
 
 -- 4. Employee Accounts Table (Dedicated Employee Authentication Credentials)
 CREATE TABLE IF NOT EXISTS employee_accounts (
