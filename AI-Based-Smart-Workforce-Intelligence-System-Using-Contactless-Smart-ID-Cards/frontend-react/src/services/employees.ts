@@ -1,42 +1,60 @@
-import api from './api';
 import type { Employee } from '@models/employee';
-import type { ApiResponse } from '@models/api';
+import { mockEmployees } from '../data/mockData';
 
+// Demo mode: Using mock data instead of API calls
 export const employeesService = {
   getAll: async (): Promise<Employee[]> => {
-    const { data } = await api.get<ApiResponse<Employee[]>>('/employees');
-    return data.data || [];
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return mockEmployees;
   },
 
   getById: async (id: string): Promise<Employee> => {
-    const { data } = await api.get<ApiResponse<Employee>>(`/employees/${id}`);
-    if (!data.data) throw new Error('Employee not found');
-    return data.data;
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const employee = mockEmployees.find(emp => emp.id === id);
+    if (!employee) throw new Error('Employee not found');
+    return employee;
   },
 
   create: async (employee: Partial<Employee>): Promise<Employee> => {
-    const { data } = await api.post<ApiResponse<Employee>>('/employees', employee);
-    if (!data.data) throw new Error('Failed to create employee');
-    return data.data;
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const newEmployee: Employee = {
+      id: `EMP-${Date.now()}`,
+      name: employee.name || '',
+      department: employee.department || '',
+      role: employee.role || '',
+      status: 'OUTSIDE',
+      lastSeen: 'Not detected today',
+      avatarBg: '#0284C7',
+      ...employee,
+    } as Employee;
+    mockEmployees.push(newEmployee);
+    return newEmployee;
   },
 
   update: async (id: string, employee: Partial<Employee>): Promise<Employee> => {
-    const { data } = await api.put<ApiResponse<Employee>>(`/employees/${id}`, employee);
-    if (!data.data) throw new Error('Failed to update employee');
-    return data.data;
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const index = mockEmployees.findIndex(emp => emp.id === id);
+    if (index === -1) throw new Error('Employee not found');
+    mockEmployees[index] = { ...mockEmployees[index], ...employee };
+    return mockEmployees[index];
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/employees/${id}`);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const index = mockEmployees.findIndex(emp => emp.id === id);
+    if (index !== -1) {
+      mockEmployees.splice(index, 1);
+    }
   },
 
   getPresent: async (): Promise<Employee[]> => {
-    const { data } = await api.get<ApiResponse<Employee[]>>('/employees?status=INSIDE');
-    return data.data || [];
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return mockEmployees.filter(emp => emp.status === 'INSIDE');
   },
 
   getAbsent: async (): Promise<Employee[]> => {
-    const { data } = await api.get<ApiResponse<Employee[]>>('/employees?status=OUTSIDE');
-    return data.data || [];
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return mockEmployees.filter(emp => emp.status === 'OUTSIDE');
   },
 };

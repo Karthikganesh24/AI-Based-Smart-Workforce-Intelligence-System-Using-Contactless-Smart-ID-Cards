@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useEmployees } from '@hooks/useEmployees';
 import { Card, Spinner, Badge, Button } from '@components/UI';
-import { format } from 'date-fns';
 import './Employees.css';
 
 export const Employees = () => {
@@ -129,7 +128,7 @@ export const Employees = () => {
                     </Badge>
                   </td>
                   <td className="table-time">
-                    {format(new Date(employee.lastSeen), 'MMM d, HH:mm')}
+                    {employee.lastSeen}
                   </td>
                   <td>
                     <div className="table-actions">

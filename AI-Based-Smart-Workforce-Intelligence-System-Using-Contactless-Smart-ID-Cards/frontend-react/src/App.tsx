@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { MainLayout } from '@components/Layout';
@@ -11,7 +11,6 @@ import { Employees } from './pages/Employees';
 import { Terminal } from './pages/Terminal';
 import { Analytics } from './pages/Analytics';
 import { History } from './pages/History';
-import { Login } from './pages/Login';
 import './App.css';
 
 // Create a client
@@ -35,46 +34,19 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={
-              <MainLayout>
-                <Overview />
-              </MainLayout>
-            } />
-            <Route path="/rooms" element={
-              <MainLayout>
-                <RoomOccupancy />
-              </MainLayout>
-            } />
-            <Route path="/attendance" element={
-              <MainLayout>
-                <Attendance />
-              </MainLayout>
-            } />
-            <Route path="/employees" element={
-              <MainLayout>
-                <Employees />
-              </MainLayout>
-            } />
-            <Route path="/terminal" element={
-              <MainLayout>
-                <Terminal />
-              </MainLayout>
-            } />
-            <Route path="/analytics" element={
-              <MainLayout>
-                <Analytics />
-              </MainLayout>
-            } />
-            <Route path="/history" element={
-              <MainLayout>
-                <History />
-              </MainLayout>
-            } />
-          </Routes>
-        </Suspense>
+        <MainLayout>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<Overview />} />
+              <Route path="/rooms" element={<RoomOccupancy />} />
+              <Route path="/attendance" element={<Attendance />} />
+              <Route path="/employees" element={<Employees />} />
+              <Route path="/terminal" element={<Terminal />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/history" element={<History />} />
+            </Routes>
+          </Suspense>
+        </MainLayout>
       </BrowserRouter>
 
       <Toaster
