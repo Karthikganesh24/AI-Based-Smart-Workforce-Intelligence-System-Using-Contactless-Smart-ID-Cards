@@ -1,0 +1,62 @@
+/* Hallmark · SmartWorkforce Badge */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-body);
+  font-weight: 500;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+/* Sizes */
+.badge-sm {
+  padding: var(--space-2xs) var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.badge-md {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.badge-lg {
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-sm);
+}
+
+/* Variants */
+.badge-default {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+  border: 1px solid var(--color-rule);
+}
+
+.badge-success {
+  background: var(--color-paper-3);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.badge-warning {
+  background: var(--color-paper-3);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.badge-error {
+  background: var(--color-paper-3);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.badge-info {
+  background: var(--color-paper-3);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+}
+
+/* Glow variant removed per design.md - no neon glows */
+.badge-glow {
+  /* Intentionally empty - glow removed */
+}

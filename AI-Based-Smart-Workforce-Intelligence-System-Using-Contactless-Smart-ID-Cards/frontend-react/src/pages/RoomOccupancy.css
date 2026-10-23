@@ -1,0 +1,259 @@
+/* Hallmark · SmartWorkforce · Room Occupancy (Stat-Led macrostructure) */
+
+.room-occupancy-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  padding: var(--space-2xl);
+}
+
+/* Header with inline stats */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-lg);
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.page-subtitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  margin: var(--space-xs) 0 0;
+}
+
+/* Capacity warning — minimal, inline */
+.capacity-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.warning-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-error);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  background: oklch(60% 0.20 25 / 0.15);
+  border-radius: var(--radius-sm);
+}
+
+.warning-text {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+/* Loading/error states */
+.loading-container,
+.error-container,
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: var(--space-md);
+  text-align: center;
+}
+
+/* View toggle buttons */
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  background: var(--color-paper-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-line);
+}
+
+.view-toggle button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.view-toggle button svg {
+  flex-shrink: 0;
+}
+
+/* Room Details Modal */
+.room-details-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.room-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+.room-stat-card {
+  background: var(--color-paper-2);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-line);
+  text-align: center;
+}
+
+.stat-label {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  margin-bottom: var(--space-sm);
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+}
+
+.stat-badge {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-sm);
+}
+
+.room-occupancy-bar {
+  background: var(--color-paper-2);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-line);
+}
+
+.occupancy-bar-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.occupancy-bar-track {
+  height: 12px;
+  background: var(--color-bg);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.occupancy-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: var(--radius-xs);
+}
+
+.occupancy-bar-fill.occupancy-green {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.occupancy-bar-fill.occupancy-yellow {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.occupancy-bar-fill.occupancy-red {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.room-info-section {
+  background: var(--color-paper-2);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-line);
+}
+
+.room-info-section h3 {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: var(--space-md);
+  font-family: var(--font-display);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+.info-value {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.info-value.alert-green {
+  color: #10b981;
+}
+
+.info-value.alert-yellow {
+  color: #f59e0b;
+}
+
+.info-value.alert-red {
+  color: #ef4444;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .room-occupancy-page {
+    padding: var(--space-lg);
+    gap: var(--space-xl);
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .capacity-warning {
+    width: 100%;
+  }
+
+  .view-toggle {
+    width: 100%;
+  }
+
+  .view-toggle button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .room-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,99 @@
+/* Hallmark · SmartWorkforce design system tokens
+ * Do not edit per-page. Amend design.md to evolve the system.
+ */
+
+:root {
+  /* Color — OKLCH only — Light theme by default */
+  --color-paper:        oklch(100% 0 0);           /* pure white */
+  --color-paper-2:      oklch(98% 0.002 260);      /* very light gray */
+  --color-paper-3:      oklch(95% 0.005 260);      /* light gray for hover */
+  --color-ink:          oklch(20% 0.02 260);       /* dark text */
+  --color-ink-2:        oklch(45% 0.02 260);       /* medium text */
+  --color-ink-3:        oklch(65% 0.02 260);       /* light text */
+  --color-rule:         oklch(90% 0.005 260);      /* subtle borders */
+  --color-accent:       oklch(58% 0.18 280);       /* purple-blue accent */
+  --color-accent-hover: oklch(52% 0.18 280);       /* darker on hover */
+  --color-focus:        oklch(58% 0.18 280);       /* focus rings */
+  --color-success:      oklch(55% 0.15 145);       /* green */
+  --color-warning:      oklch(60% 0.15 75);        /* amber */
+  --color-error:        oklch(55% 0.20 25);        /* red */
+
+  /* Typography */
+  --font-display: Inter, -apple-system, system-ui, sans-serif;
+  --font-body:    Inter, -apple-system, system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  /* Type scale */
+  --text-xs:      0.75rem;
+  --text-sm:      0.875rem;
+  --text-md:      1rem;
+  --text-lg:      1.125rem;
+  --text-xl:      1.25rem;
+  --text-2xl:     1.5rem;
+  --text-3xl:     2rem;
+  --text-4xl:     2.5rem;
+  --text-display: clamp(1.75rem, 2vw, 2.25rem);
+
+  /* Spacing — 4pt scale */
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs:  0.5rem;
+  --space-sm:  0.75rem;
+  --space-md:  1rem;
+  --space-lg:  1.5rem;
+  --space-xl:  2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* Radius */
+  --radius-xs:   0.125rem;
+  --radius-sm:   0.25rem;
+  --radius-md:   0.5rem;
+  --radius-lg:   0.75rem;
+  --radius-xl:   1rem;
+  --radius-full: 9999px;
+
+  /* Motion */
+  --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-short: 200ms;
+
+  /* Shadows — subtle for light backgrounds */
+  --shadow-card: 0 1px 3px oklch(0% 0 0 / 0.08);
+  --shadow-card-hover: 0 4px 16px oklch(0% 0 0 / 0.12);
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --color-paper:        oklch(17% 0.01 260);       /* dark background */
+  --color-paper-2:      oklch(20% 0.01 260);       /* slightly lighter */
+  --color-paper-3:      oklch(25% 0.01 260);       /* lighter for hover */
+  --color-ink:          oklch(95% 0.01 260);       /* light text */
+  --color-ink-2:        oklch(70% 0.02 260);       /* medium text */
+  --color-ink-3:        oklch(50% 0.02 260);       /* darker text */
+  --color-rule:         oklch(30% 0.01 260);       /* subtle borders */
+  --color-bg:           oklch(17% 0.01 260);
+  --color-border:       oklch(30% 0.01 260);
+  --color-line:         oklch(30% 0.01 260);
+
+  /* Keep accent colors the same but adjust for dark bg */
+  --color-accent:       oklch(65% 0.18 280);
+  --color-accent-hover: oklch(70% 0.18 280);
+  --color-focus:        oklch(65% 0.18 280);
+
+  /* Adjust shadows for dark theme */
+  --shadow-card: 0 1px 3px oklch(0% 0 0 / 0.3);
+  --shadow-card-hover: 0 4px 16px oklch(0% 0 0 / 0.5);
+}
+
+/* Light theme explicit */
+[data-theme="light"] {
+  --color-bg:           oklch(100% 0 0);
+  --color-border:       oklch(90% 0.005 260);
+  --color-line:         oklch(90% 0.005 260);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-short: 0ms;
+  }
+}

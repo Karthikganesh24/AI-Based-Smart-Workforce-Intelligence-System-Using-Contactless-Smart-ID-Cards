@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background: #1a1a1a; color: white; font-family: system-ui; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: #202020; padding: 2rem; border-radius: 12px; max-width: 600px; }
+    button { padding: 1rem 2rem; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Modal Test</h1>
+  <button onclick="document.getElementById('modal').style.display='flex'">Open Modal</button>
+  
+  <div id="modal" class="modal-overlay" style="display:none" onclick="this.style.display='none'">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <h2>Test Modal</h2>
+      <p>This modal is working!</p>
+      <button onclick="document.getElementById('modal').style.display='none'">Close</button>
+    </div>
+  </div>
+</body>
+</html>

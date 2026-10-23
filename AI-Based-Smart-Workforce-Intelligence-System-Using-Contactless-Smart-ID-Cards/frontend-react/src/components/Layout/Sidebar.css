@@ -1,0 +1,147 @@
+/* Hallmark · SmartWorkforce Sidebar */
+
+.sidebar {
+  width: 280px;
+  height: 100vh;
+  background: var(--color-paper-2);
+  border-right: 1px solid var(--color-rule);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--dur-short);
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+}
+
+.sidebar-collapsed {
+  width: 80px;
+}
+
+.sidebar-header {
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.sidebar-logo {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.logo-text-short {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  color: var(--color-ink-2);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: var(--space-lg) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--color-ink-2);
+  transition: background var(--dur-short), color var(--dur-short);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  position: relative;
+}
+
+.sidebar-nav-item:hover {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.sidebar-nav-item-active {
+  background: var(--color-paper-3);
+  color: var(--color-accent);
+}
+
+.nav-item-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.nav-item-text {
+  white-space: nowrap;
+}
+
+.sidebar-collapsed .nav-item-text {
+  display: none;
+}
+
+.sidebar-footer {
+  padding: var(--space-lg);
+  border-top: 1px solid var(--color-rule);
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--color-paper-3);
+  border: 1px solid var(--color-rule);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink-2);
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  font-size: var(--text-xs);
+  color: var(--color-ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-collapsed .user-info {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+
+  .sidebar-nav-item {
+    transition: none;
+  }
+}

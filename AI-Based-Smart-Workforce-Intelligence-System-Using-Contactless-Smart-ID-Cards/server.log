@@ -1,0 +1,5 @@
+
+> smartworkforce@2.0.0 start
+> node backend/server.js
+
+SmartWorkforce System running with SQLite Persistence at: http://localhost:3000

@@ -1,0 +1,253 @@
+/* Hallmark · SmartWorkforce · Attendance (Stat-Led macrostructure) */
+
+.attendance-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-2xl);
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  margin: 0;
+}
+
+/* Metrics Section */
+.metrics-section {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-lg);
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-lg);
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+  transition: box-shadow var(--dur-short);
+}
+
+.metric-card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.metric-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-3xl);
+  font-weight: 400;
+  color: var(--color-ink);
+  line-height: 1;
+}
+
+.metric-label {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+/* Filter Controls */
+.attendance-controls {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.filter-buttons {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-2xs);
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+}
+
+.filter-button {
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur-short), color var(--dur-short);
+}
+
+.filter-button:hover {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.filter-button.active {
+  background: var(--color-accent);
+  color: var(--color-paper);
+}
+
+/* Card and Section Title */
+.attendance-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+/* Table */
+.attendance-table-wrapper {
+  overflow-x: auto;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.attendance-table thead {
+  background: var(--color-paper-3);
+}
+
+.attendance-table th {
+  padding: var(--space-md) var(--space-lg);
+  text-align: left;
+  font-weight: 500;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-2);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.attendance-table tbody tr {
+  transition: background var(--dur-short);
+}
+
+.attendance-table tbody tr:hover {
+  background: var(--color-paper-3);
+}
+
+.attendance-table tbody tr:not(:last-child) {
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.attendance-table td {
+  padding: var(--space-md) var(--space-lg);
+  color: var(--color-ink);
+}
+
+/* Table Cell Styles */
+.table-time {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
+.table-employee {
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.table-location {
+  font-size: var(--text-sm);
+  color: var(--color-ink-3);
+}
+
+/* Empty State */
+.empty-state {
+  padding: var(--space-2xl);
+  text-align: center;
+  color: var(--color-ink-3);
+}
+
+/* Loading/Error/Empty Containers */
+.loading-container,
+.error-container,
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-3xl);
+  color: var(--color-ink-2);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .attendance-page {
+    padding: var(--space-lg);
+    gap: var(--space-lg);
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+  }
+
+  .filter-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .filter-button {
+    width: 100%;
+    text-align: left;
+  }
+
+  .attendance-table {
+    font-size: var(--text-xs);
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  /* Hide location column on mobile */
+  .table-location {
+    display: none;
+  }
+
+  .attendance-table th:last-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card,
+  .filter-button,
+  .attendance-table tbody tr {
+    transition: none;
+  }
+}

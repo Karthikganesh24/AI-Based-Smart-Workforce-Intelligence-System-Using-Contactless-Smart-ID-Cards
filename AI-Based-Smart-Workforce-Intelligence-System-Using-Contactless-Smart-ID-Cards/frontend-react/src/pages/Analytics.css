@@ -1,0 +1,374 @@
+/* Hallmark · SmartWorkforce · Analytics */
+
+.analytics-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-2xl);
+}
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  margin: 0;
+}
+
+.analytics-card {
+  max-width: 600px;
+}
+
+.analytics-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  text-align: center;
+  padding: var(--space-xl) 0;
+}
+
+.analytics-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--color-ink-3);
+}
+
+.analytics-content h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.analytics-description {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 400px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  text-align: left;
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+.feature-bullet {
+  font-size: var(--text-lg);
+  color: var(--color-accent);
+}
+
+@media (max-width: 768px) {
+  .analytics-page {
+    padding: var(--space-lg);
+  }
+}
+
+/* Additional styles for completed analytics page */
+.section-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: var(--space-md);
+  font-family: var(--font-display);
+}
+
+.metrics-section {
+  margin-bottom: var(--space-2xl);
+}
+
+.metrics-section .section-title {
+  margin-bottom: var(--space-md);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-2);
+  font-weight: 600;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.metric-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.metric-value {
+  font-size: var(--text-display);
+  font-weight: 700;
+  color: var(--color-ink);
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-display);
+}
+
+.metric-label {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+.metric-trend {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-top: var(--space-xs);
+}
+
+.metric-trend.positive {
+  color: var(--color-success, #10b981);
+}
+
+.metric-trend.negative {
+  color: var(--color-danger, #ef4444);
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.department-breakdown-card,
+.hourly-flow-card,
+.attendance-summary-card {
+  padding: var(--space-xl);
+}
+
+.department-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.department-table-header,
+.department-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 2fr;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+}
+
+.department-table-header {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink-2);
+  background: var(--color-bg-2);
+}
+
+.department-table-row {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  transition: background 0.2s;
+}
+
+.department-table-row:hover {
+  background: var(--color-bg-2);
+}
+
+.department-name {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.department-stat {
+  text-align: center;
+  font-weight: 600;
+}
+
+.department-stat.success {
+  color: var(--color-success, #10b981);
+}
+
+.department-stat.warning {
+  color: var(--color-warning, #f59e0b);
+}
+
+.department-stat.danger {
+  color: var(--color-danger, #ef4444);
+}
+
+.department-rate {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.rate-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--color-bg-2);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.rate-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-success, #10b981), var(--color-accent));
+  border-radius: var(--radius-xs);
+  transition: width 0.3s ease;
+}
+
+.hourly-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 200px;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.hour-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.hour-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 180px;
+  width: 100%;
+}
+
+.bar {
+  flex: 1;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  transition: all 0.3s ease;
+  min-height: 2px;
+}
+
+.bar.entries {
+  background: linear-gradient(180deg, var(--color-success, #10b981), #059669);
+}
+
+.bar.exits {
+  background: linear-gradient(180deg, var(--color-warning, #f59e0b), #d97706);
+}
+
+.bar:hover {
+  opacity: 0.8;
+  transform: scaleY(1.05);
+}
+
+.hour-label {
+  font-size: var(--text-xs);
+  color: var(--color-ink-2);
+  font-weight: 500;
+}
+
+.chart-legend {
+  display: flex;
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-xs);
+}
+
+.legend-dot.entries {
+  background: var(--color-success, #10b981);
+}
+
+.legend-dot.exits {
+  background: var(--color-warning, #f59e0b);
+}
+
+.attendance-summary-card {
+  grid-column: 1 / -1;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-2xl);
+}
+
+.summary-stat {
+  text-align: center;
+  padding: var(--space-xl);
+  background: var(--color-bg-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.summary-label {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  margin-bottom: var(--space-md);
+}
+
+.summary-value {
+  font-size: var(--text-display);
+  font-weight: 700;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+}
+
+@media (max-width: 968px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .department-table-header,
+  .department-table-row {
+    grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr 1.5fr;
+    gap: var(--space-sm);
+    font-size: var(--text-xs);
+  }
+}

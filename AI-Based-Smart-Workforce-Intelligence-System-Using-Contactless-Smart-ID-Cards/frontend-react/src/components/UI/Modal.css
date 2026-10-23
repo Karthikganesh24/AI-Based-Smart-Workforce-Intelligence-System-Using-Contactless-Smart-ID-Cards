@@ -1,0 +1,131 @@
+/* Hallmark · SmartWorkforce Modal */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: var(--space-lg, 1.5rem);
+  backdrop-filter: blur(4px);
+  overflow-y: auto;
+}
+
+.modal-content {
+  background: var(--color-paper-2, var(--color-bg, #202020)) !important;
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--color-rule, var(--color-border, rgba(255, 255, 255, 0.1)));
+  max-height: 90vh;
+  overflow-y: auto;
+  width: 100%;
+  position: relative;
+  z-index: 10000;
+}
+
+.modal-sm {
+  max-width: 400px;
+}
+
+.modal-md {
+  max-width: 600px;
+}
+
+.modal-lg {
+  max-width: 800px;
+}
+
+.modal-xl {
+  max-width: 1200px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-ink);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: var(--text-2xl);
+  line-height: 1;
+  color: var(--color-ink-2);
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: background var(--dur-short), color var(--dur-short);
+}
+
+.modal-close:hover {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.modal-body {
+  padding: var(--space-lg, 1.5rem);
+  color: var(--color-ink, #fff);
+}
+
+/* Modal animations - CSS only, no react-transition-group */
+.modal-fade-in {
+  animation: modalFadeIn 0.3s ease-out forwards;
+}
+
+.modal-slide-in {
+  animation: modalSlideIn 0.3s ease-out forwards;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-close {
+    transition: none;
+  }
+
+  .modal-enter-active,
+  .modal-exit-active,
+  .modal-content-enter-active,
+  .modal-content-exit-active {
+    transition: none;
+  }
+}

@@ -1,0 +1,45 @@
+/* Hallmark · SmartWorkforce Card
+ * Per design.md: Solid backgrounds (--color-paper-2), 1px border (--color-rule), shadow only on :hover
+ */
+
+.card {
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  transition: box-shadow var(--dur-short);
+}
+
+.card-default {
+  /* Base card style already applied above */
+}
+
+.card-glass {
+  /* Glass variant removed per design.md - no glassmorphism */
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
+}
+
+.card-elevated {
+  /* Elevated variant just uses base style */
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
+}
+
+.card-hover {
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.card-glow {
+  /* Glow variant removed per design.md - no neon glows */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}
