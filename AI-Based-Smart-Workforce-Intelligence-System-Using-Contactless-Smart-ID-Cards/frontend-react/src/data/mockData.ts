@@ -22,20 +22,34 @@ export const mockEmployees: Employee[] = [
   { id: 'EMP-207', name: 'Anjali Mehta', department: 'Customer Success', role: 'Support Specialist', uid: 'C9:D0:E1:F2', status: 'INSIDE', lastSeen: '08:42:30 AM', avatarBg: '#9333EA' },
 ];
 
-// Generate mock attendance records
+// Generate mock attendance records with today's date
+const today = new Date();
+const yesterday = new Date(today);
+yesterday.setDate(yesterday.getDate() - 1);
+
+const formatDate = (date: Date, hours: number, minutes: number, seconds: number = 0) => {
+  const d = new Date(date);
+  d.setHours(hours, minutes, seconds, 0);
+  return d.toISOString();
+};
+
 export const mockAttendance: AttendanceRecord[] = [
-  { id: '1', empId: 'EMP-102', empName: 'Priya Sharma', department: 'Quality', timestamp: '2024-01-20T08:45:10', eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
-  { id: '2', empId: 'EMP-103', empName: 'Rohan Mehta', department: 'IT', timestamp: '2024-01-20T09:02:44', eventType: 'ENTRY', gate: 'Gate 02', status: 'VERIFIED' },
-  { id: '3', empId: 'EMP-105', empName: 'Ananya Iyer', department: 'Production', timestamp: '2024-01-20T08:50:22', eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
-  { id: '4', empId: 'EMP-107', empName: 'Deepa Nair', department: 'Quality', timestamp: '2024-01-20T09:12:05', eventType: 'ENTRY', gate: 'Gate 03', status: 'VERIFIED' },
-  { id: '5', empId: 'EMP-108', empName: 'Karthik Raja', department: 'Maintenance', timestamp: '2024-01-20T08:35:40', eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
-  { id: '6', empId: 'EMP-200', empName: 'Rahul Singh', department: 'Engineering', timestamp: '2024-01-20T09:15:30', eventType: 'ENTRY', gate: 'Gate 02', status: 'VERIFIED' },
-  { id: '7', empId: 'EMP-201', empName: 'Kavya Reddy', department: 'Product', timestamp: '2024-01-20T08:55:12', eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
-  { id: '8', empId: 'EMP-203', empName: 'Divya Nair', department: 'Marketing', timestamp: '2024-01-20T09:05:45', eventType: 'ENTRY', gate: 'Gate 03', status: 'VERIFIED' },
-  { id: '9', empId: 'EMP-204', empName: 'Arjun Kumar', department: 'HR', timestamp: '2024-01-20T08:30:20', eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
-  { id: '10', empId: 'EMP-206', empName: 'Vivek Sharma', department: 'Operations', timestamp: '2024-01-20T09:10:15', eventType: 'ENTRY', gate: 'Gate 02', status: 'VERIFIED' },
-  { id: '11', empId: 'EMP-207', empName: 'Anjali Mehta', department: 'Customer Success', timestamp: '2024-01-20T08:42:30', eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
-  { id: '12', empId: 'EMP-104', empName: 'Suresh Patel', department: 'Maintenance', timestamp: '2024-01-19T17:30:00', eventType: 'EXIT', gate: 'Gate 01', status: 'VERIFIED' },
-  { id: '13', empId: 'EMP-109', empName: 'Sneha Kulkarni', department: 'Production', timestamp: '2024-01-19T18:15:00', eventType: 'EXIT', gate: 'Gate 02', status: 'VERIFIED' },
-  { id: '14', empId: 'EMP-202', empName: 'Amit Patel', department: 'Sales', timestamp: '2024-01-19T19:20:00', eventType: 'EXIT', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '1', empId: 'EMP-102', empName: 'Priya Sharma', department: 'Quality', timestamp: formatDate(today, 8, 45, 10), eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '2', empId: 'EMP-103', empName: 'Rohan Mehta', department: 'IT', timestamp: formatDate(today, 9, 2, 44), eventType: 'ENTRY', gate: 'Gate 02', status: 'VERIFIED' },
+  { id: '3', empId: 'EMP-105', empName: 'Ananya Iyer', department: 'Production', timestamp: formatDate(today, 8, 50, 22), eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '4', empId: 'EMP-107', empName: 'Deepa Nair', department: 'Quality', timestamp: formatDate(today, 9, 12, 5), eventType: 'ENTRY', gate: 'Gate 03', status: 'VERIFIED' },
+  { id: '5', empId: 'EMP-108', empName: 'Karthik Raja', department: 'Maintenance', timestamp: formatDate(today, 8, 35, 40), eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '6', empId: 'EMP-200', empName: 'Rahul Singh', department: 'Engineering', timestamp: formatDate(today, 9, 15, 30), eventType: 'ENTRY', gate: 'Gate 02', status: 'VERIFIED' },
+  { id: '7', empId: 'EMP-201', empName: 'Kavya Reddy', department: 'Product', timestamp: formatDate(today, 8, 55, 12), eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '8', empId: 'EMP-203', empName: 'Divya Nair', department: 'Marketing', timestamp: formatDate(today, 9, 5, 45), eventType: 'ENTRY', gate: 'Gate 03', status: 'VERIFIED' },
+  { id: '9', empId: 'EMP-204', empName: 'Arjun Kumar', department: 'HR', timestamp: formatDate(today, 8, 30, 20), eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '10', empId: 'EMP-206', empName: 'Vivek Sharma', department: 'Operations', timestamp: formatDate(today, 9, 10, 15), eventType: 'ENTRY', gate: 'Gate 02', status: 'VERIFIED' },
+  { id: '11', empId: 'EMP-207', empName: 'Anjali Mehta', department: 'Customer Success', timestamp: formatDate(today, 8, 42, 30), eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '12', empId: 'EMP-104', empName: 'Suresh Patel', department: 'Maintenance', timestamp: formatDate(yesterday, 17, 30), eventType: 'EXIT', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '13', empId: 'EMP-109', empName: 'Sneha Kulkarni', department: 'Production', timestamp: formatDate(yesterday, 18, 15), eventType: 'EXIT', gate: 'Gate 02', status: 'VERIFIED' },
+  { id: '14', empId: 'EMP-202', empName: 'Amit Patel', department: 'Sales', timestamp: formatDate(yesterday, 19, 20), eventType: 'EXIT', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '15', empId: 'EMP-101', empName: 'Aravind Kumar', department: 'Production', timestamp: formatDate(yesterday, 8, 20), eventType: 'ENTRY', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '16', empId: 'EMP-101', empName: 'Aravind Kumar', department: 'Production', timestamp: formatDate(yesterday, 17, 45), eventType: 'EXIT', gate: 'Gate 01', status: 'VERIFIED' },
+  { id: '17', empId: 'EMP-106', empName: 'Vikram Singh', department: 'IT', timestamp: formatDate(yesterday, 9, 10), eventType: 'ENTRY', gate: 'Gate 02', status: 'VERIFIED' },
+  { id: '18', empId: 'EMP-106', empName: 'Vikram Singh', department: 'IT', timestamp: formatDate(yesterday, 18, 30), eventType: 'EXIT', gate: 'Gate 02', status: 'VERIFIED' },
 ];
