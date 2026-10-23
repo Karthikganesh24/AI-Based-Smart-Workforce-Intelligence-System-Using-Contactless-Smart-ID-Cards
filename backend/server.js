@@ -1100,10 +1100,21 @@ async function handleApiRequest(req, res, urlPath) {
         }
 
         let includeInactive = false;
+        let unitId = null;
         try {
           const urlObj = new URL(req.url, 'http://localhost');
           includeInactive = urlObj.searchParams.get('includeInactive') === 'true';
+          unitId = urlObj.searchParams.get('unitId') || urlObj.searchParams.get('orgUnitId') || urlObj.searchParams.get('departmentId');
         } catch (_) {}
+
+        if (unitId) {
+          const targetUnit = db.getOrgUnitById(unitId, authCtx.companyId);
+          if (!targetUnit) {
+            return sendError(res, 404, `Organizational unit '${unitId}' not found in your organization.`);
+          }
+          const jobTitles = db.getJobTitlesByUnit(unitId, authCtx.companyId, includeInactive);
+          return sendJson(res, 200, jobTitles);
+        }
 
         const jobTitles = db.getJobTitles(authCtx.companyId, includeInactive);
         return sendJson(res, 200, jobTitles);

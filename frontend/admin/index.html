@@ -1433,49 +1433,122 @@
         </section>
 
         <!-- ====================================================
-             VIEW 8: JOB TITLE MANAGEMENT
+             VIEW 8: JOB TITLE MANAGEMENT (DEPARTMENT-FIRST NAVIGATION)
              ==================================================== -->
         <section class="view-panel" id="view-job-titles">
-          <div class="job-titles-toolbar">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span class="tree-stat-pill">Total Titles: <strong id="statJobTitlesCount">0</strong></span>
-              <div class="search-input-wrap" style="position: relative;">
-                <input type="text" id="inputSearchJobTitles" class="text-input" placeholder="Search designations..." style="padding: 7px 12px 7px 32px; font-size: 0.8rem; width: 220px; border-radius: 20px;">
-                <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); pointer-events: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
+          
+          <!-- SUB-VIEW 8A: DEPARTMENT SELECTION VIEW -->
+          <div id="jobTitlesDeptSelectionView">
+            <div class="job-titles-toolbar">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span class="tree-stat-pill">Departments: <strong id="statDeptCount">0</strong></span>
+                <span class="tree-stat-pill">Total Titles: <strong id="statAllJobTitlesCount">0</strong></span>
+                <div class="search-input-wrap" style="position: relative;">
+                  <input type="text" id="inputSearchDepts" class="text-input" placeholder="Search departments..." style="padding: 7px 12px 7px 32px; font-size: 0.8rem; width: 230px; border-radius: 20px;">
+                  <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); pointer-events: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-action-primary" id="btnOpenAddJobTitleFromDepts" style="font-size: 0.78rem; padding: 7px 14px; margin-top: 0; width: auto;">
+                  + Add Job Title
+                </button>
               </div>
             </div>
-            <div>
-              <button class="btn-action-primary" id="btnOpenAddJobTitleModal" style="font-size: 0.78rem; padding: 7px 14px; margin-top: 0; width: auto;">
-                + Add Job Title
-              </button>
+
+            <!-- Department Cards Grid -->
+            <div class="dept-cards-grid" id="deptCardsGrid">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <!-- Empty State for 0 Departments -->
+            <div id="jobTitlesNoDeptsEmptyState" class="empty-state-box" style="display: none;">
+              <div class="empty-state-icon">🏢</div>
+              <div class="empty-state-title">No Departments or Organizational Units Found</div>
+              <div class="empty-state-text">Your organization has not created any departments yet. Set up departments in the Organization Tree to categorize designations and employee assignments.</div>
+              <button class="btn-action-primary" id="btnGoToOrgTreeFromDepts" style="width: auto;">Go to Organization Tree</button>
             </div>
           </div>
 
-          <div class="table-responsive" style="background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-lg); box-shadow: var(--shadow-card);">
-            <table class="data-table" id="tableJobTitles">
-              <thead>
-                <tr>
-                  <th style="width: 250px;">Job Title / Designation</th>
-                  <th>Description</th>
-                  <th style="width: 140px; text-align: center;">Assigned Staff</th>
-                  <th style="width: 120px; text-align: center;">Status</th>
-                  <th style="width: 140px; text-align: right;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="tableJobTitlesBody">
-                <!-- Rendered dynamically -->
-              </tbody>
-            </table>
-            <div id="jobTitlesEmptyState" class="empty-state-box" style="display: none; border: none; margin: 0;">
-              <div class="empty-state-icon">💼</div>
-              <div class="empty-state-title">No Custom Job Titles Defined</div>
-              <div class="empty-state-text">Create standardized designations and corporate job titles to classify your workforce members.</div>
-              <button class="btn-action-primary" id="btnEmptyCreateJobTitle" style="width: auto;">+ Add First Job Title</button>
+          <!-- SUB-VIEW 8B: SELECTED DEPARTMENT DETAIL VIEW -->
+          <div id="jobTitlesDeptDetailView" style="display: none;">
+            <!-- Department Detail Header with Breadcrumb -->
+            <div class="dept-detail-header-card">
+              <div class="dept-detail-breadcrumb">
+                <button type="button" class="btn-breadcrumb-back" id="btnBackToDepts" title="Return to department list">
+                  <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                  All Departments
+                </button>
+                <span class="breadcrumb-slash">/</span>
+                <span class="breadcrumb-active" id="deptDetailBreadcrumbName">Department</span>
+              </div>
+              <div class="dept-detail-meta-bar">
+                <div class="dept-detail-identity">
+                  <div class="dept-detail-icon">🏢</div>
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <h2 class="dept-detail-title" id="deptDetailTitle">Department Name</h2>
+                      <span class="dept-detail-badge" id="deptDetailBadge">DEPARTMENT</span>
+                    </div>
+                    <p class="dept-detail-subtitle" id="deptDetailSubtitle">Designations and active staff positions assigned in this department</p>
+                  </div>
+                </div>
+                <div class="dept-detail-stats">
+                  <span class="tree-stat-pill">Designations: <strong id="statJobTitlesCount">0</strong></span>
+                  <span class="tree-stat-pill">Assigned Staff: <strong id="statDeptAssignedStaffCount">0</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Department Job Titles Toolbar -->
+            <div class="job-titles-toolbar">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div class="search-input-wrap" style="position: relative;">
+                  <input type="text" id="inputSearchJobTitles" class="text-input" placeholder="Search designations in department..." style="padding: 7px 12px 7px 32px; font-size: 0.8rem; width: 250px; border-radius: 20px;">
+                  <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); pointer-events: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <button class="btn-action-primary" id="btnOpenAddJobTitleModal" style="font-size: 0.78rem; padding: 7px 14px; margin-top: 0; width: auto;">
+                  + Add Job Title
+                </button>
+              </div>
+            </div>
+
+            <!-- Job Titles Table -->
+            <div class="table-responsive" style="background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-lg); box-shadow: var(--shadow-card);">
+              <table class="data-table" id="tableJobTitles">
+                <thead>
+                  <tr>
+                    <th style="width: 250px;">Job Title / Designation</th>
+                    <th>Description</th>
+                    <th style="width: 140px; text-align: center;">Dept Staff</th>
+                    <th style="width: 130px; text-align: center;">Total Staff</th>
+                    <th style="width: 120px; text-align: center;">Status</th>
+                    <th style="width: 140px; text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tableJobTitlesBody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+              <div id="jobTitlesEmptyState" class="empty-state-box" style="display: none; border: none; margin: 0;">
+                <div class="empty-state-icon">💼</div>
+                <div class="empty-state-title" id="txtJobTitlesEmptyTitle">No Job Titles in this Department</div>
+                <div class="empty-state-text" id="txtJobTitlesEmptyDesc">No active employees in this department are currently assigned a job title. Assign staff in the Workforce Roster or create a designation.</div>
+                <button class="btn-action-primary" id="btnEmptyCreateJobTitle" style="width: auto;">+ Add Job Title</button>
+              </div>
             </div>
           </div>
+
         </section>
 
         <!-- ====================================================
@@ -2287,6 +2360,14 @@
         <input type="hidden" id="jobTitleIdHidden" value="">
 
         <div class="modal-form-grid">
+          <div id="jobTitleModalDeptContext" class="dept-context-badge" style="display: none; grid-column: 1 / -1;">
+            <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+            <span>Department Context: <strong id="jobTitleModalDeptName">--</strong></span>
+          </div>
+
           <div class="control-group" style="grid-column: 1 / -1;">
             <label class="control-label" for="inputJobTitleName">Job Title / Designation *</label>
             <input type="text" id="inputJobTitleName" class="text-input" placeholder="e.g. Lead Robotics Engineer" required autocomplete="off">

@@ -374,8 +374,9 @@
       return this.request('DELETE', `/api/org/levels/${encodeURIComponent(id)}`);
     },
 
-    async getJobTitles() {
-      return this.request('GET', '/api/org/job-titles');
+    async getJobTitles(unitId = null) {
+      const url = unitId ? `/api/org/job-titles?unitId=${encodeURIComponent(unitId)}` : '/api/org/job-titles';
+      return this.request('GET', url);
     },
 
     async createJobTitle(titleData) {

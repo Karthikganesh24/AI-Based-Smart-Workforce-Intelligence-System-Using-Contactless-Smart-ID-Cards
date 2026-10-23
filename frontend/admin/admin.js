@@ -4588,47 +4588,275 @@
   }
 
   // ==========================================
-  // 2. JOB TITLES MANAGEMENT
+  // 2. JOB TITLES MANAGEMENT (DEPARTMENT-FIRST)
   // ==========================================
+
+  let selectedDeptForJobTitles = null;
+  let deptsSearchTerm = '';
+  let selectedDeptJobTitles = [];
 
   async function loadJobTitles() {
     try {
-      const titles = await SmartWorkforceCommon.api.getJobTitles();
-      if (Array.isArray(titles)) {
-        jobTitlesList = titles;
-      }
-      const statJobTitlesCount = document.getElementById('statJobTitlesCount');
-      if (statJobTitlesCount) statJobTitlesCount.textContent = jobTitlesList.length;
+      const [allTitles, units] = await Promise.all([
+        SmartWorkforceCommon.api.getJobTitles().catch(() => []),
+        SmartWorkforceCommon.api.getOrgUnits(false).catch(() => [])
+      ]);
 
-      renderJobTitlesTable();
+      if (Array.isArray(allTitles)) {
+        jobTitlesList = allTitles;
+      }
+      if (Array.isArray(units)) {
+        orgUnitsList = units;
+      }
+
+      // Update company-wide stat pills
+      const statDeptCount = document.getElementById('statDeptCount');
+      if (statDeptCount) statDeptCount.textContent = orgUnitsList.length;
+
+      const statAllJobTitlesCount = document.getElementById('statAllJobTitlesCount');
+      if (statAllJobTitlesCount) statAllJobTitlesCount.textContent = jobTitlesList.length;
+
       populateOrgDropdowns();
+
+      // If a department is currently selected, refresh its view; else render department cards
+      if (selectedDeptForJobTitles) {
+        const refreshedDept = orgUnitsList.find(u => u.id === selectedDeptForJobTitles.id);
+        if (refreshedDept) {
+          selectedDeptForJobTitles = refreshedDept;
+          await selectDepartmentForJobTitles(refreshedDept, true);
+        } else {
+          backToDepartmentList();
+        }
+      } else {
+        renderDepartmentCards();
+      }
     } catch (err) {
-      console.warn('Failed to load job titles:', err);
+      console.warn('Failed to load job titles & departments:', err);
     }
+  }
+
+  function renderDepartmentCards() {
+    const deptSelectionView = document.getElementById('jobTitlesDeptSelectionView');
+    const deptDetailView = document.getElementById('jobTitlesDeptDetailView');
+    const cardsGrid = document.getElementById('deptCardsGrid');
+    const noDeptsEmpty = document.getElementById('jobTitlesNoDeptsEmptyState');
+
+    if (deptSelectionView) deptSelectionView.style.display = 'block';
+    if (deptDetailView) deptDetailView.style.display = 'none';
+
+    if (!cardsGrid) return;
+
+    if (!orgUnitsList || orgUnitsList.length === 0) {
+      cardsGrid.innerHTML = '';
+      cardsGrid.style.display = 'none';
+      if (noDeptsEmpty) noDeptsEmpty.style.display = 'flex';
+      return;
+    }
+
+    if (noDeptsEmpty) noDeptsEmpty.style.display = 'none';
+    cardsGrid.style.display = 'grid';
+
+    const term = (deptsSearchTerm || '').toLowerCase().trim();
+    const filtered = orgUnitsList.filter(u => {
+      if (!term) return true;
+      return (u.name || '').toLowerCase().includes(term) ||
+             (u.unit_type || '').toLowerCase().includes(term) ||
+             (u.level_name || '').toLowerCase().includes(term) ||
+             (u.manager_name || '').toLowerCase().includes(term);
+    });
+
+    if (filtered.length === 0) {
+      cardsGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 40px 20px; text-align: center; color: var(--text-muted); background: var(--bg-surface); border: 1px dashed var(--border-medium); border-radius: var(--radius-md);">
+          <div style="font-size: 2rem; margin-bottom: 8px;">🔍</div>
+          <div style="font-weight: 600; color: var(--text-main);">No departments matching "${escapeHtml(deptsSearchTerm)}"</div>
+          <div style="font-size: 0.8rem; margin-top: 4px;">Try searching for another department name or level.</div>
+        </div>
+      `;
+      return;
+    }
+
+    cardsGrid.innerHTML = filtered.map(u => {
+      const typeLabel = u.level_name || u.unit_type || 'DEPARTMENT';
+      const staffCount = u.employee_count !== undefined ? u.employee_count : 0;
+      const titleCount = u.job_title_count !== undefined ? u.job_title_count : 0;
+      const managerLabel = u.manager_name ? `Lead: ${escapeHtml(u.manager_name)}` : 'Top-Level Department';
+
+      return `
+        <div class="dept-nav-card" data-dept-id="${escapeHtml(u.id)}" tabindex="0" role="button" aria-label="View job titles for ${escapeHtml(u.name)}">
+          <div>
+            <div class="dept-card-header">
+              <div class="dept-card-identity">
+                <div class="dept-card-icon">🏢</div>
+                <div>
+                  <div class="dept-card-name">${escapeHtml(u.name)}</div>
+                  <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">${managerLabel}</div>
+                </div>
+              </div>
+              <span class="dept-card-badge ${u.level_name ? 'level' : ''}">${escapeHtml(typeLabel)}</span>
+            </div>
+          </div>
+
+          <div class="dept-card-stats">
+            <div class="dept-stat-item">
+              <div class="dept-stat-val">${titleCount}</div>
+              <div class="dept-stat-label">Job Titles</div>
+            </div>
+            <div class="dept-stat-item">
+              <div class="dept-stat-val">${staffCount}</div>
+              <div class="dept-stat-label">Assigned Staff</div>
+            </div>
+          </div>
+
+          <div class="dept-card-footer">
+            <span class="dept-card-action-text">
+              View Designations
+              <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </span>
+            <span style="font-size: 0.72rem; color: var(--text-dim); font-family: var(--font-mono);">ID: ${escapeHtml(u.id)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach click listeners to cards
+    cardsGrid.querySelectorAll('.dept-nav-card').forEach(card => {
+      const handleSelect = () => {
+        const deptId = card.getAttribute('data-dept-id');
+        const dept = orgUnitsList.find(u => u.id === deptId);
+        if (dept) selectDepartmentForJobTitles(dept, true);
+      };
+
+      card.addEventListener('click', handleSelect);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleSelect();
+        }
+      });
+    });
+  }
+
+  async function selectDepartmentForJobTitles(dept, shouldFetch = true) {
+    selectedDeptForJobTitles = dept;
+    const deptSelectionView = document.getElementById('jobTitlesDeptSelectionView');
+    const deptDetailView = document.getElementById('jobTitlesDeptDetailView');
+
+    if (deptSelectionView) deptSelectionView.style.display = 'none';
+    if (deptDetailView) deptDetailView.style.display = 'block';
+
+    // Update breadcrumb and header
+    const breadcrumbName = document.getElementById('deptDetailBreadcrumbName');
+    const detailTitle = document.getElementById('deptDetailTitle');
+    const detailBadge = document.getElementById('deptDetailBadge');
+    const detailSubtitle = document.getElementById('deptDetailSubtitle');
+    const statDeptAssignedStaffCount = document.getElementById('statDeptAssignedStaffCount');
+
+    if (breadcrumbName) breadcrumbName.textContent = dept.name;
+    if (detailTitle) detailTitle.textContent = dept.name;
+    if (detailBadge) detailBadge.textContent = dept.level_name || dept.unit_type || 'DEPARTMENT';
+    if (detailSubtitle) {
+      detailSubtitle.textContent = dept.manager_name 
+        ? `Led by ${dept.manager_name} • Active designations and staff assignments in this unit`
+        : 'Active designations and staff assignments in this organizational unit';
+    }
+    if (statDeptAssignedStaffCount) statDeptAssignedStaffCount.textContent = dept.employee_count !== undefined ? dept.employee_count : 0;
+
+    // Reset search
+    const inputSearchJobTitles = document.getElementById('inputSearchJobTitles');
+    if (inputSearchJobTitles) inputSearchJobTitles.value = '';
+    jobTitlesFilterTerm = '';
+
+    if (shouldFetch) {
+      await loadDepartmentJobTitles(dept.id);
+    } else {
+      renderJobTitlesTable();
+    }
+  }
+
+  async function loadDepartmentJobTitles(unitId) {
+    try {
+      const titles = await SmartWorkforceCommon.api.getJobTitles(unitId);
+      selectedDeptJobTitles = Array.isArray(titles) ? titles : [];
+      renderJobTitlesTable();
+    } catch (err) {
+      console.warn('Failed to load department job titles:', err);
+      showToast('Error loading department designations: ' + err.message, 'warning');
+      selectedDeptJobTitles = [];
+      renderJobTitlesTable();
+    }
+  }
+
+  function backToDepartmentList() {
+    selectedDeptForJobTitles = null;
+    selectedDeptJobTitles = [];
+    jobTitlesFilterTerm = '';
+    const inputSearchJobTitles = document.getElementById('inputSearchJobTitles');
+    if (inputSearchJobTitles) inputSearchJobTitles.value = '';
+
+    const deptSelectionView = document.getElementById('jobTitlesDeptSelectionView');
+    const deptDetailView = document.getElementById('jobTitlesDeptDetailView');
+
+    if (deptSelectionView) deptSelectionView.style.display = 'block';
+    if (deptDetailView) deptDetailView.style.display = 'none';
+
+    renderDepartmentCards();
   }
 
   function renderJobTitlesTable() {
     const tableBody = document.getElementById('tableJobTitlesBody');
     const emptyState = document.getElementById('jobTitlesEmptyState');
+    const statJobTitlesCount = document.getElementById('statJobTitlesCount');
+    const txtJobTitlesEmptyTitle = document.getElementById('txtJobTitlesEmptyTitle');
+    const txtJobTitlesEmptyDesc = document.getElementById('txtJobTitlesEmptyDesc');
     if (!tableBody) return;
 
-    const term = jobTitlesFilterTerm.toLowerCase();
-    const filtered = jobTitlesList.filter(t => {
+    // Use department-specific titles when in a department view, otherwise fall back to all titles
+    const titlesSource = selectedDeptForJobTitles ? selectedDeptJobTitles : jobTitlesList;
+
+    if (statJobTitlesCount) {
+      statJobTitlesCount.textContent = titlesSource.length;
+    }
+
+    const term = jobTitlesFilterTerm.toLowerCase().trim();
+    const filtered = titlesSource.filter(t => {
       if (!term) return true;
       return (t.title || '').toLowerCase().includes(term) || (t.description || '').toLowerCase().includes(term);
     });
 
     if (filtered.length === 0) {
       tableBody.innerHTML = '';
-      if (emptyState) emptyState.style.display = 'flex';
+      if (emptyState) {
+        if (selectedDeptForJobTitles) {
+          if (txtJobTitlesEmptyTitle) txtJobTitlesEmptyTitle.textContent = `No Designations in ${selectedDeptForJobTitles.name}`;
+          if (txtJobTitlesEmptyDesc) {
+            txtJobTitlesEmptyDesc.textContent = term
+              ? `No job titles matching "${term}" in this department.`
+              : `No active employees in ${selectedDeptForJobTitles.name} are currently assigned a job title. Assign staff in the Workforce Roster or create a designation.`;
+          }
+        } else {
+          if (txtJobTitlesEmptyTitle) txtJobTitlesEmptyTitle.textContent = 'No Job Titles Found';
+          if (txtJobTitlesEmptyDesc) txtJobTitlesEmptyDesc.textContent = 'Your company has not defined any standard job titles or designations yet.';
+        }
+        emptyState.style.display = 'flex';
+      }
       return;
     }
 
     if (emptyState) emptyState.style.display = 'none';
 
     tableBody.innerHTML = filtered.map(t => {
-      const assignedCount = t.employee_count !== undefined
+      const deptStaffCount = t.employee_count !== undefined
         ? t.employee_count
+        : (selectedDeptForJobTitles
+            ? employees.filter(e => (e.jobTitleId || e.job_title_id) === t.id && (e.orgUnitId || e.org_unit_id) === selectedDeptForJobTitles.id).length
+            : employees.filter(e => (e.jobTitleId || e.job_title_id) === t.id).length);
+
+      const totalStaffCount = t.total_company_employee_count !== undefined
+        ? t.total_company_employee_count
         : employees.filter(e => (e.jobTitleId || e.job_title_id) === t.id).length;
 
       const isActive = t.is_active !== 0;
@@ -4643,7 +4871,10 @@
             ${escapeHtml(t.description || 'Standard corporate role')}
           </td>
           <td style="text-align: center;">
-            <span class="tree-stat-pill" style="padding: 3px 9px;"><strong>${assignedCount}</strong> Staff</span>
+            <span class="tree-stat-pill" style="padding: 3px 9px;"><strong>${deptStaffCount}</strong> Staff</span>
+          </td>
+          <td style="text-align: center;">
+            <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono);">${totalStaffCount} Co-Wide</span>
           </td>
           <td style="text-align: center;">
             <span class="${isActive ? 'badge-status-active' : 'badge-status-suspended'}">
@@ -4655,7 +4886,7 @@
               <button type="button" class="btn-icon-xs btn-edit-job" data-job-id="${escapeHtml(t.id)}" title="Edit Job Title">
                 ✏️
               </button>
-              <button type="button" class="btn-icon-xs delete btn-delete-job" data-job-id="${escapeHtml(t.id)}" data-job-title="${escapeHtml(t.title)}" data-assigned-count="${assignedCount}" title="Delete Job Title">
+              <button type="button" class="btn-icon-xs delete btn-delete-job" data-job-id="${escapeHtml(t.id)}" data-job-title="${escapeHtml(t.title)}" data-assigned-count="${totalStaffCount}" title="Delete Job Title">
                 🗑️
               </button>
             </div>
@@ -4667,7 +4898,7 @@
     tableBody.querySelectorAll('.btn-edit-job').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-job-id');
-        const title = jobTitlesList.find(t => t.id === id);
+        const title = titlesSource.find(t => t.id === id) || jobTitlesList.find(t => t.id === id);
         if (title) openEditJobTitleModal(title);
       });
     });
@@ -4679,6 +4910,32 @@
         const assignedCount = parseInt(btn.getAttribute('data-assigned-count') || '0', 10);
         handleDeleteJobTitle(id, titleName, assignedCount);
       });
+    });
+  }
+
+  // --- Department Selection & Navigation Controls ---
+  const btnBackToDepts = document.getElementById('btnBackToDepts');
+  if (btnBackToDepts) {
+    btnBackToDepts.addEventListener('click', backToDepartmentList);
+  }
+
+  const inputSearchDepts = document.getElementById('inputSearchDepts');
+  if (inputSearchDepts) {
+    inputSearchDepts.addEventListener('input', (e) => {
+      deptsSearchTerm = (e.target.value || '').trim();
+      renderDepartmentCards();
+    });
+  }
+
+  const btnOpenAddJobTitleFromDepts = document.getElementById('btnOpenAddJobTitleFromDepts');
+  if (btnOpenAddJobTitleFromDepts) {
+    btnOpenAddJobTitleFromDepts.addEventListener('click', openAddJobTitleModal);
+  }
+
+  const btnGoToOrgTreeFromDepts = document.getElementById('btnGoToOrgTreeFromDepts');
+  if (btnGoToOrgTreeFromDepts) {
+    btnGoToOrgTreeFromDepts.addEventListener('click', () => {
+      switchView('view-org-tree');
     });
   }
 
@@ -4706,6 +4963,8 @@
     const inputJobTitleDesc = document.getElementById('inputJobTitleDesc');
     const checkJobTitleActive = document.getElementById('checkJobTitleActive');
     const modalJobTitleError = document.getElementById('modalJobTitleError');
+    const deptContextBadge = document.getElementById('jobTitleModalDeptContext');
+    const deptNameSpan = document.getElementById('jobTitleModalDeptName');
 
     if (modalJobTitleError) modalJobTitleError.style.display = 'none';
     if (txtHeading) txtHeading.textContent = 'Create Job Title';
@@ -4713,6 +4972,14 @@
     if (inputJobTitleName) inputJobTitleName.value = '';
     if (inputJobTitleDesc) inputJobTitleDesc.value = '';
     if (checkJobTitleActive) checkJobTitleActive.checked = true;
+
+    // Display department context if opened from within a department view
+    if (selectedDeptForJobTitles && deptContextBadge && deptNameSpan) {
+      deptContextBadge.style.display = 'flex';
+      deptNameSpan.textContent = selectedDeptForJobTitles.name;
+    } else if (deptContextBadge) {
+      deptContextBadge.style.display = 'none';
+    }
 
     modalJobTitle.classList.add('open');
     if (inputJobTitleName) inputJobTitleName.focus();
@@ -4726,6 +4993,8 @@
     const inputJobTitleDesc = document.getElementById('inputJobTitleDesc');
     const checkJobTitleActive = document.getElementById('checkJobTitleActive');
     const modalJobTitleError = document.getElementById('modalJobTitleError');
+    const deptContextBadge = document.getElementById('jobTitleModalDeptContext');
+    const deptNameSpan = document.getElementById('jobTitleModalDeptName');
 
     if (modalJobTitleError) modalJobTitleError.style.display = 'none';
     if (txtHeading) txtHeading.textContent = `Edit Job Title: ${title.title}`;
@@ -4733,6 +5002,13 @@
     if (inputJobTitleName) inputJobTitleName.value = title.title;
     if (inputJobTitleDesc) inputJobTitleDesc.value = title.description || '';
     if (checkJobTitleActive) checkJobTitleActive.checked = title.is_active !== 0;
+
+    if (selectedDeptForJobTitles && deptContextBadge && deptNameSpan) {
+      deptContextBadge.style.display = 'flex';
+      deptNameSpan.textContent = selectedDeptForJobTitles.name;
+    } else if (deptContextBadge) {
+      deptContextBadge.style.display = 'none';
+    }
 
     modalJobTitle.classList.add('open');
     if (inputJobTitleName) inputJobTitleName.focus();
@@ -4775,10 +5051,17 @@
           showToast(`Job title '${title}' updated.`, 'entry');
         } else {
           await SmartWorkforceCommon.api.createJobTitle({ title, description, isActive });
-          showToast(`Job title '${title}' created.`, 'entry');
+          if (selectedDeptForJobTitles) {
+            showToast(`Job title '${title}' created. Assign staff in ${selectedDeptForJobTitles.name} to list them under this department.`, 'entry');
+          } else {
+            showToast(`Job title '${title}' created.`, 'entry');
+          }
         }
         closeJobTitleModal();
         await loadJobTitles();
+        if (selectedDeptForJobTitles) {
+          await loadDepartmentJobTitles(selectedDeptForJobTitles.id);
+        }
       } catch (err) {
         if (modalJobTitleError) {
           modalJobTitleError.textContent = err.message;
@@ -4796,7 +5079,7 @@
   async function handleDeleteJobTitle(id, titleName, assignedCount) {
     let warning = `Delete job title '${titleName}'?`;
     if (assignedCount > 0) {
-      warning += `\n\nWarning: ${assignedCount} employee(s) are currently assigned this title. They will be unlinked automatically.`;
+      warning += `\n\nWarning: ${assignedCount} employee(s) are currently assigned this title across the company. They will be unlinked automatically.`;
     }
     if (!confirm(warning)) return;
 
@@ -4804,6 +5087,9 @@
       await SmartWorkforceCommon.api.deleteJobTitle(id);
       showToast(`Job title '${titleName}' removed.`, 'exit');
       await loadJobTitles();
+      if (selectedDeptForJobTitles) {
+        await loadDepartmentJobTitles(selectedDeptForJobTitles.id);
+      }
     } catch (err) {
       alert('Failed to delete job title: ' + err.message);
     }

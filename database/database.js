@@ -1512,7 +1512,8 @@ function getOrgUnits(companyId) {
            l.name AS level_name,
            l.rank AS level_rank,
            m.name AS manager_name,
-           (SELECT COUNT(*) FROM employees e WHERE e.org_unit_id = u.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count
+           (SELECT COUNT(*) FROM employees e WHERE e.org_unit_id = u.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count,
+           (SELECT COUNT(DISTINCT e.job_title_id) FROM employees e WHERE e.org_unit_id = u.id AND e.job_title_id IS NOT NULL AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS job_title_count
     FROM org_units u
     LEFT JOIN org_units p ON u.parent_unit_id = p.id
     LEFT JOIN org_levels l ON u.level_id = l.id
@@ -1531,7 +1532,8 @@ function getOrgUnitById(id, companyId = null) {
            l.name AS level_name,
            l.rank AS level_rank,
            m.name AS manager_name,
-           (SELECT COUNT(*) FROM employees e WHERE e.org_unit_id = u.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count
+           (SELECT COUNT(*) FROM employees e WHERE e.org_unit_id = u.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count,
+           (SELECT COUNT(DISTINCT e.job_title_id) FROM employees e WHERE e.org_unit_id = u.id AND e.job_title_id IS NOT NULL AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS job_title_count
     FROM org_units u
     LEFT JOIN org_units p ON u.parent_unit_id = p.id
     LEFT JOIN org_levels l ON u.level_id = l.id
@@ -1783,6 +1785,32 @@ function getJobTitles(companyId, includeInactive = false) {
   }
   sql += ' ORDER BY j.title ASC';
   return db.prepare(sql).all(companyId.trim());
+}
+
+function getJobTitlesByUnit(unitId, companyId, includeInactive = false) {
+  if (!unitId || !companyId || typeof companyId !== 'string') return [];
+  const cleanUnitId = String(unitId).trim();
+  const cleanCompanyId = String(companyId).trim();
+
+  let sql = `
+    SELECT j.*,
+           (SELECT COUNT(*) FROM employees e WHERE e.job_title_id = j.id AND e.org_unit_id = ? AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count,
+           (SELECT COUNT(*) FROM employees e WHERE e.job_title_id = j.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS total_company_employee_count
+    FROM company_job_titles j
+    WHERE j.company_id = ?
+      AND j.id IN (
+        SELECT DISTINCT e.job_title_id
+        FROM employees e
+        WHERE e.org_unit_id = ?
+          AND e.job_title_id IS NOT NULL
+          AND (e.is_archived = 0 OR e.is_archived IS NULL)
+      )
+  `;
+  if (!includeInactive) {
+    sql += ' AND j.is_active = 1';
+  }
+  sql += ' ORDER BY j.title ASC';
+  return db.prepare(sql).all(cleanUnitId, cleanCompanyId, cleanUnitId);
 }
 
 function getJobTitleById(id, companyId = null) {
@@ -2643,6 +2671,7 @@ module.exports = {
   detectCircularOrgUnits,
   createJobTitle,
   getJobTitles,
+  getJobTitlesByUnit,
   getJobTitleById,
   updateJobTitle,
   deleteJobTitle,

@@ -43,6 +43,7 @@ const INTEGRATION_TESTS = [
   { name: 'API Authorization & Access Control',    file: 'tests/integration/test_api_authorization.js' },
   { name: 'Admin Management Frontend & Assets',    file: 'tests/integration/test_admin_frontend.js' },
   { name: 'Employee & Manager Self-Service Portal',file: 'tests/integration/test_employee_manager_portal.js' },
+  { name: 'Department-First Job Titles Navigation',file: 'tests/integration/test_dept_job_titles.js' },
   { name: 'End-to-End System Integration',         file: 'tests/integration/test_system_integration.js' }
 ];
 
