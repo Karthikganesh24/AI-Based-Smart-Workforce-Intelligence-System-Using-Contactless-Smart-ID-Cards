@@ -397,6 +397,18 @@
   const confirmActionWarning = document.getElementById('confirmActionWarning');
   const confirmActionIcon = document.getElementById('confirmActionIcon');
 
+  // Modal: Reset Temporary Password Result
+  const modalResetPasswordResult = document.getElementById('modalResetPasswordResult');
+  const btnCloseResetPwdModal = document.getElementById('btnCloseResetPwdModal');
+  const btnDoneResetPwd = document.getElementById('btnDoneResetPwd');
+  const dispResetEmpId = document.getElementById('dispResetEmpId');
+  const dispResetPassword = document.getElementById('dispResetPassword');
+  const resetPwdEmpSummaryName = document.getElementById('resetPwdEmpSummaryName');
+  const resetPwdEmpSummaryDesc = document.getElementById('resetPwdEmpSummaryDesc');
+  const btnCopyResetEmpId = document.getElementById('btnCopyResetEmpId');
+  const btnCopyResetPassword = document.getElementById('btnCopyResetPassword');
+  const btnCopyAllResetCredentials = document.getElementById('btnCopyAllResetCredentials');
+
   // ==========================================
   // 3. AUDIO FEEDBACK (Synthesized Web Audio API)
   // Zero external files, 100% offline
@@ -608,6 +620,18 @@
     'view-analytics': {
       title: 'Analytics & Deep Statistics',
       subtitle: 'Shift Hourly Distribution, Punctuality Metrics & Facility Security Level'
+    },
+    'view-org-tree': {
+      title: 'Organization Tree & Hierarchy',
+      subtitle: 'Manage Company Divisions, Units, Hierarchy Levels & Reporting Relationships'
+    },
+    'view-job-titles': {
+      title: 'Job Titles & Designations',
+      subtitle: 'Standardized Corporate Titles, Responsibilities & Workforce Classification'
+    },
+    'view-roles-perms': {
+      title: 'Roles & Access Permissions',
+      subtitle: 'Configure Granular Permission Keys, Resource Scopes & Governance Matrix'
     }
   };
 
@@ -632,6 +656,12 @@
     // Trigger chart render if analytics or overview view
     if (targetViewId === 'view-overview' || targetViewId === 'view-analytics') {
       renderAttendanceCharts();
+    } else if (targetViewId === 'view-org-tree') {
+      loadOrgTreeData();
+    } else if (targetViewId === 'view-job-titles') {
+      loadJobTitles();
+    } else if (targetViewId === 'view-roles-perms') {
+      loadRoles();
     }
   }
 
@@ -1078,6 +1108,9 @@
   function renderEmployeeTable() {
     if (!employeeTableBody) return;
 
+    // Clean up any action menus previously moved to body
+    document.querySelectorAll('body > .action-menu-dropdown').forEach(m => m.remove());
+
     const query = inputSearchEmployees ? inputSearchEmployees.value.trim().toLowerCase() : '';
     const deptFilter = filterEmpDept ? filterEmpDept.value : 'ALL';
     const statusFilter = filterEmpStatus ? filterEmpStatus.value : 'ALL';
@@ -1112,18 +1145,52 @@
       return matchQuery && matchDept && matchStatus && matchAccount;
     });
 
+    // Update Directory Summary and Badges
+    const insideCount = filtered.filter(e => e.status === 'INSIDE').length;
+    const outsideCount = filtered.filter(e => e.status !== 'INSIDE').length;
+    const activeCount = filtered.filter(e => !e.isArchived && e.accountStatus === 'ACTIVE').length;
+
+    const empDirectoryCount = document.getElementById('empDirectoryCount');
+    if (empDirectoryCount) {
+      empDirectoryCount.textContent = `${filtered.length} Member${filtered.length === 1 ? '' : 's'}`;
+    }
+
+    const footerSummary = document.getElementById('workforceFooterSummary');
+    if (footerSummary) {
+      footerSummary.innerHTML = `Showing <strong>${filtered.length}</strong> of ${employees.length} workforce members &bull; <span style="color: var(--status-inside); font-weight: 600;">${insideCount} Inside</span> &bull; <span style="color: var(--text-muted); font-weight: 600;">${outsideCount} Outside</span> &bull; <span style="color: #10B981; font-weight: 600;">${activeCount} Active</span>`;
+    }
+
+    const btnResetEmpFilters = document.getElementById('btnResetEmpFilters');
+    if (btnResetEmpFilters) {
+      const hasActiveFilter = (query !== '') || (deptFilter !== 'ALL') || (statusFilter !== 'ALL') || (accountFilter !== 'ALL');
+      if (hasActiveFilter) {
+        btnResetEmpFilters.classList.add('visible');
+      } else {
+        btnResetEmpFilters.classList.remove('visible');
+      }
+    }
+
     if (filtered.length === 0) {
       employeeTableBody.innerHTML = `
         <tr>
-          <td colspan="9" class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <td colspan="9" class="empty-state" style="padding: 48px 16px; text-align: center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 38px; height: 38px; margin: 0 auto 12px; color: var(--text-muted); display: block;">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="8" y1="12" x2="16" y2="12"></line>
             </svg>
-            <div>No employee records matched your filter criteria.</div>
+            <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); margin-bottom: 6px;">No employee records matched your filter criteria</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Try adjusting your search query, department, presence, or account status filters.</div>
+            <button type="button" class="btn-action-secondary" id="btnEmptyResetFilters" style="margin: 0 auto; width: auto; font-size: 0.8rem; padding: 6px 14px;">
+              Reset All Filters
+            </button>
           </td>
         </tr>
       `;
+
+      const btnEmptyReset = employeeTableBody.querySelector('#btnEmptyResetFilters');
+      if (btnEmptyReset) {
+        btnEmptyReset.addEventListener('click', resetAllEmployeeFilters);
+      }
       return;
     }
 
@@ -1142,30 +1209,33 @@
       }
 
       tr.innerHTML = `
-        <td><span class="emp-id-badge">${emp.id}</span></td>
-        <td>
+        <td class="col-emp-id"><span class="emp-id-badge">${emp.id}</span></td>
+        <td class="col-emp-name">
           <div class="emp-name-cell">
             <div class="emp-avatar-sm" style="background-color: ${emp.avatarBg};">${getInitials(emp.name)}</div>
-            <span style="font-weight: 600;">${emp.name}</span>
+            <div class="emp-name-details">
+              <span class="emp-full-name">${emp.name}</span>
+              ${emp.email ? `<span class="emp-sub-email">${emp.email}</span>` : ''}
+            </div>
           </div>
         </td>
-        <td>${emp.department}</td>
-        <td style="color: var(--text-muted); font-size: 0.8rem;">${emp.role}</td>
-        <td><span style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim);">${emp.uid || '<em style="color:var(--text-muted);">None</em>'}</span></td>
-        <td>${accountBadge}</td>
-        <td>
+        <td class="col-emp-dept">${emp.department}</td>
+        <td class="col-emp-role"><span class="emp-role-text">${emp.role}</span></td>
+        <td class="col-emp-uid"><span class="emp-uid-code">${emp.uid || '<em style="color:var(--text-muted);">None</em>'}</span></td>
+        <td class="col-emp-acc">${accountBadge}</td>
+        <td class="col-emp-presence">
           <span class="status-badge ${isInside ? 'present' : 'checked-out'}">
             ${isInside ? '● INSIDE' : '○ OUTSIDE'}
           </span>
         </td>
-        <td style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim);">${emp.lastSeen}</td>
-        <td style="text-align: right;">
+        <td class="col-emp-seen"><span class="emp-last-seen-text">${emp.lastSeen}</span></td>
+        <td class="col-emp-actions" style="text-align: right;">
           <div class="action-cell">
             <button type="button" class="btn-quick-tap" data-emp-id="${emp.id}" title="Tap Smart ID at Gate" ${isArchived ? 'disabled style="opacity: 0.45; cursor: not-allowed;"' : ''}>
-              <svg style="width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+              <svg style="width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
                 <path d="M4.9 19.1C2.5 16.7 2.5 12.8 4.9 10.4M7.8 16.2C6.2 14.6 6.2 12 7.8 10.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
               </svg>
-              Tap ${isInside ? 'Exit' : 'Entry'}
+              <span>Tap ${isInside ? 'Exit' : 'Entry'}</span>
             </button>
 
             <button type="button" class="btn-action-menu" data-emp-id="${emp.id}" title="Manage Employee Actions" aria-label="Manage Employee">
@@ -1182,6 +1252,10 @@
                 <span>Edit Employee</span>
               </button>
               ${!isArchived ? `
+                <button type="button" class="action-menu-item btn-act-reset-pwd" data-emp-id="${emp.id}" title="Reset Temporary Password">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  <span style="color: #38BDF8;">Reset Temporary Password</span>
+                </button>
                 <button type="button" class="action-menu-item btn-act-status" data-emp-id="${emp.id}" data-current-status="${emp.accountStatus}">
                   ${isSuspended ? `
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
@@ -1193,7 +1267,7 @@
                 </button>
                 <button type="button" class="action-menu-item danger btn-act-delete" data-emp-id="${emp.id}">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                  <span>Delete Employee</span>
+                  <span>Delete / Archive</span>
                 </button>
               ` : `
                 <button type="button" class="action-menu-item btn-act-restore" data-emp-id="${emp.id}">
@@ -1205,95 +1279,160 @@
           </div>
         </td>
       `;
+
+      // Wire action buttons within this row
+      const btnQuickTap = tr.querySelector('.btn-quick-tap');
+      if (btnQuickTap) {
+        btnQuickTap.addEventListener('click', (e) => {
+          e.stopPropagation();
+          executeSmartCardScan(emp.id, 'AUTO');
+        });
+      }
+
+      const btnMenu = tr.querySelector('.btn-action-menu');
+      if (btnMenu) {
+        btnMenu.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openActionMenu(btnMenu, emp.id);
+        });
+      }
+
+      const btnView = tr.querySelector('.btn-act-view');
+      if (btnView) {
+        btnView.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeAllActionDropdowns();
+          openViewEmployeeModal(emp.id);
+        });
+      }
+
+      const btnEdit = tr.querySelector('.btn-act-edit');
+      if (btnEdit) {
+        btnEdit.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeAllActionDropdowns();
+          openEditEmployeeModal(emp.id);
+        });
+      }
+
+      const btnResetPwd = tr.querySelector('.btn-act-reset-pwd');
+      if (btnResetPwd) {
+        btnResetPwd.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeAllActionDropdowns();
+          promptResetEmployeePassword(emp.id);
+        });
+      }
+
+      const btnStatus = tr.querySelector('.btn-act-status');
+      if (btnStatus) {
+        btnStatus.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeAllActionDropdowns();
+          promptToggleEmployeeStatus(emp.id, emp.accountStatus);
+        });
+      }
+
+      const btnDelete = tr.querySelector('.btn-act-delete');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeAllActionDropdowns();
+          promptDeleteEmployee(emp.id);
+        });
+      }
+
+      const btnRestore = tr.querySelector('.btn-act-restore');
+      if (btnRestore) {
+        btnRestore.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeAllActionDropdowns();
+          restoreEmployee(emp.id);
+        });
+      }
+
       employeeTableBody.appendChild(tr);
     });
+  }
 
-    // Wire Quick Tap buttons
-    employeeTableBody.querySelectorAll('.btn-quick-tap').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const empId = btn.getAttribute('data-emp-id');
-        executeSmartCardScan(empId, 'AUTO');
-      });
-    });
+  function resetAllEmployeeFilters() {
+    if (inputSearchEmployees) inputSearchEmployees.value = '';
+    if (filterEmpDept) filterEmpDept.value = 'ALL';
+    if (filterEmpStatus) filterEmpStatus.value = 'ALL';
+    if (filterEmpAccountStatus) filterEmpAccountStatus.value = 'ALL';
+    renderEmployeeTable();
+  }
 
-    // Wire Action Menu dropdown toggles
-    employeeTableBody.querySelectorAll('.btn-action-menu').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const empId = btn.getAttribute('data-emp-id');
-        const targetMenu = document.getElementById(`actionMenu-${empId}`);
-        const isOpen = targetMenu && targetMenu.classList.contains('show');
+  function openActionMenu(btn, empId) {
+    const targetMenu = document.getElementById(`actionMenu-${empId}`);
+    if (!targetMenu) return;
 
-        // Close any other open dropdown menus first
-        document.querySelectorAll('.action-menu-dropdown.show').forEach(m => m.classList.remove('show'));
+    const isAlreadyOpen = targetMenu.classList.contains('show');
+    closeAllActionDropdowns();
 
-        if (targetMenu && !isOpen) {
-          targetMenu.classList.add('show');
-        }
-      });
-    });
+    if (isAlreadyOpen) return;
 
-    // Wire View Details action
-    employeeTableBody.querySelectorAll('.btn-act-view').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllActionDropdowns();
-        const empId = btn.getAttribute('data-emp-id');
-        openViewEmployeeModal(empId);
-      });
-    });
+    // Move to body to prevent any overflow clipping from table scroll containers
+    if (targetMenu.parentElement !== document.body) {
+      document.body.appendChild(targetMenu);
+    }
 
-    // Wire Edit Employee action
-    employeeTableBody.querySelectorAll('.btn-act-edit').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllActionDropdowns();
-        const empId = btn.getAttribute('data-emp-id');
-        openEditEmployeeModal(empId);
-      });
-    });
+    // Display menu to measure dimensions
+    targetMenu.classList.add('show');
+    targetMenu.style.position = 'fixed';
+    targetMenu.style.zIndex = '99999';
+    targetMenu.style.visibility = 'hidden';
 
-    // Wire Deactivate / Reactivate action
-    employeeTableBody.querySelectorAll('.btn-act-status').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllActionDropdowns();
-        const empId = btn.getAttribute('data-emp-id');
-        const currentStatus = btn.getAttribute('data-current-status');
-        promptToggleEmployeeStatus(empId, currentStatus);
-      });
-    });
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = targetMenu.offsetWidth || 190;
+    const menuHeight = targetMenu.offsetHeight || 175;
 
-    // Wire Delete Employee action
-    employeeTableBody.querySelectorAll('.btn-act-delete').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllActionDropdowns();
-        const empId = btn.getAttribute('data-emp-id');
-        promptDeleteEmployee(empId);
-      });
-    });
+    // Viewport boundaries
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
 
-    // Wire Restore Employee action
-    employeeTableBody.querySelectorAll('.btn-act-restore').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeAllActionDropdowns();
-        const empId = btn.getAttribute('data-emp-id');
-        restoreEmployee(empId);
-      });
-    });
+    let top;
+    if (spaceBelow < menuHeight + 10 && spaceAbove > spaceBelow) {
+      // Open upward above button
+      top = Math.max(10, rect.top - menuHeight - 6);
+    } else {
+      // Open downward below button
+      top = Math.min(window.innerHeight - menuHeight - 10, rect.bottom + 6);
+    }
+
+    // Align right edge of menu to right edge of button
+    let left = rect.right - menuWidth;
+    if (left < 10) left = 10;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = window.innerWidth - menuWidth - 10;
+    }
+
+    targetMenu.style.top = `${top}px`;
+    targetMenu.style.left = `${left}px`;
+    targetMenu.style.right = 'auto';
+    targetMenu.style.bottom = 'auto';
+    targetMenu.style.visibility = 'visible';
   }
 
   function closeAllActionDropdowns() {
-    document.querySelectorAll('.action-menu-dropdown.show').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.action-menu-dropdown.show').forEach(m => {
+      m.classList.remove('show');
+    });
   }
 
-  // Global listener to close dropdowns when clicking anywhere outside
-  document.addEventListener('click', () => {
-    closeAllActionDropdowns();
+  // Global listeners to close dropdowns when scrolling or clicking outside
+  window.addEventListener('scroll', closeAllActionDropdowns, true);
+  window.addEventListener('resize', closeAllActionDropdowns);
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.btn-action-menu') && !e.target.closest('.action-menu-dropdown')) {
+      closeAllActionDropdowns();
+    }
   });
+
+  const btnResetEmpFilters = document.getElementById('btnResetEmpFilters');
+  if (btnResetEmpFilters) {
+    btnResetEmpFilters.addEventListener('click', resetAllEmployeeFilters);
+  }
 
   // ==========================================
   // 12. RENDER ATTENDANCE HISTORY LOG TABLE
@@ -2448,6 +2587,18 @@
     if (rowCredPhone) rowCredPhone.style.display = 'none';
     if (dispCredCardUid) dispCredCardUid.textContent = '--:--:--:--';
     if (rowCredCardUid) rowCredCardUid.style.display = 'none';
+    if (typeof populateOrgDropdowns === 'function') {
+      populateOrgDropdowns();
+    }
+    const newEmpOrgUnit = document.getElementById('newEmpOrgUnit');
+    const newEmpJobTitle = document.getElementById('newEmpJobTitle');
+    const newEmpManager = document.getElementById('newEmpManager');
+    const newEmpAccessRole = document.getElementById('newEmpAccessRole');
+    if (newEmpOrgUnit) newEmpOrgUnit.value = '';
+    if (newEmpJobTitle) newEmpJobTitle.value = '';
+    if (newEmpManager) newEmpManager.value = '';
+    if (newEmpAccessRole) newEmpAccessRole.value = '';
+
     const btnSubmit = document.getElementById('btnSubmitAddEmployee');
     if (btnSubmit) {
       btnSubmit.disabled = false;
@@ -2638,6 +2789,16 @@
         'Maintenance': '#D97706'
       };
 
+      const newEmpOrgUnit = document.getElementById('newEmpOrgUnit');
+      const newEmpJobTitle = document.getElementById('newEmpJobTitle');
+      const newEmpManager = document.getElementById('newEmpManager');
+      const newEmpAccessRole = document.getElementById('newEmpAccessRole');
+
+      const orgUnitId = newEmpOrgUnit ? (newEmpOrgUnit.value || undefined) : undefined;
+      const jobTitleId = newEmpJobTitle ? (newEmpJobTitle.value || undefined) : undefined;
+      const managerId = newEmpManager ? (newEmpManager.value || undefined) : undefined;
+      const accessRoleId = newEmpAccessRole ? (newEmpAccessRole.value || undefined) : undefined;
+
       const newEmployeeData = {
         name,
         department,
@@ -2645,7 +2806,11 @@
         email,
         phone,
         uid: uid || undefined,
-        avatarBg: deptColors[department] || '#0284C7'
+        avatarBg: deptColors[department] || '#0284C7',
+        orgUnitId,
+        jobTitleId,
+        managerId,
+        accessRoleId
       };
 
       try {
@@ -2875,6 +3040,29 @@
       const isInside = emp.status === 'INSIDE';
       viewEmpPresence.innerHTML = `<span class="status-badge ${isInside ? 'present' : 'checked-out'}">${isInside ? '● CURRENTLY INSIDE' : '○ CURRENTLY OUTSIDE'}</span>`;
     }
+
+    const viewEmpOrgUnit = document.getElementById('viewEmpOrgUnit');
+    const viewEmpManager = document.getElementById('viewEmpManager');
+    const viewEmpJobTitle = document.getElementById('viewEmpJobTitle');
+    const viewEmpAccessRole = document.getElementById('viewEmpAccessRole');
+
+    if (viewEmpOrgUnit) {
+      const u = orgUnitsList.find(unit => unit.id === (emp.orgUnitId || emp.org_unit_id));
+      viewEmpOrgUnit.textContent = emp.orgUnitName || emp.org_unit_name || (u ? u.name : '--');
+    }
+    if (viewEmpManager) {
+      const m = employees.find(mgr => mgr.id === (emp.managerId || emp.manager_id));
+      viewEmpManager.textContent = emp.managerName || emp.manager_name || (m ? `${m.name} (${m.id})` : 'Direct to Top-Level');
+    }
+    if (viewEmpJobTitle) {
+      const t = jobTitlesList.find(jt => jt.id === (emp.jobTitleId || emp.job_title_id));
+      viewEmpJobTitle.textContent = emp.jobTitleName || emp.job_title_name || (t ? t.title : emp.role || '--');
+    }
+    if (viewEmpAccessRole) {
+      const r = rolesList.find(rl => rl.id === (emp.accessRoleId || emp.access_role_id));
+      viewEmpAccessRole.textContent = emp.accessRoleName || emp.access_role_name || (r ? r.name : 'Standard Employee');
+    }
+
     if (viewEmpLastSeen) viewEmpLastSeen.textContent = emp.lastSeen || emp.last_seen || 'Not detected today';
     if (viewEmpPwStatus) {
       viewEmpPwStatus.textContent = emp.mustChangePassword ? 'Pending First-Login Password Change' : 'Established';
@@ -2931,6 +3119,18 @@
     if (editEmpEmail) editEmpEmail.value = emp.email || '';
     if (editEmpPhone) editEmpPhone.value = emp.phone || '';
     if (editEmpUid) editEmpUid.value = emp.uid || '';
+
+    if (typeof populateOrgDropdowns === 'function') {
+      populateOrgDropdowns();
+    }
+    const editEmpOrgUnit = document.getElementById('editEmpOrgUnit');
+    const editEmpJobTitle = document.getElementById('editEmpJobTitle');
+    const editEmpManager = document.getElementById('editEmpManager');
+    const editEmpAccessRole = document.getElementById('editEmpAccessRole');
+    if (editEmpOrgUnit) editEmpOrgUnit.value = emp.orgUnitId || emp.org_unit_id || '';
+    if (editEmpJobTitle) editEmpJobTitle.value = emp.jobTitleId || emp.job_title_id || '';
+    if (editEmpManager) editEmpManager.value = emp.managerId || emp.manager_id || '';
+    if (editEmpAccessRole) editEmpAccessRole.value = emp.accessRoleId || emp.access_role_id || '';
 
     if (modalEditEmployeeError) {
       modalEditEmployeeError.textContent = '';
@@ -3074,6 +3274,16 @@
       }
 
       try {
+        const editEmpOrgUnit = document.getElementById('editEmpOrgUnit');
+        const editEmpJobTitle = document.getElementById('editEmpJobTitle');
+        const editEmpManager = document.getElementById('editEmpManager');
+        const editEmpAccessRole = document.getElementById('editEmpAccessRole');
+
+        const orgUnitIdVal = editEmpOrgUnit ? (editEmpOrgUnit.value || null) : undefined;
+        const jobTitleIdVal = editEmpJobTitle ? (editEmpJobTitle.value || null) : undefined;
+        const managerIdVal = editEmpManager ? (editEmpManager.value || null) : undefined;
+        const accessRoleIdVal = editEmpAccessRole ? (editEmpAccessRole.value || null) : undefined;
+
         const csrfToken = getCsrfToken();
         const res = await fetch(`/api/employees/${encodeURIComponent(empId)}`, {
           method: 'PUT',
@@ -3087,7 +3297,11 @@
             role: roleVal,
             email: emailVal || null,
             phone: phoneVal || null,
-            uid: uidVal || null
+            uid: uidVal || null,
+            orgUnitId: orgUnitIdVal,
+            jobTitleId: jobTitleIdVal,
+            managerId: managerIdVal,
+            accessRoleId: accessRoleIdVal
           })
         });
 
@@ -3333,6 +3547,123 @@
     }
   }
 
+  // D. Reset Temporary Password Workflow
+  let activeResetCredentials = null;
+
+  function promptResetEmployeePassword(empId) {
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+
+    if (emp.isArchived) {
+      alert(`Cannot reset password for archived employee ${emp.name}. Please restore the employee first.`);
+      return;
+    }
+
+    if (emp.accountStatus === 'SUSPENDED') {
+      alert(`Cannot reset password for deactivated employee ${emp.name}. Please reactivate the account first.`);
+      return;
+    }
+
+    openConfirmModal({
+      title: 'Reset Temporary Password',
+      icon: '🔑',
+      message: `Are you sure you want to generate a new temporary password for ${emp.name} (${emp.id})?`,
+      warning: 'Security Notice: A new temporary password will be generated based on the employee\'s name and phone number (First 4 letters of name + last 4 digits of phone). All existing sessions for this employee will be immediately terminated, and they must set a private password on their next sign-in.',
+      confirmBtnText: 'Reset & Generate Password',
+      confirmBtnClass: 'btn-action-primary',
+      onConfirm: async () => {
+        try {
+          const csrfToken = getCsrfToken();
+          const res = await fetch(`/api/employees/${encodeURIComponent(empId)}/reset-temporary-password`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': csrfToken
+            }
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to reset temporary password.');
+
+          activeResetCredentials = {
+            id: data.employeeId || emp.id,
+            name: data.employeeName || emp.name,
+            temporaryPassword: data.temporaryPassword,
+            department: emp.department,
+            role: emp.role,
+            email: emp.email,
+            phone: emp.phone
+          };
+
+          if (dispResetEmpId) dispResetEmpId.textContent = activeResetCredentials.id;
+          if (dispResetPassword) dispResetPassword.textContent = activeResetCredentials.temporaryPassword;
+          if (resetPwdEmpSummaryName) resetPwdEmpSummaryName.textContent = `Password Reset: ${activeResetCredentials.name}`;
+          if (resetPwdEmpSummaryDesc) resetPwdEmpSummaryDesc.textContent = `${activeResetCredentials.department} • ${activeResetCredentials.role} (Temporary password ready)`;
+
+          if (modalResetPasswordResult) {
+            modalResetPasswordResult.classList.add('open');
+          }
+
+          showToast(`Temporary password reset for ${emp.name}`, 'entry');
+        } catch (err) {
+          alert(`Error resetting password: ${err.message}`);
+        }
+      }
+    });
+  }
+
+  function closeResetPwdModal() {
+    if (modalResetPasswordResult) modalResetPasswordResult.classList.remove('open');
+    activeResetCredentials = null;
+  }
+
+  if (btnCloseResetPwdModal) btnCloseResetPwdModal.addEventListener('click', closeResetPwdModal);
+  if (btnDoneResetPwd) btnDoneResetPwd.addEventListener('click', closeResetPwdModal);
+
+  if (btnCopyResetEmpId) {
+    btnCopyResetEmpId.addEventListener('click', () => {
+      const empId = dispResetEmpId ? dispResetEmpId.textContent : '';
+      if (empId) {
+        copyTextToClipboard(empId, btnCopyResetEmpId, '✓ Copied!');
+        showToast(`Copied Employee ID ${empId} to clipboard`, 'entry');
+      }
+    });
+  }
+
+  if (btnCopyResetPassword) {
+    btnCopyResetPassword.addEventListener('click', () => {
+      const pass = dispResetPassword ? dispResetPassword.textContent : '';
+      if (pass) {
+        copyTextToClipboard(pass, btnCopyResetPassword, '✓ Copied!');
+        showToast('Temporary password copied to clipboard', 'entry');
+      }
+    });
+  }
+
+  if (btnCopyAllResetCredentials) {
+    btnCopyAllResetCredentials.addEventListener('click', () => {
+      if (!activeResetCredentials) return;
+      const text = [
+        '========================================',
+        'SmartWorkforce Employee Credentials (Password Reset)',
+        '========================================',
+        `Employee Name:       ${activeResetCredentials.name}`,
+        `Employee ID:         ${activeResetCredentials.id}`,
+        `Temporary Password:  ${activeResetCredentials.temporaryPassword}`,
+        `Department:          ${activeResetCredentials.department || 'N/A'}`,
+        `Designation:         ${activeResetCredentials.role || 'N/A'}`,
+        `Employee Email:      ${activeResetCredentials.email || 'None'}`,
+        `Phone Number:        ${activeResetCredentials.phone || 'None'}`,
+        '----------------------------------------',
+        'Notice: You are required to change your temporary password upon your next sign-in.',
+        '========================================'
+      ].join('\r\n');
+
+      copyTextToClipboard(text, btnCopyAllResetCredentials, '✓ All Credentials Copied!');
+      showToast('Login credentials copied to clipboard', 'entry');
+    });
+  }
+
   if (filterEmpAccountStatus) {
     filterEmpAccountStatus.addEventListener('change', renderEmployeeTable);
   }
@@ -3424,15 +3755,22 @@
 
   async function loadInitialData() {
     try {
-      const [empRes, logsRes] = await Promise.all([
+      const [empRes, logsRes, unitsRes, titlesRes, rolesRes] = await Promise.all([
         fetch('/api/employees?includeArchived=true'),
-        fetch('/api/attendance/logs')
+        fetch('/api/attendance/logs'),
+        SmartWorkforceCommon.api.getOrgUnits().catch(() => []),
+        SmartWorkforceCommon.api.getJobTitles().catch(() => []),
+        SmartWorkforceCommon.api.getRoles().catch(() => [])
       ]);
 
       if (empRes.ok && logsRes.ok) {
         employees = await empRes.json();
         attendanceLogs = await logsRes.json();
       }
+      if (Array.isArray(unitsRes)) orgUnitsList = unitsRes;
+      if (Array.isArray(titlesRes)) jobTitlesList = titlesRes;
+      if (Array.isArray(rolesRes)) rolesList = rolesRes;
+      populateOrgDropdowns();
     } catch (err) {
       console.warn('API fetch offline or unreachable, utilizing fallback dataset:', err);
     }
@@ -3457,6 +3795,1319 @@
 
     // Start 5-second live background polling
     startAutoSync();
+  }
+
+  // ========================================================
+  // PHASE 4: ORGANIZATION TREE, JOB TITLES & ACCESS ROLES
+  // ========================================================
+
+  let orgTreeData = { company: null, levels: [], units: [], roles: [], jobTitles: [], totalEmployees: 0 };
+  let orgUnitsList = [];
+  let orgLevelsList = [];
+  let jobTitlesList = [];
+  let rolesList = [];
+  let activeRoleId = null;
+  let activeRolePermissions = [];
+  let collapsedNodeIds = new Set();
+  let orgTreeFilterTerm = '';
+  let jobTitlesFilterTerm = '';
+
+  const ALL_PERMISSION_SPECS = [
+    { key: 'org:view', category: 'Organization', description: 'View organization units, structure, and hierarchy levels', defaultScope: 'COMPANY' },
+    { key: 'org:manage', category: 'Organization', description: 'Create, modify, re-parent, and delete organization units and levels', defaultScope: 'COMPANY' },
+    { key: 'roles:view', category: 'Access Roles', description: 'View access roles, definitions, and assigned permissions', defaultScope: 'COMPANY' },
+    { key: 'roles:manage', category: 'Access Roles', description: 'Create, edit, delete access roles and configure permission matrices', defaultScope: 'COMPANY' },
+    { key: 'employees:view', category: 'Workforce', description: 'View employee records, profiles, and roster data', defaultScope: 'COMPANY' },
+    { key: 'employees:create', category: 'Workforce', description: 'Register new workforce members and generate initial accounts', defaultScope: 'COMPANY' },
+    { key: 'employees:manage', category: 'Workforce', description: 'Edit, suspend, archive, restore, and reassign employee profiles', defaultScope: 'COMPANY' },
+    { key: 'attendance:view', category: 'Attendance', description: 'View attendance events, logs, rosters, and gate scans', defaultScope: 'COMPANY' },
+    { key: 'attendance:manage', category: 'Attendance', description: 'Modify attendance logs, clear logs, and simulate gate passes', defaultScope: 'COMPANY' },
+    { key: 'analytics:view', category: 'Intelligence', description: 'Access presence analytics, risk indicators, and department metrics', defaultScope: 'COMPANY' }
+  ];
+
+  const VALID_SCOPES = ['SELF', 'DIRECT_REPORTS', 'DESCENDANTS', 'DEPARTMENT', 'COMPANY'];
+
+  // --- Dynamic Dropdown Populator for Employee & Reporting Forms ---
+  function populateOrgDropdowns() {
+    const newEmpOrgUnit = document.getElementById('newEmpOrgUnit');
+    const editEmpOrgUnit = document.getElementById('editEmpOrgUnit');
+    const selectReassignOrgUnit = document.getElementById('selectReassignOrgUnit');
+
+    const newEmpJobTitle = document.getElementById('newEmpJobTitle');
+    const editEmpJobTitle = document.getElementById('editEmpJobTitle');
+    const selectReassignJobTitle = document.getElementById('selectReassignJobTitle');
+
+    const newEmpManager = document.getElementById('newEmpManager');
+    const editEmpManager = document.getElementById('editEmpManager');
+    const selectReassignManager = document.getElementById('selectReassignManager');
+    const selectReassignEmp = document.getElementById('selectReassignEmp');
+
+    const newEmpAccessRole = document.getElementById('newEmpAccessRole');
+    const editEmpAccessRole = document.getElementById('editEmpAccessRole');
+    const selectReassignAccessRole = document.getElementById('selectReassignAccessRole');
+
+    // 1. Org Units Dropdowns
+    const unitOptions = '<option value="">-- None / Unassigned --</option>' +
+      orgUnitsList.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.unit_type || 'UNIT')})</option>`).join('');
+
+    if (newEmpOrgUnit) {
+      const cur = newEmpOrgUnit.value;
+      newEmpOrgUnit.innerHTML = unitOptions;
+      newEmpOrgUnit.value = cur;
+    }
+    if (editEmpOrgUnit) {
+      const cur = editEmpOrgUnit.value;
+      editEmpOrgUnit.innerHTML = unitOptions;
+      editEmpOrgUnit.value = cur;
+    }
+    if (selectReassignOrgUnit) {
+      const cur = selectReassignOrgUnit.value;
+      selectReassignOrgUnit.innerHTML = '<option value="">-- Keep Current Unit --</option>' +
+        orgUnitsList.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)}</option>`).join('');
+      selectReassignOrgUnit.value = cur;
+    }
+
+    // 2. Job Titles Dropdowns
+    const titleOptions = '<option value="">-- None / Custom Designation --</option>' +
+      jobTitlesList.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`).join('');
+
+    if (newEmpJobTitle) {
+      const cur = newEmpJobTitle.value;
+      newEmpJobTitle.innerHTML = titleOptions;
+      newEmpJobTitle.value = cur;
+    }
+    if (editEmpJobTitle) {
+      const cur = editEmpJobTitle.value;
+      editEmpJobTitle.innerHTML = titleOptions;
+      editEmpJobTitle.value = cur;
+    }
+    if (selectReassignJobTitle) {
+      const cur = selectReassignJobTitle.value;
+      selectReassignJobTitle.innerHTML = '<option value="">-- Keep Current Title --</option>' +
+        jobTitlesList.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`).join('');
+      selectReassignJobTitle.value = cur;
+    }
+
+    // 3. Manager Dropdowns
+    const activeEmployees = employees.filter(e => !e.isArchived);
+    const mgrOptions = '<option value="">-- None / Top-Level --</option>' +
+      activeEmployees.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.name)} (${escapeHtml(e.id)})</option>`).join('');
+
+    if (newEmpManager) {
+      const cur = newEmpManager.value;
+      newEmpManager.innerHTML = mgrOptions;
+      newEmpManager.value = cur;
+    }
+    if (editEmpManager) {
+      const cur = editEmpManager.value;
+      editEmpManager.innerHTML = '<option value="">-- None / Top-Level --</option>' +
+        activeEmployees.filter(e => e.id !== activeEditingEmpId).map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.name)} (${escapeHtml(e.id)})</option>`).join('');
+      editEmpManager.value = cur;
+    }
+    if (selectReassignManager) {
+      const cur = selectReassignManager.value;
+      selectReassignManager.innerHTML = mgrOptions;
+      selectReassignManager.value = cur;
+    }
+    if (selectReassignEmp) {
+      const cur = selectReassignEmp.value;
+      selectReassignEmp.innerHTML = '<option value="">-- Choose Employee --</option>' +
+        activeEmployees.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.name)} (${escapeHtml(e.id)})</option>`).join('');
+      selectReassignEmp.value = cur;
+    }
+
+    // 4. Access Role Dropdowns
+    const roleOptions = '<option value="">-- Standard Employee (Default) --</option>' +
+      rolesList.map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}${r.is_system_role ? ' [System]' : ''}</option>`).join('');
+
+    if (newEmpAccessRole) {
+      const cur = newEmpAccessRole.value;
+      newEmpAccessRole.innerHTML = roleOptions;
+      newEmpAccessRole.value = cur;
+    }
+    if (editEmpAccessRole) {
+      const cur = editEmpAccessRole.value;
+      editEmpAccessRole.innerHTML = roleOptions;
+      editEmpAccessRole.value = cur;
+    }
+    if (selectReassignAccessRole) {
+      const cur = selectReassignAccessRole.value;
+      selectReassignAccessRole.innerHTML = '<option value="">-- Keep Current Access Role --</option>' +
+        rolesList.map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`).join('');
+      selectReassignAccessRole.value = cur;
+    }
+  }
+
+  // ==========================================
+  // 1. ORGANIZATION TREE & HIERARCHY
+  // ==========================================
+
+  async function loadOrgTreeData() {
+    const orgTreeLoading = document.getElementById('orgTreeLoading');
+    const orgTreeEmpty = document.getElementById('orgTreeEmpty');
+    const orgTreeRoot = document.getElementById('orgTreeRoot');
+
+    if (orgTreeLoading) orgTreeLoading.style.display = 'block';
+    if (orgTreeEmpty) orgTreeEmpty.style.display = 'none';
+
+    try {
+      const [treeRes, unitsRes, levelsRes] = await Promise.all([
+        SmartWorkforceCommon.api.getOrgTree().catch(() => null),
+        SmartWorkforceCommon.api.getOrgUnits(false).catch(() => []),
+        SmartWorkforceCommon.api.getOrgLevels().catch(() => [])
+      ]);
+
+      if (treeRes) {
+        orgTreeData = treeRes;
+      }
+      if (Array.isArray(unitsRes)) {
+        orgUnitsList = unitsRes;
+      }
+      if (Array.isArray(levelsRes)) {
+        orgLevelsList = levelsRes;
+      }
+
+      // Update KPI toolbar stats
+      const statOrgUnitCount = document.getElementById('statOrgUnitCount');
+      const statOrgLevelCount = document.getElementById('statOrgLevelCount');
+      const statOrgEmpCoverage = document.getElementById('statOrgEmpCoverage');
+
+      if (statOrgUnitCount) statOrgUnitCount.textContent = orgUnitsList.length;
+      if (statOrgLevelCount) statOrgLevelCount.textContent = orgLevelsList.length;
+      if (statOrgEmpCoverage) {
+        const covered = employees.filter(e => Boolean(e.orgUnitId || e.org_unit_id)).length;
+        statOrgEmpCoverage.textContent = `${covered} / ${employees.length}`;
+      }
+
+      renderOrgTree();
+      populateOrgDropdowns();
+    } catch (err) {
+      console.warn('Failed to load organization tree:', err);
+      showToast('Error loading organization hierarchy: ' + err.message, 'warning');
+    } finally {
+      if (orgTreeLoading) orgTreeLoading.style.display = 'none';
+    }
+  }
+
+  function renderOrgTree() {
+    const orgTreeRoot = document.getElementById('orgTreeRoot');
+    const orgTreeEmpty = document.getElementById('orgTreeEmpty');
+    if (!orgTreeRoot) return;
+
+    const unitsTree = orgTreeData.units || [];
+    if (!unitsTree || unitsTree.length === 0) {
+      if (orgTreeEmpty) orgTreeEmpty.style.display = 'flex';
+      orgTreeRoot.innerHTML = '';
+      return;
+    }
+
+    if (orgTreeEmpty) orgTreeEmpty.style.display = 'none';
+
+    // Helper recursive node generator
+    function buildNodeHtml(node) {
+      const hasChildren = node.children && node.children.length > 0;
+      const isCollapsed = collapsedNodeIds.has(node.id);
+
+      // Filtering match
+      const term = orgTreeFilterTerm.toLowerCase();
+      let isVisible = true;
+      if (term) {
+        const nameMatch = (node.name || '').toLowerCase().includes(term);
+        const mgrMatch = (node.manager_name || '').toLowerCase().includes(term);
+        const lvlMatch = (node.level_name || '').toLowerCase().includes(term);
+        const childMatch = hasChildren && node.children.some(c => (c.name || '').toLowerCase().includes(term));
+        isVisible = nameMatch || mgrMatch || lvlMatch || childMatch;
+      }
+      if (!isVisible) return '';
+
+      const levelBadge = node.level_name
+        ? `<span class="org-level-badge">${escapeHtml(node.level_name)}</span>`
+        : (node.level_rank ? `<span class="org-level-badge">Tier ${node.level_rank}</span>` : '');
+
+      const typeBadge = node.unit_type
+        ? `<span class="badge-tag">${escapeHtml(node.unit_type)}</span>`
+        : '';
+
+      const managerPill = node.manager_name
+        ? `<span class="org-manager-badge" title="Unit Head">👤 ${escapeHtml(node.manager_name)}</span>`
+        : '<span style="color: var(--text-dim); font-size: 0.72rem;">👤 No Head Assigned</span>';
+
+      const empCount = node.employee_count !== undefined ? node.employee_count : 0;
+
+      let childrenHtml = '';
+      if (hasChildren) {
+        childrenHtml = `
+          <ul class="org-tree-children ${isCollapsed ? 'collapsed' : ''}" id="children_${escapeHtml(node.id)}">
+            ${node.children.map(buildNodeHtml).join('')}
+          </ul>
+        `;
+      }
+
+      return `
+        <li class="org-tree-node" data-node-id="${escapeHtml(node.id)}">
+          <div class="org-tree-card">
+            <div class="org-tree-card-left">
+              <button type="button" class="org-tree-toggle ${hasChildren ? '' : 'empty'}" data-toggle-id="${escapeHtml(node.id)}" title="${isCollapsed ? 'Expand' : 'Collapse'}">
+                ${hasChildren ? (isCollapsed ? '▶' : '▼') : '•'}
+              </button>
+              <div class="org-unit-icon">🏢</div>
+              <div class="org-unit-meta">
+                <div class="org-unit-name" title="${escapeHtml(node.name)}">${escapeHtml(node.name)}</div>
+                <div class="org-unit-subline">
+                  ${typeBadge}
+                  ${levelBadge}
+                  ${managerPill}
+                </div>
+              </div>
+            </div>
+
+            <div class="org-tree-card-right">
+              <span class="org-emp-count" title="Assigned Employees">
+                👥 <strong>${empCount}</strong> Staff
+              </span>
+
+              <div class="org-actions-group">
+                <button type="button" class="btn-icon-xs btn-add-subunit" data-parent-id="${escapeHtml(node.id)}" title="Add Sub-Unit under ${escapeHtml(node.name)}">
+                  ➕
+                </button>
+                <button type="button" class="btn-icon-xs btn-edit-unit" data-unit-id="${escapeHtml(node.id)}" title="Edit Unit Properties">
+                  ✏️
+                </button>
+                <button type="button" class="btn-icon-xs delete btn-delete-unit" data-unit-id="${escapeHtml(node.id)}" data-unit-name="${escapeHtml(node.name)}" title="Delete Unit">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+
+          ${childrenHtml}
+        </li>
+      `;
+    }
+
+    orgTreeRoot.innerHTML = unitsTree.map(buildNodeHtml).join('');
+
+    // Attach Toggle Listeners
+    orgTreeRoot.querySelectorAll('.org-tree-toggle').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-toggle-id');
+        if (!id) return;
+        if (collapsedNodeIds.has(id)) {
+          collapsedNodeIds.delete(id);
+        } else {
+          collapsedNodeIds.add(id);
+        }
+        renderOrgTree();
+      });
+    });
+
+    // Attach Sub-unit Add button
+    orgTreeRoot.querySelectorAll('.btn-add-subunit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const parentId = btn.getAttribute('data-parent-id');
+        openAddOrgUnitModal(parentId);
+      });
+    });
+
+    // Attach Edit button
+    orgTreeRoot.querySelectorAll('.btn-edit-unit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-unit-id');
+        const unit = orgUnitsList.find(u => u.id === id);
+        if (unit) openEditOrgUnitModal(unit);
+      });
+    });
+
+    // Attach Delete button
+    orgTreeRoot.querySelectorAll('.btn-delete-unit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-unit-id');
+        const name = btn.getAttribute('data-unit-name');
+        handleDeleteOrgUnit(id, name);
+      });
+    });
+  }
+
+  // Expand / Collapse All
+  const btnToggleAllTreeNodes = document.getElementById('btnToggleAllTreeNodes');
+  if (btnToggleAllTreeNodes) {
+    btnToggleAllTreeNodes.addEventListener('click', () => {
+      if (collapsedNodeIds.size > 0) {
+        collapsedNodeIds.clear();
+        btnToggleAllTreeNodes.textContent = 'Collapse All';
+      } else {
+        orgUnitsList.forEach(u => collapsedNodeIds.add(u.id));
+        btnToggleAllTreeNodes.textContent = 'Expand All';
+      }
+      renderOrgTree();
+    });
+  }
+
+  // Search Filter
+  const inputSearchOrgTree = document.getElementById('inputSearchOrgTree');
+  if (inputSearchOrgTree) {
+    inputSearchOrgTree.addEventListener('input', (e) => {
+      orgTreeFilterTerm = (e.target.value || '').trim();
+      renderOrgTree();
+    });
+  }
+
+  // --- Org Unit Modal (Create / Edit) ---
+  const modalOrgUnit = document.getElementById('modalOrgUnit');
+  const formOrgUnit = document.getElementById('formOrgUnit');
+  const btnCloseOrgUnitModal = document.getElementById('btnCloseOrgUnitModal');
+  const btnCancelOrgUnit = document.getElementById('btnCancelOrgUnit');
+  const btnOpenAddOrgUnitModal = document.getElementById('btnOpenAddOrgUnitModal');
+  const btnEmptyCreateUnit = document.getElementById('btnEmptyCreateUnit');
+
+  function getDescendantUnitIds(unitId) {
+    const descendants = new Set();
+    function scan(parentId) {
+      orgUnitsList.filter(u => u.parent_unit_id === parentId).forEach(child => {
+        descendants.add(child.id);
+        scan(child.id);
+      });
+    }
+    scan(unitId);
+    return descendants;
+  }
+
+  function openAddOrgUnitModal(presetParentId = null) {
+    if (!modalOrgUnit) return;
+    const txtHeading = document.getElementById('txtOrgUnitModalHeading');
+    const orgUnitIdHidden = document.getElementById('orgUnitIdHidden');
+    const inputOrgUnitName = document.getElementById('inputOrgUnitName');
+    const selectOrgUnitType = document.getElementById('selectOrgUnitType');
+    const selectOrgUnitLevel = document.getElementById('selectOrgUnitLevel');
+    const selectOrgUnitParent = document.getElementById('selectOrgUnitParent');
+    const selectOrgUnitManager = document.getElementById('selectOrgUnitManager');
+    const modalOrgUnitError = document.getElementById('modalOrgUnitError');
+
+    if (modalOrgUnitError) modalOrgUnitError.style.display = 'none';
+    if (txtHeading) txtHeading.textContent = 'Create Organizational Unit';
+    if (orgUnitIdHidden) orgUnitIdHidden.value = '';
+    if (inputOrgUnitName) inputOrgUnitName.value = '';
+    if (selectOrgUnitType) selectOrgUnitType.value = 'DEPARTMENT';
+
+    // Levels
+    if (selectOrgUnitLevel) {
+      selectOrgUnitLevel.innerHTML = '<option value="">-- Auto (No Specific Level) --</option>' +
+        orgLevelsList.map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)} (Rank ${l.rank})</option>`).join('');
+    }
+
+    // Parents (All units are valid)
+    if (selectOrgUnitParent) {
+      selectOrgUnitParent.innerHTML = '<option value="">-- None (Top-Level Unit / Root) --</option>' +
+        orgUnitsList.map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.unit_type || 'UNIT')})</option>`).join('');
+      selectOrgUnitParent.value = presetParentId || '';
+    }
+
+    // Managers
+    if (selectOrgUnitManager) {
+      selectOrgUnitManager.innerHTML = '<option value="">-- None / Unassigned --</option>' +
+        employees.filter(e => !e.isArchived).map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.name)} (${e.id})</option>`).join('');
+      selectOrgUnitManager.value = '';
+    }
+
+    modalOrgUnit.classList.add('open');
+    if (inputOrgUnitName) inputOrgUnitName.focus();
+  }
+
+  function openEditOrgUnitModal(unit) {
+    if (!modalOrgUnit || !unit) return;
+    const txtHeading = document.getElementById('txtOrgUnitModalHeading');
+    const orgUnitIdHidden = document.getElementById('orgUnitIdHidden');
+    const inputOrgUnitName = document.getElementById('inputOrgUnitName');
+    const selectOrgUnitType = document.getElementById('selectOrgUnitType');
+    const selectOrgUnitLevel = document.getElementById('selectOrgUnitLevel');
+    const selectOrgUnitParent = document.getElementById('selectOrgUnitParent');
+    const selectOrgUnitManager = document.getElementById('selectOrgUnitManager');
+    const modalOrgUnitError = document.getElementById('modalOrgUnitError');
+
+    if (modalOrgUnitError) modalOrgUnitError.style.display = 'none';
+    if (txtHeading) txtHeading.textContent = `Edit Unit: ${unit.name}`;
+    if (orgUnitIdHidden) orgUnitIdHidden.value = unit.id;
+    if (inputOrgUnitName) inputOrgUnitName.value = unit.name;
+    if (selectOrgUnitType) selectOrgUnitType.value = unit.unit_type || 'DEPARTMENT';
+
+    if (selectOrgUnitLevel) {
+      selectOrgUnitLevel.innerHTML = '<option value="">-- Auto (No Specific Level) --</option>' +
+        orgLevelsList.map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)} (Rank ${l.rank})</option>`).join('');
+      selectOrgUnitLevel.value = unit.level_id || '';
+    }
+
+    // Anti-cycle parent selection: exclude self and all descendants
+    const illegalParentIds = getDescendantUnitIds(unit.id);
+    illegalParentIds.add(unit.id);
+
+    if (selectOrgUnitParent) {
+      const parentOptions = orgUnitsList
+        .filter(u => !illegalParentIds.has(u.id))
+        .map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.unit_type || 'UNIT')})</option>`)
+        .join('');
+
+      selectOrgUnitParent.innerHTML = '<option value="">-- None (Top-Level Unit / Root) --</option>' + parentOptions;
+      selectOrgUnitParent.value = unit.parent_unit_id || '';
+    }
+
+    if (selectOrgUnitManager) {
+      selectOrgUnitManager.innerHTML = '<option value="">-- None / Unassigned --</option>' +
+        employees.filter(e => !e.isArchived).map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.name)} (${e.id})</option>`).join('');
+      selectOrgUnitManager.value = unit.manager_id || '';
+    }
+
+    modalOrgUnit.classList.add('open');
+    if (inputOrgUnitName) inputOrgUnitName.focus();
+  }
+
+  function closeOrgUnitModal() {
+    if (modalOrgUnit) modalOrgUnit.classList.remove('open');
+  }
+
+  if (btnOpenAddOrgUnitModal) btnOpenAddOrgUnitModal.addEventListener('click', () => openAddOrgUnitModal());
+  if (btnEmptyCreateUnit) btnEmptyCreateUnit.addEventListener('click', () => openAddOrgUnitModal());
+  if (btnCloseOrgUnitModal) btnCloseOrgUnitModal.addEventListener('click', closeOrgUnitModal);
+  if (btnCancelOrgUnit) btnCancelOrgUnit.addEventListener('click', closeOrgUnitModal);
+
+  if (formOrgUnit) {
+    formOrgUnit.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const orgUnitIdHidden = document.getElementById('orgUnitIdHidden');
+      const inputOrgUnitName = document.getElementById('inputOrgUnitName');
+      const selectOrgUnitType = document.getElementById('selectOrgUnitType');
+      const selectOrgUnitLevel = document.getElementById('selectOrgUnitLevel');
+      const selectOrgUnitParent = document.getElementById('selectOrgUnitParent');
+      const selectOrgUnitManager = document.getElementById('selectOrgUnitManager');
+      const modalOrgUnitError = document.getElementById('modalOrgUnitError');
+      const btnSubmit = document.getElementById('btnSubmitOrgUnit');
+
+      const isEdit = Boolean(orgUnitIdHidden && orgUnitIdHidden.value);
+      const name = inputOrgUnitName ? inputOrgUnitName.value.trim() : '';
+      const unitType = selectOrgUnitType ? selectOrgUnitType.value : 'DEPARTMENT';
+      const levelId = selectOrgUnitLevel ? (selectOrgUnitLevel.value || null) : null;
+      const parentUnitId = selectOrgUnitParent ? (selectOrgUnitParent.value || null) : null;
+      const managerId = selectOrgUnitManager ? (selectOrgUnitManager.value || null) : null;
+
+      if (!name) {
+        if (modalOrgUnitError) {
+          modalOrgUnitError.textContent = 'Organizational unit name is required.';
+          modalOrgUnitError.style.display = 'block';
+        }
+        return;
+      }
+
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Saving Unit...';
+      }
+
+      try {
+        if (isEdit) {
+          await SmartWorkforceCommon.api.updateOrgUnit(orgUnitIdHidden.value, {
+            name,
+            unitType,
+            levelId,
+            parentUnitId,
+            managerId
+          });
+          showToast(`Unit '${name}' updated successfully.`, 'entry');
+        } else {
+          await SmartWorkforceCommon.api.createOrgUnit({
+            name,
+            unitType,
+            levelId,
+            parentUnitId,
+            managerId
+          });
+          showToast(`Unit '${name}' created successfully.`, 'entry');
+        }
+
+        closeOrgUnitModal();
+        await loadOrgTreeData();
+      } catch (err) {
+        if (modalOrgUnitError) {
+          modalOrgUnitError.textContent = err.message;
+          modalOrgUnitError.style.display = 'block';
+        }
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Save Unit';
+        }
+      }
+    });
+  }
+
+  async function handleDeleteOrgUnit(id, name) {
+    if (!confirm(`Are you sure you want to delete organizational unit '${name}'?\n\nAny sub-units will be safely re-parented to this unit's parent, and assigned employees will be unlinked.`)) {
+      return;
+    }
+    try {
+      await SmartWorkforceCommon.api.deleteOrgUnit(id);
+      showToast(`Unit '${name}' deleted successfully.`, 'exit');
+      await loadOrgTreeData();
+    } catch (err) {
+      alert('Failed to delete organizational unit: ' + err.message);
+    }
+  }
+
+  // --- Manage Hierarchy Levels Modal ---
+  const modalOrgLevels = document.getElementById('modalOrgLevels');
+  const btnOpenManageLevelsModal = document.getElementById('btnOpenManageLevelsModal');
+  const btnCloseOrgLevelsModal = document.getElementById('btnCloseOrgLevelsModal');
+  const btnCloseOrgLevelsBtn = document.getElementById('btnCloseOrgLevelsBtn');
+  const formAddLevel = document.getElementById('formAddLevel');
+
+  function openManageLevelsModal() {
+    if (!modalOrgLevels) return;
+    renderLevelsList();
+    modalOrgLevels.classList.add('open');
+  }
+
+  function closeManageLevelsModal() {
+    if (modalOrgLevels) modalOrgLevels.classList.remove('open');
+  }
+
+  if (btnOpenManageLevelsModal) btnOpenManageLevelsModal.addEventListener('click', openManageLevelsModal);
+  if (btnCloseOrgLevelsModal) btnCloseOrgLevelsModal.addEventListener('click', closeManageLevelsModal);
+  if (btnCloseOrgLevelsBtn) btnCloseOrgLevelsBtn.addEventListener('click', closeManageLevelsModal);
+
+  function renderLevelsList() {
+    const tableLevelsBody = document.getElementById('tableLevelsBody');
+    if (!tableLevelsBody) return;
+
+    if (!orgLevelsList || orgLevelsList.length === 0) {
+      tableLevelsBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-dim); padding: 14px;">No hierarchy tiers created yet.</td></tr>';
+      return;
+    }
+
+    const sorted = [...orgLevelsList].sort((a, b) => a.rank - b.rank);
+    tableLevelsBody.innerHTML = sorted.map(lvl => `
+      <tr>
+        <td style="text-align: center; font-family: var(--font-mono); font-weight: 700;">#${lvl.rank}</td>
+        <td><strong>${escapeHtml(lvl.name)}</strong></td>
+        <td style="text-align: right;">
+          <button type="button" class="btn-icon-xs delete btn-del-level" data-level-id="${escapeHtml(lvl.id)}" data-level-name="${escapeHtml(lvl.name)}" title="Delete Level">
+            🗑️
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    tableLevelsBody.querySelectorAll('.btn-del-level').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-level-id');
+        const name = btn.getAttribute('data-level-name');
+        if (!confirm(`Delete hierarchy level '${name}'? Units assigned to this level must be updated first.`)) return;
+        try {
+          await SmartWorkforceCommon.api.deleteOrgLevel(id);
+          showToast(`Hierarchy level '${name}' removed.`, 'exit');
+          orgLevelsList = await SmartWorkforceCommon.api.getOrgLevels().catch(() => []);
+          renderLevelsList();
+          await loadOrgTreeData();
+        } catch (err) {
+          alert('Failed to delete level: ' + err.message);
+        }
+      });
+    });
+  }
+
+  if (formAddLevel) {
+    formAddLevel.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inputNewLevelName = document.getElementById('inputNewLevelName');
+      const inputNewLevelRank = document.getElementById('inputNewLevelRank');
+      const modalOrgLevelsError = document.getElementById('modalOrgLevelsError');
+
+      const name = inputNewLevelName ? inputNewLevelName.value.trim() : '';
+      const rank = inputNewLevelRank ? parseInt(inputNewLevelRank.value, 10) : 1;
+
+      if (!name || isNaN(rank)) return;
+      if (modalOrgLevelsError) modalOrgLevelsError.style.display = 'none';
+
+      try {
+        await SmartWorkforceCommon.api.createOrgLevel({ name, rank });
+        if (inputNewLevelName) inputNewLevelName.value = '';
+        if (inputNewLevelRank) inputNewLevelRank.value = rank + 1;
+        orgLevelsList = await SmartWorkforceCommon.api.getOrgLevels().catch(() => []);
+        renderLevelsList();
+        await loadOrgTreeData();
+        showToast(`Hierarchy level '${name}' added successfully.`, 'entry');
+      } catch (err) {
+        if (modalOrgLevelsError) {
+          modalOrgLevelsError.textContent = err.message;
+          modalOrgLevelsError.style.display = 'block';
+        }
+      }
+    });
+  }
+
+  // --- Reassign Reporting Relationship Modal ---
+  const modalReassignReporting = document.getElementById('modalReassignReporting');
+  const btnOpenReassignReportingModal = document.getElementById('btnOpenReassignReportingModal');
+  const btnCloseReassignModal = document.getElementById('btnCloseReassignModal');
+  const btnCancelReassign = document.getElementById('btnCancelReassign');
+  const formReassignReporting = document.getElementById('formReassignReporting');
+  const selectReassignEmp = document.getElementById('selectReassignEmp');
+
+  function openReassignReportingModal(empId = null) {
+    if (!modalReassignReporting) return;
+    populateOrgDropdowns();
+    const modalReassignReportingError = document.getElementById('modalReassignReportingError');
+    if (modalReassignReportingError) modalReassignReportingError.style.display = 'none';
+
+    if (selectReassignEmp && empId) {
+      selectReassignEmp.value = empId;
+      triggerReassignEmpChange(empId);
+    }
+    modalReassignReporting.classList.add('open');
+  }
+
+  function closeReassignReportingModal() {
+    if (modalReassignReporting) modalReassignReporting.classList.remove('open');
+  }
+
+  if (btnOpenReassignReportingModal) btnOpenReassignReportingModal.addEventListener('click', () => openReassignReportingModal());
+  if (btnCloseReassignModal) btnCloseReassignModal.addEventListener('click', closeReassignReportingModal);
+  if (btnCancelReassign) btnCancelReassign.addEventListener('click', closeReassignReportingModal);
+
+  async function triggerReassignEmpChange(empId) {
+    const txtChain = document.getElementById('txtCurrentReportingChain');
+    const selectReassignManager = document.getElementById('selectReassignManager');
+    const selectReassignOrgUnit = document.getElementById('selectReassignOrgUnit');
+    const selectReassignJobTitle = document.getElementById('selectReassignJobTitle');
+    const selectReassignAccessRole = document.getElementById('selectReassignAccessRole');
+
+    if (!empId) {
+      if (txtChain) txtChain.textContent = 'Select an employee above to preview active reporting line';
+      return;
+    }
+
+    try {
+      const [reportingData, subsData] = await Promise.all([
+        SmartWorkforceCommon.api.getEmployeeReporting(empId).catch(() => null),
+        SmartWorkforceCommon.api.getEmployeeSubordinates(empId, 'recursive').catch(() => null)
+      ]);
+
+      const chainList = Array.isArray(reportingData) ? reportingData : ((reportingData && reportingData.reportingChain) || []);
+      const ancestorsOnly = chainList.filter(c => (c.depth !== undefined ? c.depth > 0 : c.id !== empId));
+
+      if (txtChain) {
+        if (ancestorsOnly.length > 0) {
+          const chainNames = ancestorsOnly.map(m => `${m.name} (${m.id})`).join('  ➔  ');
+          txtChain.innerHTML = `<strong>Active Upward Line:</strong> ${escapeHtml(chainNames)}`;
+        } else {
+          txtChain.textContent = 'Top-level employee (reports directly to Company Head)';
+        }
+      }
+
+      // Collect descendant IDs to prevent circular loops in UI
+      const descendantIds = new Set([empId]);
+      const subsList = Array.isArray(subsData) ? subsData : ((subsData && subsData.subordinates) || []);
+      subsList.forEach(s => descendantIds.add(s.id));
+
+      const emp = employees.find(e => e.id === empId);
+      const curMgr = emp ? (emp.managerId || emp.manager_id || '') : '';
+
+      if (selectReassignManager) {
+        const validManagers = employees.filter(e => !e.isArchived && !descendantIds.has(e.id));
+        selectReassignManager.innerHTML = '<option value="">-- None (Top Level / Direct to Head) --</option>' +
+          validManagers.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} (${m.id})</option>`).join('');
+        selectReassignManager.value = curMgr || '';
+      }
+
+      if (emp) {
+        if (selectReassignOrgUnit) selectReassignOrgUnit.value = emp.orgUnitId || emp.org_unit_id || '';
+        if (selectReassignJobTitle) selectReassignJobTitle.value = emp.jobTitleId || emp.job_title_id || '';
+        if (selectReassignAccessRole) selectReassignAccessRole.value = emp.accessRoleId || emp.access_role_id || '';
+      }
+    } catch (err) {
+      console.warn('Error fetching employee reporting line:', err);
+    }
+  }
+
+  if (selectReassignEmp) {
+    selectReassignEmp.addEventListener('change', (e) => {
+      triggerReassignEmpChange(e.target.value);
+    });
+  }
+
+  if (formReassignReporting) {
+    formReassignReporting.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const selectReassignEmp = document.getElementById('selectReassignEmp');
+      const selectReassignManager = document.getElementById('selectReassignManager');
+      const selectReassignOrgUnit = document.getElementById('selectReassignOrgUnit');
+      const selectReassignJobTitle = document.getElementById('selectReassignJobTitle');
+      const selectReassignAccessRole = document.getElementById('selectReassignAccessRole');
+      const modalReassignReportingError = document.getElementById('modalReassignReportingError');
+      const btnSubmit = document.getElementById('btnSubmitReassign');
+
+      const empId = selectReassignEmp ? selectReassignEmp.value : '';
+      if (!empId) return;
+
+      const managerId = selectReassignManager ? (selectReassignManager.value || null) : null;
+      const orgUnitId = selectReassignOrgUnit ? (selectReassignOrgUnit.value || null) : null;
+      const jobTitleId = selectReassignJobTitle ? (selectReassignJobTitle.value || null) : null;
+      const accessRoleId = selectReassignAccessRole ? (selectReassignAccessRole.value || null) : null;
+
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Updating...';
+      }
+
+      try {
+        await SmartWorkforceCommon.api.updateEmployeeReporting(empId, {
+          managerId,
+          orgUnitId,
+          jobTitleId,
+          accessRoleId
+        });
+        showToast('Reporting hierarchy updated successfully.', 'entry');
+        closeReassignReportingModal();
+        await Promise.all([
+          syncDashboardData(),
+          loadOrgTreeData()
+        ]);
+      } catch (err) {
+        if (modalReassignReportingError) {
+          modalReassignReportingError.textContent = err.message;
+          modalReassignReportingError.style.display = 'block';
+        }
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Update Reporting';
+        }
+      }
+    });
+  }
+
+  // ==========================================
+  // 2. JOB TITLES MANAGEMENT
+  // ==========================================
+
+  async function loadJobTitles() {
+    try {
+      const titles = await SmartWorkforceCommon.api.getJobTitles();
+      if (Array.isArray(titles)) {
+        jobTitlesList = titles;
+      }
+      const statJobTitlesCount = document.getElementById('statJobTitlesCount');
+      if (statJobTitlesCount) statJobTitlesCount.textContent = jobTitlesList.length;
+
+      renderJobTitlesTable();
+      populateOrgDropdowns();
+    } catch (err) {
+      console.warn('Failed to load job titles:', err);
+    }
+  }
+
+  function renderJobTitlesTable() {
+    const tableBody = document.getElementById('tableJobTitlesBody');
+    const emptyState = document.getElementById('jobTitlesEmptyState');
+    if (!tableBody) return;
+
+    const term = jobTitlesFilterTerm.toLowerCase();
+    const filtered = jobTitlesList.filter(t => {
+      if (!term) return true;
+      return (t.title || '').toLowerCase().includes(term) || (t.description || '').toLowerCase().includes(term);
+    });
+
+    if (filtered.length === 0) {
+      tableBody.innerHTML = '';
+      if (emptyState) emptyState.style.display = 'flex';
+      return;
+    }
+
+    if (emptyState) emptyState.style.display = 'none';
+
+    tableBody.innerHTML = filtered.map(t => {
+      const assignedCount = t.employee_count !== undefined
+        ? t.employee_count
+        : employees.filter(e => (e.jobTitleId || e.job_title_id) === t.id).length;
+
+      const isActive = t.is_active !== 0;
+
+      return `
+        <tr>
+          <td>
+            <div style="font-weight: 700; color: var(--text-main); font-size: 0.92rem;">${escapeHtml(t.title)}</div>
+            ${t.code ? `<div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">CODE: ${escapeHtml(t.code)}</div>` : ''}
+          </td>
+          <td style="color: var(--text-secondary); font-size: 0.82rem;">
+            ${escapeHtml(t.description || 'Standard corporate role')}
+          </td>
+          <td style="text-align: center;">
+            <span class="tree-stat-pill" style="padding: 3px 9px;"><strong>${assignedCount}</strong> Staff</span>
+          </td>
+          <td style="text-align: center;">
+            <span class="${isActive ? 'badge-status-active' : 'badge-status-suspended'}">
+              ${isActive ? 'Active' : 'Inactive'}
+            </span>
+          </td>
+          <td style="text-align: right;">
+            <div style="display: inline-flex; gap: 6px;">
+              <button type="button" class="btn-icon-xs btn-edit-job" data-job-id="${escapeHtml(t.id)}" title="Edit Job Title">
+                ✏️
+              </button>
+              <button type="button" class="btn-icon-xs delete btn-delete-job" data-job-id="${escapeHtml(t.id)}" data-job-title="${escapeHtml(t.title)}" data-assigned-count="${assignedCount}" title="Delete Job Title">
+                🗑️
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tableBody.querySelectorAll('.btn-edit-job').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-job-id');
+        const title = jobTitlesList.find(t => t.id === id);
+        if (title) openEditJobTitleModal(title);
+      });
+    });
+
+    tableBody.querySelectorAll('.btn-delete-job').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-job-id');
+        const titleName = btn.getAttribute('data-job-title');
+        const assignedCount = parseInt(btn.getAttribute('data-assigned-count') || '0', 10);
+        handleDeleteJobTitle(id, titleName, assignedCount);
+      });
+    });
+  }
+
+  const inputSearchJobTitles = document.getElementById('inputSearchJobTitles');
+  if (inputSearchJobTitles) {
+    inputSearchJobTitles.addEventListener('input', (e) => {
+      jobTitlesFilterTerm = (e.target.value || '').trim();
+      renderJobTitlesTable();
+    });
+  }
+
+  // --- Job Title Modal (Create / Edit) ---
+  const modalJobTitle = document.getElementById('modalJobTitle');
+  const formJobTitle = document.getElementById('formJobTitle');
+  const btnOpenAddJobTitleModal = document.getElementById('btnOpenAddJobTitleModal');
+  const btnEmptyCreateJobTitle = document.getElementById('btnEmptyCreateJobTitle');
+  const btnCloseJobTitleModal = document.getElementById('btnCloseJobTitleModal');
+  const btnCancelJobTitle = document.getElementById('btnCancelJobTitle');
+
+  function openAddJobTitleModal() {
+    if (!modalJobTitle) return;
+    const txtHeading = document.getElementById('txtJobTitleModalHeading');
+    const jobTitleIdHidden = document.getElementById('jobTitleIdHidden');
+    const inputJobTitleName = document.getElementById('inputJobTitleName');
+    const inputJobTitleDesc = document.getElementById('inputJobTitleDesc');
+    const checkJobTitleActive = document.getElementById('checkJobTitleActive');
+    const modalJobTitleError = document.getElementById('modalJobTitleError');
+
+    if (modalJobTitleError) modalJobTitleError.style.display = 'none';
+    if (txtHeading) txtHeading.textContent = 'Create Job Title';
+    if (jobTitleIdHidden) jobTitleIdHidden.value = '';
+    if (inputJobTitleName) inputJobTitleName.value = '';
+    if (inputJobTitleDesc) inputJobTitleDesc.value = '';
+    if (checkJobTitleActive) checkJobTitleActive.checked = true;
+
+    modalJobTitle.classList.add('open');
+    if (inputJobTitleName) inputJobTitleName.focus();
+  }
+
+  function openEditJobTitleModal(title) {
+    if (!modalJobTitle || !title) return;
+    const txtHeading = document.getElementById('txtJobTitleModalHeading');
+    const jobTitleIdHidden = document.getElementById('jobTitleIdHidden');
+    const inputJobTitleName = document.getElementById('inputJobTitleName');
+    const inputJobTitleDesc = document.getElementById('inputJobTitleDesc');
+    const checkJobTitleActive = document.getElementById('checkJobTitleActive');
+    const modalJobTitleError = document.getElementById('modalJobTitleError');
+
+    if (modalJobTitleError) modalJobTitleError.style.display = 'none';
+    if (txtHeading) txtHeading.textContent = `Edit Job Title: ${title.title}`;
+    if (jobTitleIdHidden) jobTitleIdHidden.value = title.id;
+    if (inputJobTitleName) inputJobTitleName.value = title.title;
+    if (inputJobTitleDesc) inputJobTitleDesc.value = title.description || '';
+    if (checkJobTitleActive) checkJobTitleActive.checked = title.is_active !== 0;
+
+    modalJobTitle.classList.add('open');
+    if (inputJobTitleName) inputJobTitleName.focus();
+  }
+
+  function closeJobTitleModal() {
+    if (modalJobTitle) modalJobTitle.classList.remove('open');
+  }
+
+  if (btnOpenAddJobTitleModal) btnOpenAddJobTitleModal.addEventListener('click', openAddJobTitleModal);
+  if (btnEmptyCreateJobTitle) btnEmptyCreateJobTitle.addEventListener('click', openAddJobTitleModal);
+  if (btnCloseJobTitleModal) btnCloseJobTitleModal.addEventListener('click', closeJobTitleModal);
+  if (btnCancelJobTitle) btnCancelJobTitle.addEventListener('click', closeJobTitleModal);
+
+  if (formJobTitle) {
+    formJobTitle.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const jobTitleIdHidden = document.getElementById('jobTitleIdHidden');
+      const inputJobTitleName = document.getElementById('inputJobTitleName');
+      const inputJobTitleDesc = document.getElementById('inputJobTitleDesc');
+      const checkJobTitleActive = document.getElementById('checkJobTitleActive');
+      const modalJobTitleError = document.getElementById('modalJobTitleError');
+      const btnSubmit = document.getElementById('btnSubmitJobTitle');
+
+      const isEdit = Boolean(jobTitleIdHidden && jobTitleIdHidden.value);
+      const title = inputJobTitleName ? inputJobTitleName.value.trim() : '';
+      const description = inputJobTitleDesc ? inputJobTitleDesc.value.trim() : '';
+      const isActive = checkJobTitleActive ? (checkJobTitleActive.checked ? 1 : 0) : 1;
+
+      if (!title) return;
+
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Saving...';
+      }
+
+      try {
+        if (isEdit) {
+          await SmartWorkforceCommon.api.updateJobTitle(jobTitleIdHidden.value, { title, description, isActive });
+          showToast(`Job title '${title}' updated.`, 'entry');
+        } else {
+          await SmartWorkforceCommon.api.createJobTitle({ title, description, isActive });
+          showToast(`Job title '${title}' created.`, 'entry');
+        }
+        closeJobTitleModal();
+        await loadJobTitles();
+      } catch (err) {
+        if (modalJobTitleError) {
+          modalJobTitleError.textContent = err.message;
+          modalJobTitleError.style.display = 'block';
+        }
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Save Title';
+        }
+      }
+    });
+  }
+
+  async function handleDeleteJobTitle(id, titleName, assignedCount) {
+    let warning = `Delete job title '${titleName}'?`;
+    if (assignedCount > 0) {
+      warning += `\n\nWarning: ${assignedCount} employee(s) are currently assigned this title. They will be unlinked automatically.`;
+    }
+    if (!confirm(warning)) return;
+
+    try {
+      await SmartWorkforceCommon.api.deleteJobTitle(id);
+      showToast(`Job title '${titleName}' removed.`, 'exit');
+      await loadJobTitles();
+    } catch (err) {
+      alert('Failed to delete job title: ' + err.message);
+    }
+  }
+
+  // ==========================================
+  // 3. ROLES & PERMISSIONS MATRIX
+  // ==========================================
+
+  async function loadRoles() {
+    try {
+      const roles = await SmartWorkforceCommon.api.getRoles();
+      if (Array.isArray(roles)) {
+        rolesList = roles;
+      }
+
+      renderRolesList();
+      populateOrgDropdowns();
+
+      // Default select active role or first role
+      if (!activeRoleId || !rolesList.find(r => r.id === activeRoleId)) {
+        if (rolesList.length > 0) {
+          selectRole(rolesList[0].id);
+        }
+      } else {
+        selectRole(activeRoleId);
+      }
+    } catch (err) {
+      console.warn('Failed to load access roles:', err);
+    }
+  }
+
+  function renderRolesList() {
+    const listContainer = document.getElementById('rolesListContainer');
+    if (!listContainer) return;
+
+    if (!rolesList || rolesList.length === 0) {
+      listContainer.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 20px;">No roles configured.</div>';
+      return;
+    }
+
+    listContainer.innerHTML = rolesList.map(r => {
+      const isActive = r.id === activeRoleId;
+      const count = r.employee_count !== undefined ? r.employee_count : 0;
+      const isSystem = Boolean(r.is_system_role);
+
+      return `
+        <div class="role-item-card ${isActive ? 'active' : ''}" data-role-id="${escapeHtml(r.id)}">
+          <div class="role-item-top">
+            <span class="role-item-name">${escapeHtml(r.name)}</span>
+            ${isSystem ? '<span class="system-role-badge">🔒 System</span>' : '<span class="custom-role-badge">Custom</span>'}
+          </div>
+          <div class="role-item-desc">${escapeHtml(r.description || 'Custom corporate role')}</div>
+          <div class="role-item-footer">
+            <span>👥 <strong>${count}</strong> Staff Assigned</span>
+            <span style="font-size: 0.68rem; color: var(--text-dim); font-family: var(--font-mono);">${r.permissions ? r.permissions.length : 0} Perms</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    listContainer.querySelectorAll('.role-item-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = card.getAttribute('data-role-id');
+        selectRole(id);
+      });
+    });
+  }
+
+  async function selectRole(roleId) {
+    activeRoleId = roleId;
+    renderRolesList();
+
+    const role = rolesList.find(r => r.id === roleId);
+    if (!role) return;
+
+    const activeRoleTitle = document.getElementById('activeRoleTitle');
+    const activeRoleDesc = document.getElementById('activeRoleDesc');
+    const activeRoleBadge = document.getElementById('activeRoleBadge');
+    const systemRoleNotice = document.getElementById('systemRoleNotice');
+    const btnDeleteActiveRole = document.getElementById('btnDeleteActiveRole');
+
+    if (activeRoleTitle) activeRoleTitle.textContent = role.name;
+    if (activeRoleDesc) activeRoleDesc.textContent = role.description || 'Configured access role';
+    if (activeRoleBadge) {
+      activeRoleBadge.innerHTML = role.is_system_role
+        ? '<span class="system-role-badge">🔒 System Protected</span>'
+        : '<span class="custom-role-badge">Custom Role</span>';
+    }
+
+    if (systemRoleNotice) systemRoleNotice.style.display = role.is_system_role ? 'block' : 'none';
+    if (btnDeleteActiveRole) btnDeleteActiveRole.style.display = role.is_system_role ? 'none' : 'inline-block';
+
+    try {
+      const perms = await SmartWorkforceCommon.api.getRolePermissions(roleId);
+      activeRolePermissions = Array.isArray(perms) ? perms : [];
+    } catch (_) {
+      activeRolePermissions = role.permissions || [];
+    }
+
+    renderPermsMatrix();
+  }
+
+  function renderPermsMatrix() {
+    const tableBody = document.getElementById('tablePermsMatrixBody');
+    if (!tableBody) return;
+
+    // Group specs by category
+    const categories = ['Organization', 'Access Roles', 'Workforce', 'Attendance', 'Intelligence'];
+
+    let html = '';
+    categories.forEach(cat => {
+      const specs = ALL_PERMISSION_SPECS.filter(s => s.category === cat);
+      if (specs.length === 0) return;
+
+      html += `
+        <tr class="perm-category-header">
+          <td colspan="4">${cat} Operations</td>
+        </tr>
+      `;
+
+      specs.forEach(spec => {
+        const assigned = activeRolePermissions.find(p => p.key === spec.key || p.permission_key === spec.key);
+        const isChecked = Boolean(assigned);
+        const curScope = assigned ? (assigned.scope || 'COMPANY') : spec.defaultScope;
+
+        html += `
+          <tr data-perm-key="${escapeHtml(spec.key)}">
+            <td style="text-align: center;">
+              <input type="checkbox" class="perm-checkbox chk-perm" data-key="${escapeHtml(spec.key)}" ${isChecked ? 'checked' : ''}>
+            </td>
+            <td class="perm-key-cell">
+              <code>${escapeHtml(spec.key)}</code>
+            </td>
+            <td>
+              <div style="font-size: 0.82rem; color: var(--text-main); font-weight: 500;">${escapeHtml(spec.description)}</div>
+            </td>
+            <td>
+              <select class="scope-select sel-scope" data-key="${escapeHtml(spec.key)}" ${isChecked ? '' : 'disabled'}>
+                ${VALID_SCOPES.map(s => `<option value="${s}" ${s === curScope ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+            </td>
+          </tr>
+        `;
+      });
+    });
+
+    tableBody.innerHTML = html;
+
+    // Checkbox toggling enables/disables scope selector
+    tableBody.querySelectorAll('.chk-perm').forEach(chk => {
+      chk.addEventListener('change', () => {
+        const key = chk.getAttribute('data-key');
+        const sel = tableBody.querySelector(`.sel-scope[data-key="${key}"]`);
+        if (sel) sel.disabled = !chk.checked;
+      });
+    });
+  }
+
+  // Save Permissions Button
+  const btnSaveRolePermissions = document.getElementById('btnSaveRolePermissions');
+  if (btnSaveRolePermissions) {
+    btnSaveRolePermissions.addEventListener('click', async () => {
+      if (!activeRoleId) return;
+      const role = rolesList.find(r => r.id === activeRoleId);
+      if (!role) return;
+
+      const tableBody = document.getElementById('tablePermsMatrixBody');
+      if (!tableBody) return;
+
+      const updatedPerms = [];
+      tableBody.querySelectorAll('tr[data-perm-key]').forEach(tr => {
+        const key = tr.getAttribute('data-perm-key');
+        const chk = tr.querySelector('.chk-perm');
+        const sel = tr.querySelector('.sel-scope');
+        if (chk && chk.checked) {
+          updatedPerms.push({
+            key,
+            scope: sel ? sel.value : 'COMPANY'
+          });
+        }
+      });
+
+      // Warning check if permissions were removed
+      const currentCount = activeRolePermissions.length;
+      if (updatedPerms.length < currentCount) {
+        if (!confirm(`Warning: You are reducing permission privileges for role '${role.name}'. All employees assigned to this role will immediately have their access updated. Proceed?`)) {
+          return;
+        }
+      }
+
+      btnSaveRolePermissions.disabled = true;
+      btnSaveRolePermissions.textContent = 'Saving...';
+
+      try {
+        await SmartWorkforceCommon.api.updateRolePermissions(activeRoleId, updatedPerms);
+        showToast(`Permissions updated for role '${role.name}'.`, 'entry');
+        await loadRoles();
+      } catch (err) {
+        alert('Failed to update role permissions: ' + err.message);
+      } finally {
+        btnSaveRolePermissions.disabled = false;
+        btnSaveRolePermissions.textContent = 'Save Permissions';
+      }
+    });
+  }
+
+  // Custom Role Modal (Create)
+  const modalRole = document.getElementById('modalRole');
+  const formRole = document.getElementById('formRole');
+  const btnOpenAddRoleModal = document.getElementById('btnOpenAddRoleModal');
+  const btnCloseRoleModal = document.getElementById('btnCloseRoleModal');
+  const btnCancelRole = document.getElementById('btnCancelRole');
+
+  function openAddRoleModal() {
+    if (!modalRole) return;
+    const inputRoleName = document.getElementById('inputRoleName');
+    const inputRoleDesc = document.getElementById('inputRoleDesc');
+    const modalRoleError = document.getElementById('modalRoleError');
+
+    if (modalRoleError) modalRoleError.style.display = 'none';
+    if (inputRoleName) inputRoleName.value = '';
+    if (inputRoleDesc) inputRoleDesc.value = '';
+
+    modalRole.classList.add('open');
+    if (inputRoleName) inputRoleName.focus();
+  }
+
+  function closeRoleModal() {
+    if (modalRole) modalRole.classList.remove('open');
+  }
+
+  if (btnOpenAddRoleModal) btnOpenAddRoleModal.addEventListener('click', openAddRoleModal);
+  if (btnCloseRoleModal) btnCloseRoleModal.addEventListener('click', closeRoleModal);
+  if (btnCancelRole) btnCancelRole.addEventListener('click', closeRoleModal);
+
+  if (formRole) {
+    formRole.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inputRoleName = document.getElementById('inputRoleName');
+      const inputRoleDesc = document.getElementById('inputRoleDesc');
+      const modalRoleError = document.getElementById('modalRoleError');
+      const btnSubmit = document.getElementById('btnSubmitRole');
+
+      const name = inputRoleName ? inputRoleName.value.trim() : '';
+      const description = inputRoleDesc ? inputRoleDesc.value.trim() : '';
+
+      if (!name) return;
+
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Creating Role...';
+      }
+
+      try {
+        const res = await SmartWorkforceCommon.api.createRole({ name, description });
+        showToast(`Custom role '${name}' created. Configure permissions below.`, 'entry');
+        closeRoleModal();
+        await loadRoles();
+        if (res && res.role) {
+          selectRole(res.role.id);
+        }
+      } catch (err) {
+        if (modalRoleError) {
+          modalRoleError.textContent = err.message;
+          modalRoleError.style.display = 'block';
+        }
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Create Role';
+        }
+      }
+    });
+  }
+
+  // Delete Custom Role Button
+  const btnDeleteActiveRole = document.getElementById('btnDeleteActiveRole');
+  if (btnDeleteActiveRole) {
+    btnDeleteActiveRole.addEventListener('click', async () => {
+      if (!activeRoleId) return;
+      const role = rolesList.find(r => r.id === activeRoleId);
+      if (!role) return;
+      if (role.is_system_role) {
+        alert('System roles are protected and cannot be deleted.');
+        return;
+      }
+
+      const assigned = role.employee_count || 0;
+      let warning = `Are you sure you want to delete role '${role.name}'?`;
+      if (assigned > 0) {
+        warning += `\n\nWarning: ${assigned} employee(s) have this role. Their access role will be set to Unassigned (Standard Employee fallback).`;
+      }
+      if (!confirm(warning)) return;
+
+      try {
+        await SmartWorkforceCommon.api.deleteRole(activeRoleId);
+        showToast(`Role '${role.name}' deleted successfully.`, 'exit');
+        activeRoleId = null;
+        await loadRoles();
+      } catch (err) {
+        alert('Failed to delete role: ' + err.message);
+      }
+    });
   }
 
 

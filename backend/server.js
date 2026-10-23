@@ -185,6 +185,136 @@ function verifyCsrf(req, authContext, body) {
 }
 
 /**
+ * Phase 3 Backend Authorization & Permission Resolution Helpers
+ */
+function getAuthEffectivePermissions(authCtx) {
+  if (!authCtx) return {};
+
+  // Company Head and Company Admin have full COMPANY-wide scope across all permission keys
+  if (authCtx.userType === 'COMPANY_HEAD' || authCtx.userType === 'COMPANY_ADMIN') {
+    return {
+      'org:view': 'COMPANY',
+      'org:manage': 'COMPANY',
+      'roles:manage': 'COMPANY',
+      'employees:view': 'COMPANY',
+      'employees:manage': 'COMPANY',
+      'attendance:view': 'COMPANY',
+      'attendance:manage': 'COMPANY',
+      'analytics:view': 'COMPANY'
+    };
+  }
+
+  if (authCtx.userType === 'EMPLOYEE') {
+    const effective = db.getEmployeeEffectivePermissions(authCtx.user.id, authCtx.companyId);
+    if (!effective || Object.keys(effective).length === 0) {
+      return {
+        'employees:view': 'SELF',
+        'attendance:view': 'SELF'
+      };
+    }
+    return effective;
+  }
+
+  return {};
+}
+
+const SCOPE_RANKS = {
+  'SELF': 1,
+  'DIRECT_REPORTS': 2,
+  'DESCENDANTS': 3,
+  'DEPARTMENT': 4,
+  'COMPANY': 5
+};
+
+function hasPermission(authCtx, permKey, requiredScope = null) {
+  if (!authCtx) return false;
+  if (authCtx.userType === 'COMPANY_HEAD' || authCtx.userType === 'COMPANY_ADMIN') {
+    return true;
+  }
+  const perms = getAuthEffectivePermissions(authCtx);
+  const userScope = perms[permKey];
+  if (!userScope) return false;
+  if (!requiredScope) return true;
+  return (SCOPE_RANKS[userScope] || 0) >= (SCOPE_RANKS[requiredScope] || 99);
+}
+
+function getPermittedEmployeeIds(authCtx, permKey) {
+  if (!authCtx) return [];
+  if (authCtx.userType === 'COMPANY_HEAD' || authCtx.userType === 'COMPANY_ADMIN') {
+    return null; // Full company scope
+  }
+
+  const perms = getAuthEffectivePermissions(authCtx);
+  const scope = perms[permKey];
+  if (!scope) return [];
+
+  if (scope === 'COMPANY') {
+    return null; // Full company scope
+  }
+
+  const empId = authCtx.user.id;
+  const companyId = authCtx.companyId;
+
+  if (scope === 'SELF') {
+    return [empId];
+  }
+
+  if (scope === 'DIRECT_REPORTS') {
+    const directReports = db.getDirectReports(empId, companyId);
+    return [empId, ...directReports.map(r => r.id)];
+  }
+
+  if (scope === 'DESCENDANTS') {
+    const recursive = db.getRecursiveSubordinates(empId, companyId);
+    return [empId, ...recursive.map(r => r.id)];
+  }
+
+  if (scope === 'DEPARTMENT') {
+    const allEmps = db.getAllEmployees(companyId, true);
+    const userOrgUnitId = authCtx.user.orgUnitId || authCtx.user.org_unit_id;
+    const userDept = authCtx.user.department;
+    return allEmps
+      .filter(e => {
+        if (e.id === empId) return true;
+        if (userOrgUnitId && e.orgUnitId === userOrgUnitId) return true;
+        if (userDept && e.department && e.department.toLowerCase() === userDept.toLowerCase()) return true;
+        return false;
+      })
+      .map(e => e.id);
+  }
+
+  return [];
+}
+
+function canAccessEmployee(authCtx, targetEmp, permKey) {
+  if (!authCtx || !targetEmp) return false;
+  const empCompanyId = targetEmp.companyId || targetEmp.company_id;
+  if (empCompanyId !== authCtx.companyId) return false;
+
+  if (authCtx.userType === 'COMPANY_HEAD' || authCtx.userType === 'COMPANY_ADMIN') {
+    return true;
+  }
+
+  const permittedIds = getPermittedEmployeeIds(authCtx, permKey);
+  if (permittedIds === null) return true;
+  return permittedIds.includes(targetEmp.id);
+}
+
+function checkPasswordChangeRequired(authCtx, res) {
+  if (authCtx && authCtx.userType === 'EMPLOYEE' && authCtx.mustChangePassword) {
+    sendJson(res, 403, {
+      error: 'Password change required before accessing workforce resources.',
+      code: 'PASSWORD_CHANGE_REQUIRED',
+      mustChangePassword: true,
+      employeeId: authCtx.user.id,
+      name: authCtx.user.name
+    });
+    return true;
+  }
+  return false;
+}
+
+/**
  * REST API Router
  */
 async function handleApiRequest(req, res, urlPath) {
@@ -488,8 +618,14 @@ async function handleApiRequest(req, res, urlPath) {
 
       // Strictly derive employee and company from session
       const emp = db.getEmployeeById(authCtx.user.id);
+      if (!emp) {
+        return sendError(res, 404, 'Employee record not found.');
+      }
       const company = db.getCompanyById(authCtx.companyId);
       const latestEvent = db.getLatestEventForEmployee(emp.id);
+      const effectivePerms = getAuthEffectivePermissions(authCtx);
+      const directReports = db.getDirectReports(emp.id, authCtx.companyId);
+      const reportingChain = db.getReportingChain(emp.id, authCtx.companyId);
 
       return sendJson(res, 200, {
         success: true,
@@ -500,12 +636,27 @@ async function handleApiRequest(req, res, urlPath) {
           companyName: company ? company.name : 'Unknown Company',
           department: emp.department,
           designation: emp.role,
+          jobTitle: emp.jobTitleName || emp.role || 'Workforce Member',
+          jobTitleName: emp.jobTitleName || null,
+          jobTitleId: emp.jobTitleId || null,
+          orgUnitName: emp.orgUnitName || null,
+          orgUnitId: emp.orgUnitId || null,
+          managerId: emp.managerId || null,
+          managerName: emp.managerName || null,
+          accessRoleId: emp.accessRoleId || null,
+          accessRoleName: emp.accessRoleName || null,
+          email: emp.email || null,
+          phone: emp.phone || null,
           cardUid: emp.uid || null,
           cardStatus: emp.uid ? 'ACTIVE' : 'UNASSIGNED',
           status: emp.status,
           lastSeen: emp.lastSeen || emp.last_seen || 'Not detected today',
           avatarBg: emp.avatarBg || emp.avatar_bg || '#0284C7'
         },
+        permissions: effectivePerms,
+        directReportsCount: directReports.length,
+        hasSubordinates: directReports.length > 0,
+        reportingChain: reportingChain || [],
         latestEvent: latestEvent || null,
         csrfToken: authCtx.session.csrf_token
       });
@@ -584,18 +735,732 @@ async function handleApiRequest(req, res, urlPath) {
     }
 
     // =========================================================
+    // 1. ORGANIZATIONAL HIERARCHY ENDPOINTS
+    // =========================================================
+
+    // 1A. GET /api/org/tree - Full Organization Tree
+    if (pathOnly === '/api/org/tree' && method === 'GET') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to access organizational tree.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'org:view')) {
+        return sendError(res, 403, 'Permission denied: Organization view privileges required.');
+      }
+
+      const hierarchy = db.getOrgHierarchy(authCtx.companyId);
+      if (!hierarchy) {
+        return sendError(res, 404, 'Organization structure not found.');
+      }
+      return sendJson(res, 200, { success: true, ...hierarchy });
+    }
+
+    // 1B. Org Units Specific Match (/api/org/units/:id)
+    const orgUnitDetailMatch = pathOnly.match(/^\/api\/org\/units\/([^\/]+)$/);
+
+    if (orgUnitDetailMatch && (method === 'PUT' || method === 'PATCH')) {
+      const targetUnitId = decodeURIComponent(orgUnitDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to update organizational unit.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+      }
+
+      const existingUnit = db.getOrgUnitById(targetUnitId, authCtx.companyId);
+      if (!existingUnit) {
+        return sendError(res, 404, `Organizational unit '${targetUnitId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { name, unitType, type, parentId, parentUnitId, levelId, managerId } = body;
+      try {
+        const updated = db.updateOrgUnit({
+          id: targetUnitId,
+          companyId: authCtx.companyId,
+          name,
+          unitType: unitType || type,
+          parentUnitId: parentUnitId !== undefined ? parentUnitId : parentId,
+          levelId,
+          managerId
+        });
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Organizational unit updated successfully.',
+          unit: updated
+        });
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    if (orgUnitDetailMatch && method === 'DELETE') {
+      const targetUnitId = decodeURIComponent(orgUnitDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to delete organizational unit.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+      }
+
+      const existingUnit = db.getOrgUnitById(targetUnitId, authCtx.companyId);
+      if (!existingUnit) {
+        return sendError(res, 404, `Organizational unit '${targetUnitId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      try {
+        const result = db.deleteOrgUnit(targetUnitId, authCtx.companyId);
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    // 1C. GET / POST /api/org/units (Collection)
+    if (pathOnly === '/api/org/units') {
+      if (method === 'GET') {
+        const authCtx = resolveSession(req);
+        if (!authCtx) {
+          return sendError(res, 401, 'Authentication required to view organizational units.');
+        }
+        if (checkPasswordChangeRequired(authCtx, res)) return;
+        if (!hasPermission(authCtx, 'org:view')) {
+          return sendError(res, 403, 'Permission denied: Organization view privileges required.');
+        }
+
+        let isHierarchy = false;
+        try {
+          const urlObj = new URL(req.url, 'http://localhost');
+          isHierarchy = urlObj.searchParams.get('hierarchy') === 'true' || urlObj.searchParams.get('includeHierarchy') === 'true';
+        } catch (_) {}
+
+        const units = isHierarchy ? db.getOrgUnitHierarchy(authCtx.companyId) : db.getOrgUnits(authCtx.companyId);
+        return sendJson(res, 200, units);
+      }
+
+      if (method === 'POST') {
+        const authCtx = resolveSession(req);
+        if (!authCtx) {
+          return sendError(res, 401, 'Authentication required to create organizational unit.');
+        }
+        if (checkPasswordChangeRequired(authCtx, res)) return;
+        if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+          return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+        }
+
+        const body = await parseJsonBody(req);
+        if (!verifyCsrf(req, authCtx, body)) {
+          return sendError(res, 403, 'Invalid or missing CSRF token.');
+        }
+
+        const { id, name, unitType, type, parentId, parentUnitId, levelId, managerId } = body;
+        try {
+          const created = db.createOrgUnit({
+            id,
+            companyId: authCtx.companyId,
+            name,
+            unitType: unitType || type,
+            parentUnitId: parentUnitId !== undefined ? parentUnitId : parentId,
+            levelId,
+            managerId
+          });
+          return sendJson(res, 201, {
+            success: true,
+            message: 'Organizational unit created successfully.',
+            unit: created
+          });
+        } catch (err) {
+          return sendError(res, err.statusCode || 400, err.message);
+        }
+      }
+    }
+
+    // 1D. Org Levels Specific Match (/api/org/levels/:id)
+    const orgLevelDetailMatch = pathOnly.match(/^\/api\/org\/levels\/([^\/]+)$/);
+
+    if (orgLevelDetailMatch && (method === 'PUT' || method === 'PATCH')) {
+      const targetLevelId = decodeURIComponent(orgLevelDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to update organizational level.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+      }
+
+      const existingLevel = db.getOrgLevelById(targetLevelId, authCtx.companyId);
+      if (!existingLevel) {
+        return sendError(res, 404, `Organizational level '${targetLevelId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { name, rank, rankOrder, rank_order } = body;
+      try {
+        const updated = db.updateOrgLevel({
+          id: targetLevelId,
+          companyId: authCtx.companyId,
+          name,
+          rank: rank !== undefined ? rank : (rankOrder !== undefined ? rankOrder : rank_order)
+        });
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Organizational level updated successfully.',
+          level: updated
+        });
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    if (orgLevelDetailMatch && method === 'DELETE') {
+      const targetLevelId = decodeURIComponent(orgLevelDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to delete organizational level.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+      }
+
+      const existingLevel = db.getOrgLevelById(targetLevelId, authCtx.companyId);
+      if (!existingLevel) {
+        return sendError(res, 404, `Organizational level '${targetLevelId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      try {
+        const result = db.deleteOrgLevel(targetLevelId, authCtx.companyId);
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    // 1E. GET / POST /api/org/levels (Collection)
+    if (pathOnly === '/api/org/levels') {
+      if (method === 'GET') {
+        const authCtx = resolveSession(req);
+        if (!authCtx) {
+          return sendError(res, 401, 'Authentication required to view organizational levels.');
+        }
+        if (checkPasswordChangeRequired(authCtx, res)) return;
+        if (!hasPermission(authCtx, 'org:view')) {
+          return sendError(res, 403, 'Permission denied: Organization view privileges required.');
+        }
+
+        const levels = db.getOrgLevels(authCtx.companyId);
+        return sendJson(res, 200, levels);
+      }
+
+      if (method === 'POST') {
+        const authCtx = resolveSession(req);
+        if (!authCtx) {
+          return sendError(res, 401, 'Authentication required to create organizational level.');
+        }
+        if (checkPasswordChangeRequired(authCtx, res)) return;
+        if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+          return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+        }
+
+        const body = await parseJsonBody(req);
+        if (!verifyCsrf(req, authCtx, body)) {
+          return sendError(res, 403, 'Invalid or missing CSRF token.');
+        }
+
+        const { id, name, rank, rankOrder, rank_order } = body;
+        try {
+          const created = db.createOrgLevel({
+            id,
+            companyId: authCtx.companyId,
+            name,
+            rank: rank !== undefined ? rank : (rankOrder !== undefined ? rankOrder : rank_order)
+          });
+          return sendJson(res, 201, {
+            success: true,
+            message: 'Organizational level created successfully.',
+            level: created
+          });
+        } catch (err) {
+          return sendError(res, err.statusCode || 400, err.message);
+        }
+      }
+    }
+
+    // =========================================================
+    // 2. JOB TITLES & ACCESS ROLES ENDPOINTS
+    // =========================================================
+
+    // 2A. Org Job Titles Specific Match (/api/org/job-titles/:id)
+    const orgJobTitleDetailMatch = pathOnly.match(/^\/api\/org\/job-titles\/([^\/]+)$/);
+
+    if (orgJobTitleDetailMatch && (method === 'PUT' || method === 'PATCH')) {
+      const targetJobId = decodeURIComponent(orgJobTitleDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to update job title.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+      }
+
+      const existingJob = db.getJobTitleById(targetJobId, authCtx.companyId);
+      if (!existingJob) {
+        return sendError(res, 404, `Job title '${targetJobId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { title, description, isActive } = body;
+      try {
+        const updated = db.updateJobTitle({
+          id: targetJobId,
+          companyId: authCtx.companyId,
+          title,
+          description,
+          isActive
+        });
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Job title updated successfully.',
+          jobTitle: updated
+        });
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    if (orgJobTitleDetailMatch && method === 'DELETE') {
+      const targetJobId = decodeURIComponent(orgJobTitleDetailMatch[1]);
+
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to delete job title.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+      }
+
+      const existingJob = db.getJobTitleById(targetJobId, authCtx.companyId);
+      if (!existingJob) {
+        return sendError(res, 404, `Job title '${targetJobId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      try {
+        const result = db.deleteJobTitle(targetJobId, authCtx.companyId);
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    // 2B. GET / POST /api/org/job-titles (Collection)
+    if (pathOnly === '/api/org/job-titles') {
+      if (method === 'GET') {
+        const authCtx = resolveSession(req);
+        if (!authCtx) {
+          return sendError(res, 401, 'Authentication required to view job titles.');
+        }
+        if (checkPasswordChangeRequired(authCtx, res)) return;
+        if (!hasPermission(authCtx, 'org:view') && !hasPermission(authCtx, 'roles:manage')) {
+          return sendError(res, 403, 'Permission denied: Organization or role view privileges required.');
+        }
+
+        let includeInactive = false;
+        try {
+          const urlObj = new URL(req.url, 'http://localhost');
+          includeInactive = urlObj.searchParams.get('includeInactive') === 'true';
+        } catch (_) {}
+
+        const jobTitles = db.getJobTitles(authCtx.companyId, includeInactive);
+        return sendJson(res, 200, jobTitles);
+      }
+
+      if (method === 'POST') {
+        const authCtx = resolveSession(req);
+        if (!authCtx) {
+          return sendError(res, 401, 'Authentication required to create job title.');
+        }
+        if (checkPasswordChangeRequired(authCtx, res)) return;
+        if (!hasPermission(authCtx, 'org:manage', 'COMPANY')) {
+          return sendError(res, 403, 'Permission denied: Company-wide organization management privileges required.');
+        }
+
+        const body = await parseJsonBody(req);
+        if (!verifyCsrf(req, authCtx, body)) {
+          return sendError(res, 403, 'Invalid or missing CSRF token.');
+        }
+
+        const { id, title, description, isActive } = body;
+        try {
+          const created = db.createJobTitle({
+            id,
+            companyId: authCtx.companyId,
+            title,
+            description,
+            isActive
+          });
+          return sendJson(res, 201, {
+            success: true,
+            message: 'Job title created successfully.',
+            jobTitle: created
+          });
+        } catch (err) {
+          return sendError(res, err.statusCode || 400, err.message);
+        }
+      }
+    }
+
+    // 2C. Role Permissions Specific Match (/api/roles/:id/permissions)
+    const rolePermsMatch = pathOnly.match(/^\/api\/roles\/([^\/]+)\/permissions$/);
+
+    if (rolePermsMatch && method === 'GET') {
+      const targetRoleId = decodeURIComponent(rolePermsMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view role permissions.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'roles:manage')) {
+        return sendError(res, 403, 'Permission denied: Role management privileges required.');
+      }
+
+      const existingRole = db.getAccessRoleById(targetRoleId, authCtx.companyId);
+      if (!existingRole) {
+        return sendError(res, 404, `Access role '${targetRoleId}' not found in your organization.`);
+      }
+
+      const permissions = db.getRolePermissions(targetRoleId, authCtx.companyId);
+      return sendJson(res, 200, permissions);
+    }
+
+    if (rolePermsMatch && (method === 'PUT' || method === 'POST')) {
+      const targetRoleId = decodeURIComponent(rolePermsMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to modify role permissions.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'roles:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide role management privileges required.');
+      }
+
+      const existingRole = db.getAccessRoleById(targetRoleId, authCtx.companyId);
+      if (!existingRole) {
+        return sendError(res, 404, `Access role '${targetRoleId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      if (!Array.isArray(body.permissions)) {
+        return sendError(res, 400, 'Permissions must be an array of { key, scope } objects.');
+      }
+
+      try {
+        const updatedPerms = db.setRolePermissions(targetRoleId, authCtx.companyId, body.permissions);
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Role permissions updated successfully.',
+          permissions: updatedPerms
+        });
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    // 2D. Access Role Detail Match (/api/roles/:id)
+    const roleDetailMatch = pathOnly.match(/^\/api\/roles\/([^\/]+)$/);
+
+    if (roleDetailMatch && method === 'GET') {
+      const targetRoleId = decodeURIComponent(roleDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view role.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'roles:manage') && !hasPermission(authCtx, 'employees:manage')) {
+        return sendError(res, 403, 'Permission denied: Role or workforce management privileges required.');
+      }
+
+      const role = db.getAccessRoleById(targetRoleId, authCtx.companyId);
+      if (!role) {
+        return sendError(res, 404, `Access role '${targetRoleId}' not found in your organization.`);
+      }
+      return sendJson(res, 200, role);
+    }
+
+    if (roleDetailMatch && (method === 'PUT' || method === 'PATCH')) {
+      const targetRoleId = decodeURIComponent(roleDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to update access role.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'roles:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide role management privileges required.');
+      }
+
+      const existingRole = db.getAccessRoleById(targetRoleId, authCtx.companyId);
+      if (!existingRole) {
+        return sendError(res, 404, `Access role '${targetRoleId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { name, description, permissions } = body;
+      try {
+        const updated = db.updateAccessRole({
+          id: targetRoleId,
+          companyId: authCtx.companyId,
+          name,
+          description,
+          permissions
+        });
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Access role updated successfully.',
+          role: updated
+        });
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    if (roleDetailMatch && method === 'DELETE') {
+      const targetRoleId = decodeURIComponent(roleDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to delete access role.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'roles:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Company-wide role management privileges required.');
+      }
+
+      const existingRole = db.getAccessRoleById(targetRoleId, authCtx.companyId);
+      if (!existingRole) {
+        return sendError(res, 404, `Access role '${targetRoleId}' not found in your organization.`);
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      try {
+        const result = db.deleteAccessRole(targetRoleId, authCtx.companyId);
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendError(res, err.statusCode || 400, err.message);
+      }
+    }
+
+    // 2E. GET / POST /api/roles (Collection)
+    if (pathOnly === '/api/roles') {
+      if (method === 'GET') {
+        const authCtx = resolveSession(req);
+        if (!authCtx) {
+          return sendError(res, 401, 'Authentication required to view access roles.');
+        }
+        if (checkPasswordChangeRequired(authCtx, res)) return;
+        if (!hasPermission(authCtx, 'roles:manage') && !hasPermission(authCtx, 'employees:manage')) {
+          return sendError(res, 403, 'Permission denied: Role or workforce management privileges required.');
+        }
+
+        const roles = db.getAccessRoles(authCtx.companyId);
+        return sendJson(res, 200, roles);
+      }
+
+      if (method === 'POST') {
+        const authCtx = resolveSession(req);
+        if (!authCtx) {
+          return sendError(res, 401, 'Authentication required to create access role.');
+        }
+        if (checkPasswordChangeRequired(authCtx, res)) return;
+        if (!hasPermission(authCtx, 'roles:manage', 'COMPANY')) {
+          return sendError(res, 403, 'Permission denied: Company-wide role management privileges required.');
+        }
+
+        const body = await parseJsonBody(req);
+        if (!verifyCsrf(req, authCtx, body)) {
+          return sendError(res, 403, 'Invalid or missing CSRF token.');
+        }
+
+        const { id, name, description, permissions } = body;
+        try {
+          const created = db.createAccessRole({
+            id,
+            companyId: authCtx.companyId,
+            name,
+            description,
+            permissions
+          });
+          return sendJson(res, 201, {
+            success: true,
+            message: 'Access role created successfully.',
+            role: created
+          });
+        } catch (err) {
+          return sendError(res, err.statusCode || 400, err.message);
+        }
+      }
+    }
+
+    // =========================================================
+    // 3. TEAM HIERARCHY & ROSTER ENDPOINTS
+    // =========================================================
+
+    // 3A. GET /api/team/roster - Team Workforce Members (Scoped to Permission)
+    if (pathOnly === '/api/team/roster' && method === 'GET') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view team roster.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'employees:view')) {
+        return sendError(res, 403, 'Permission denied: Employee view privileges required.');
+      }
+
+      const permittedIds = getPermittedEmployeeIds(authCtx, 'employees:view');
+      let teamMembers = db.getAllEmployees(authCtx.companyId, false);
+      if (permittedIds !== null) {
+        teamMembers = teamMembers.filter(e => permittedIds.includes(e.id));
+      }
+      const enrichedMembers = teamMembers.map(m => {
+        const latest = db.getLatestEventForEmployee(m.id);
+        return {
+          ...m,
+          lastGate: latest ? latest.gate : null,
+          lastEventType: latest ? latest.eventType : null,
+          lastEventTime: latest ? latest.timestamp : null,
+          isDirectReport: Boolean(authCtx.user && m.managerId === authCtx.user.id)
+        };
+      });
+      return sendJson(res, 200, enrichedMembers);
+    }
+
+    // 3B. GET /api/team/attendance - Team Attendance Events (Scoped to Permission)
+    if (pathOnly === '/api/team/attendance' && method === 'GET') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view team attendance.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'attendance:view')) {
+        return sendError(res, 403, 'Permission denied: Attendance view privileges required.');
+      }
+
+      const permittedIds = getPermittedEmployeeIds(authCtx, 'attendance:view');
+      const allEvents = db.getAllAttendanceEvents(authCtx.companyId);
+      const filteredEvents = (permittedIds === null)
+        ? allEvents
+        : allEvents.filter(e => permittedIds.includes(e.empId || e.emp_id));
+
+      return sendJson(res, 200, filteredEvents);
+    }
+
+    // 3C. GET /api/team/analytics - Team Attendance & Analytics Metrics
+    if (pathOnly === '/api/team/analytics' && method === 'GET') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view team analytics.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'analytics:view')) {
+        return sendError(res, 403, 'Permission denied: Analytics view privileges required.');
+      }
+
+      const permittedIds = getPermittedEmployeeIds(authCtx, 'analytics:view');
+      const allEmps = db.getAllEmployees(authCtx.companyId, false);
+      const teamEmps = (permittedIds === null) ? allEmps : allEmps.filter(e => permittedIds.includes(e.id));
+
+      const allEvents = db.getAllAttendanceEvents(authCtx.companyId);
+      const teamEvents = (permittedIds === null)
+        ? allEvents
+        : allEvents.filter(e => permittedIds.includes(e.empId || e.emp_id));
+
+      const insideCount = teamEmps.filter(e => e.status === 'INSIDE').length;
+      const outsideCount = teamEmps.filter(e => e.status === 'OUTSIDE').length;
+      const totalMembers = teamEmps.length;
+      const occupancyRatePercent = totalMembers ? Math.round((insideCount / totalMembers) * 100) : 0;
+
+      const deptCounts = {};
+      for (const e of teamEmps) {
+        const d = e.department || 'Unassigned';
+        deptCounts[d] = (deptCounts[d] || 0) + 1;
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        teamSummary: {
+          totalMembers,
+          insideCount,
+          outsideCount,
+          occupancyRatePercent
+        },
+        departmentBreakdown: deptCounts,
+        members: teamEmps,
+        recentEvents: teamEvents.slice(0, 25)
+      });
+    }
+
+    // =========================================================
     // WORKFORCE OPERATIONAL ENDPOINTS (PROTECTED & SCOPED)
     // =========================================================
 
-    // 1. GET /api/employees - List employees (Scoped to authenticated company)
+    // 1. GET /api/employees - List employees (Scoped to authenticated company and permissions)
     if (pathOnly === '/api/employees' && method === 'GET') {
       const authCtx = resolveSession(req);
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to access workforce roster.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+
+      const canView = (authCtx.userType === 'COMPANY_HEAD' || authCtx.userType === 'COMPANY_ADMIN') ||
+                      hasPermission(authCtx, 'employees:view');
+      if (!canView) {
+        return sendError(res, 403, 'Permission denied: Insufficient privileges to view employees.');
       }
+
       let includeArchived = false;
       try {
         const urlObj = new URL(req.url, 'http://localhost');
@@ -603,7 +1468,12 @@ async function handleApiRequest(req, res, urlPath) {
           includeArchived = urlObj.searchParams.get('includeArchived') === 'true';
         }
       } catch (_) {}
-      const employees = db.getAllEmployees(authCtx.companyId, includeArchived);
+
+      const permittedIds = getPermittedEmployeeIds(authCtx, 'employees:view');
+      let employees = db.getAllEmployees(authCtx.companyId, includeArchived);
+      if (permittedIds !== null) {
+        employees = employees.filter(e => permittedIds.includes(e.id));
+      }
       return sendJson(res, 200, employees);
     }
 
@@ -613,8 +1483,12 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to register new workforce members.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+
+      const canManage = (authCtx.userType === 'COMPANY_HEAD' || authCtx.userType === 'COMPANY_ADMIN') ||
+                        hasPermission(authCtx, 'employees:manage', 'COMPANY');
+      if (!canManage) {
+        return sendError(res, 403, 'Permission denied: Company-wide workforce management privileges required.');
       }
 
       const body = await parseJsonBody(req);
@@ -622,7 +1496,7 @@ async function handleApiRequest(req, res, urlPath) {
         return sendError(res, 403, 'Invalid or missing CSRF token.');
       }
 
-      const { id, name, department, role, uid, avatarBg, email, phone } = body;
+      const { id, name, department, role, uid, avatarBg, email, phone, managerId, orgUnitId, jobTitleId, accessRoleId } = body;
 
       if (!name || typeof name !== 'string' || name.trim().length < 2) {
         return sendError(res, 400, 'Employee full name must be at least 2 characters long.');
@@ -632,6 +1506,11 @@ async function handleApiRequest(req, res, urlPath) {
       }
       if (!role || typeof role !== 'string' || role.trim().length < 2) {
         return sendError(res, 400, 'Job designation/role must be at least 2 characters long.');
+      }
+
+      // If accessRoleId is supplied and differs, verify caller has roles:manage (COMPANY)
+      if (accessRoleId && !hasPermission(authCtx, 'roles:manage', 'COMPANY')) {
+        return sendError(res, 403, 'Permission denied: Assigning access roles requires role management privileges.');
       }
 
       // Contact details validation (Employee Email and Phone Number)
@@ -719,7 +1598,11 @@ async function handleApiRequest(req, res, urlPath) {
           companyId: targetCompanyId,
           password: temporaryPassword,
           email: normEmail,
-          phone: normPhone
+          phone: normPhone,
+          managerId,
+          orgUnitId,
+          jobTitleId,
+          accessRoleId
         });
       } catch (creationErr) {
         const status = creationErr.statusCode || 400;
@@ -741,40 +1624,193 @@ async function handleApiRequest(req, res, urlPath) {
       });
     }
 
-    // 2B. GET /api/employees/:id - Retrieve Detailed Employee Profile
-    const empDetailMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)$/);
-    if (empDetailMatch && method === 'GET') {
-      const targetEmpId = decodeURIComponent(empDetailMatch[1]);
+    // =========================================================
+    // 2B. SPECIFIC EMPLOYEE SUB-RESOURCE ACTIONS (Evaluated before generic /:id)
+    // =========================================================
+
+    // 2B-0a. PUT /api/employees/:id/reporting - Reassign Manager, Unit, Role
+    const empReportingMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/reporting$/);
+    if (empReportingMatch && (method === 'PUT' || method === 'PATCH')) {
+      const targetEmpId = decodeURIComponent(empReportingMatch[1]);
       const authCtx = resolveSession(req);
       if (!authCtx) {
-        return sendError(res, 401, 'Authentication required to view employee details.');
+        return sendError(res, 401, 'Authentication required to modify employee reporting structure.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
-      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
 
       const emp = db.getEmployeeById(targetEmpId);
       if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
         return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
       }
 
-      const recentEvents = db.getAttendanceEventsForEmployee(emp.id, authCtx.companyId);
-      const latestEvent = db.getLatestEventForEmployee(emp.id);
+      if (!canAccessEmployee(authCtx, emp, 'employees:manage')) {
+        return sendError(res, 403, 'Permission denied: Insufficient scope to manage this employee.');
+      }
 
+      // Prevent employees from self-reassigning manager or access role
+      if (authCtx.userType === 'EMPLOYEE' && targetEmpId === authCtx.user.id) {
+        return sendError(res, 403, 'Permission denied: Employees cannot modify their own reporting structure or access role.');
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { managerId, orgUnitId, jobTitleId, accessRoleId } = body;
+
+      // Privilege Escalation Protection: changing accessRoleId requires roles:manage (COMPANY)
+      if (accessRoleId !== undefined && accessRoleId !== emp.accessRoleId) {
+        if (!hasPermission(authCtx, 'roles:manage', 'COMPANY')) {
+          return sendError(res, 403, 'Permission denied: Modifying employee access roles requires role management privileges.');
+        }
+      }
+
+      try {
+        const updated = db.assignEmployeeOrgAndReporting({
+          employeeId: targetEmpId,
+          companyId: authCtx.companyId,
+          managerId,
+          orgUnitId,
+          jobTitleId,
+          accessRoleId
+        });
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Reporting and organizational assignment updated successfully.',
+          employee: updated
+        });
+      } catch (assignErr) {
+        return sendError(res, assignErr.statusCode || 400, assignErr.message);
+      }
+    }
+
+    if (empReportingMatch && method === 'GET') {
+      const targetEmpId = decodeURIComponent(empReportingMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view reporting chain.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      if (!canAccessEmployee(authCtx, emp, 'employees:view')) {
+        return sendError(res, 403, 'Permission denied: Insufficient scope to view this employee.');
+      }
+
+      const chain = db.getReportingChain(targetEmpId, authCtx.companyId);
+      return sendJson(res, 200, chain);
+    }
+
+    // 2B-0b. GET /api/employees/:id/subordinates - Retrieve Direct or Recursive Subordinates
+    const empSubordinatesMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/subordinates$/);
+    if (empSubordinatesMatch && method === 'GET') {
+      const targetEmpId = decodeURIComponent(empSubordinatesMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view subordinates.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      if (!canAccessEmployee(authCtx, emp, 'employees:view')) {
+        return sendError(res, 403, 'Permission denied: Insufficient scope to view this employee.');
+      }
+
+      let mode = 'direct';
+      try {
+        const urlObj = new URL(req.url, 'http://localhost');
+        mode = (urlObj.searchParams.get('mode') || 'direct').toLowerCase();
+      } catch (_) {}
+
+      const subs = (mode === 'recursive' || mode === 'all')
+        ? db.getRecursiveSubordinates(targetEmpId, authCtx.companyId)
+        : db.getDirectReports(targetEmpId, authCtx.companyId);
+
+      return sendJson(res, 200, subs);
+    }
+
+    // 2B-1. POST /api/employees/:id/reset-temporary-password - Admin Reset Temporary Password
+    const empResetPwdMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/(?:reset-temporary-password|reset-password)$/);
+    if (empResetPwdMatch && method === 'POST') {
+      const targetEmpId = decodeURIComponent(empResetPwdMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to reset employee credentials.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      // Look up employee and enforce company isolation strictly from session
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      // Reject archived employees
+      if (emp.is_archived || emp.isArchived) {
+        return sendError(res, 400, 'Cannot reset password for an archived employee. Please restore the employee first.');
+      }
+
+      // Reject invalid account states if account exists
+      const existingAccount = db.getEmployeeAccountByEmpId(targetEmpId);
+      if (existingAccount && existingAccount.account_status !== 'ACTIVE') {
+        return sendError(res, 400, `Cannot reset password for an inactive employee account. Current status: ${existingAccount.account_status}. Please reactivate the employee first.`);
+      }
+
+      // Generate temporary password using the SmartWorkforce rule:
+      // First 4 alphabetic letters of name + last 4 numeric digits of phone
+      let temporaryPassword;
+      try {
+        temporaryPassword = auth.generateEmployeeTemporaryPassword(emp.name, emp.phone);
+      } catch (pwErr) {
+        return sendError(res, 400, `Cannot generate temporary password: ${pwErr.message}`);
+      }
+
+      // Generate fresh salt and scrypt hash
+      const salt = auth.generateSalt();
+      const hash = auth.hashPassword(temporaryPassword, salt);
+
+      // Store in database, set must_change_password = 1, and invalidate existing sessions
+      db.resetEmployeeTemporaryPassword({
+        employeeId: targetEmpId,
+        companyId: authCtx.companyId,
+        passwordHash: hash,
+        passwordSalt: salt
+      });
+
+      // Send single presentation of temporary password to administrator
       return sendJson(res, 200, {
-        ...emp,
-        latestEvent: latestEvent || null,
-        totalAttendanceRecords: recentEvents.length,
-        recentAttendance: recentEvents.slice(0, 10)
+        success: true,
+        message: 'Temporary password reset successfully.',
+        employeeId: emp.id,
+        employeeName: emp.name,
+        temporaryPassword: temporaryPassword,
+        mustChangePassword: true
       });
     }
 
-    // 2C. PUT / PATCH /api/employees/:id - Update Employee Record
-    if (empDetailMatch && (method === 'PUT' || method === 'PATCH')) {
-      const targetEmpId = decodeURIComponent(empDetailMatch[1]);
+    // 2B-2. POST / PUT / PATCH /api/employees/:id/status - Deactivate or Reactivate Account
+    const empStatusMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/status$/);
+    if (empStatusMatch && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      const targetEmpId = decodeURIComponent(empStatusMatch[1]);
       const authCtx = resolveSession(req);
       if (!authCtx) {
-        return sendError(res, 401, 'Authentication required to update employee record.');
+        return sendError(res, 401, 'Authentication required to modify account status.');
       }
       if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
         return sendError(res, 403, 'Permission denied: Administrator privileges required.');
@@ -790,7 +1826,119 @@ async function handleApiRequest(req, res, urlPath) {
         return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
       }
 
-      const { name, department, role, uid, email, phone } = body;
+      const targetStatus = (body.status || body.accountStatus || '').trim().toUpperCase();
+      if (!['ACTIVE', 'SUSPENDED'].includes(targetStatus)) {
+        return sendError(res, 400, "Invalid status. Allowed values: 'ACTIVE', 'SUSPENDED'.");
+      }
+
+      let result;
+      if (targetStatus === 'SUSPENDED') {
+        result = db.deactivateEmployee(targetEmpId, authCtx.companyId);
+      } else {
+        result = db.reactivateEmployee(targetEmpId, authCtx.companyId);
+      }
+
+      return sendJson(res, 200, result);
+    }
+
+    // 2B-3. POST /api/employees/:id/restore - Restore Archived Employee Record
+    const empRestoreMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/restore$/);
+    if (empRestoreMatch && method === 'POST') {
+      const targetEmpId = decodeURIComponent(empRestoreMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to restore employee.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+
+      const body = await parseJsonBody(req).catch(() => ({}));
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      const restoreResult = db.restoreArchivedEmployee(targetEmpId, authCtx.companyId);
+      return sendJson(res, 200, restoreResult);
+    }
+
+    // =========================================================
+    // 2C. GENERIC EMPLOYEE CRUD BY ID (/api/employees/:id)
+    // =========================================================
+    const empDetailMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)$/);
+
+    // 2C-1. GET /api/employees/:id - Retrieve Detailed Employee Profile
+    if (empDetailMatch && method === 'GET') {
+      const targetEmpId = decodeURIComponent(empDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to view employee details.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      if (!canAccessEmployee(authCtx, emp, 'employees:view')) {
+        return sendError(res, 403, 'Permission denied: Insufficient scope to view this employee.');
+      }
+
+      const recentEvents = db.getAttendanceEventsForEmployee(emp.id, authCtx.companyId);
+      const latestEvent = db.getLatestEventForEmployee(emp.id);
+      const reportingChain = db.getReportingChain(emp.id, authCtx.companyId);
+
+      return sendJson(res, 200, {
+        ...emp,
+        latestEvent: latestEvent || null,
+        totalAttendanceRecords: recentEvents.length,
+        recentAttendance: recentEvents.slice(0, 10),
+        reportingChain: reportingChain || []
+      });
+    }
+
+    // 2C-2. PUT / PATCH /api/employees/:id - Update Employee Record
+    if (empDetailMatch && (method === 'PUT' || method === 'PATCH')) {
+      const targetEmpId = decodeURIComponent(empDetailMatch[1]);
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to update employee record.');
+      }
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+
+      const emp = db.getEmployeeById(targetEmpId);
+      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
+        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
+      }
+
+      if (!canAccessEmployee(authCtx, emp, 'employees:manage')) {
+        return sendError(res, 403, 'Permission denied: Insufficient scope to update this employee.');
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { name, department, role, uid, email, phone, managerId, orgUnitId, jobTitleId, accessRoleId } = body;
+
+      // Prevent employees from self-reassigning manager or access role
+      if (authCtx.userType === 'EMPLOYEE' && targetEmpId === authCtx.user.id && (managerId !== undefined || accessRoleId !== undefined)) {
+        return sendError(res, 403, 'Permission denied: Employees cannot modify their own reporting structure or access role.');
+      }
+
+      // Check role assignment permission if accessRoleId changed
+      if (accessRoleId !== undefined && accessRoleId !== emp.accessRoleId) {
+        if (!hasPermission(authCtx, 'roles:manage', 'COMPANY')) {
+          return sendError(res, 403, 'Permission denied: Modifying employee access roles requires role management privileges.');
+        }
+      }
 
       if (name !== undefined && (typeof name !== 'string' || name.trim().length < 2)) {
         return sendError(res, 400, 'Employee full name must be at least 2 characters long.');
@@ -860,7 +2008,11 @@ async function handleApiRequest(req, res, urlPath) {
           uid: normUid,
           email: normEmail,
           phone: normPhone,
-          companyId: authCtx.companyId
+          companyId: authCtx.companyId,
+          managerId,
+          orgUnitId,
+          jobTitleId,
+          accessRoleId
         });
 
         return sendJson(res, 200, {
@@ -873,52 +2025,19 @@ async function handleApiRequest(req, res, urlPath) {
       }
     }
 
-    // 2D. POST / PUT / PATCH /api/employees/:id/status - Deactivate or Reactivate Account
-    const empStatusMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/status$/);
-    if (empStatusMatch && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      const targetEmpId = decodeURIComponent(empStatusMatch[1]);
-      const authCtx = resolveSession(req);
-      if (!authCtx) {
-        return sendError(res, 401, 'Authentication required to modify account status.');
-      }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
-      }
-
-      const body = await parseJsonBody(req);
-      if (!verifyCsrf(req, authCtx, body)) {
-        return sendError(res, 403, 'Invalid or missing CSRF token.');
-      }
-
-      const emp = db.getEmployeeById(targetEmpId);
-      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
-        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
-      }
-
-      const targetStatus = (body.status || body.accountStatus || '').trim().toUpperCase();
-      if (!['ACTIVE', 'SUSPENDED'].includes(targetStatus)) {
-        return sendError(res, 400, "Invalid status. Allowed values: 'ACTIVE', 'SUSPENDED'.");
-      }
-
-      let result;
-      if (targetStatus === 'SUSPENDED') {
-        result = db.deactivateEmployee(targetEmpId, authCtx.companyId);
-      } else {
-        result = db.reactivateEmployee(targetEmpId, authCtx.companyId);
-      }
-
-      return sendJson(res, 200, result);
-    }
-
-    // 2E. DELETE /api/employees/:id - Safe Archive & Soft Delete Employee Record
+    // 2C-3. DELETE /api/employees/:id - Safe Archive & Soft Delete Employee Record
     if (empDetailMatch && method === 'DELETE') {
       const targetEmpId = decodeURIComponent(empDetailMatch[1]);
       const authCtx = resolveSession(req);
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to delete employee.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+
+      const canDelete = (authCtx.userType === 'COMPANY_HEAD' || authCtx.userType === 'COMPANY_ADMIN') ||
+                        hasPermission(authCtx, 'employees:manage', 'COMPANY');
+      if (!canDelete) {
+        return sendError(res, 403, 'Permission denied: Company-wide workforce management privileges required.');
       }
 
       const body = await parseJsonBody(req).catch(() => ({}));
@@ -937,44 +2056,28 @@ async function handleApiRequest(req, res, urlPath) {
       // Safe soft-delete / archiving preserves audit records and attendance history intact.
       const archiveResult = db.deleteOrArchiveEmployee(targetEmpId, authCtx.companyId);
       return sendJson(res, 200, archiveResult);
+
     }
 
-    // 2F. POST /api/employees/:id/restore - Restore Archived Employee Record
-    const empRestoreMatch = pathOnly.match(/^\/api\/employees\/([^\/]+)\/restore$/);
-    if (empRestoreMatch && method === 'POST') {
-      const targetEmpId = decodeURIComponent(empRestoreMatch[1]);
-      const authCtx = resolveSession(req);
-      if (!authCtx) {
-        return sendError(res, 401, 'Authentication required to restore employee.');
-      }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
-      }
-
-      const body = await parseJsonBody(req).catch(() => ({}));
-      if (!verifyCsrf(req, authCtx, body)) {
-        return sendError(res, 403, 'Invalid or missing CSRF token.');
-      }
-
-      const emp = db.getEmployeeById(targetEmpId);
-      if (!emp || (emp.companyId && emp.companyId !== authCtx.companyId)) {
-        return sendError(res, 404, `Employee with ID '${targetEmpId}' not found in your organization.`);
-      }
-
-      const restoreResult = db.restoreArchivedEmployee(targetEmpId, authCtx.companyId);
-      return sendJson(res, 200, restoreResult);
-    }
-
-    // 3. GET /api/attendance/logs - Retrieve attendance event logs (Scoped to company)
+    // 3. GET /api/attendance/logs - Retrieve attendance event logs (Scoped to company and permissions)
     if (pathOnly === '/api/attendance/logs' && method === 'GET') {
       const authCtx = resolveSession(req);
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to access attendance logs.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+
+      const canView = (authCtx.userType === 'COMPANY_HEAD' || authCtx.userType === 'COMPANY_ADMIN') ||
+                      hasPermission(authCtx, 'attendance:view');
+      if (!canView) {
+        return sendError(res, 403, 'Permission denied: Attendance view privileges required.');
       }
-      const logs = db.getAllAttendanceEvents(authCtx.companyId);
+
+      const permittedIds = getPermittedEmployeeIds(authCtx, 'attendance:view');
+      let logs = db.getAllAttendanceEvents(authCtx.companyId);
+      if (permittedIds !== null) {
+        logs = logs.filter(evt => permittedIds.includes(evt.empId || evt.emp_id));
+      }
       return sendJson(res, 200, logs);
     }
 
@@ -1107,8 +2210,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'analytics:view')) {
+        return sendError(res, 403, 'Permission denied: Analytics view privileges required.');
       }
       const overview = analytics.getAnalyticsOverview(authCtx.companyId);
       return sendJson(res, 200, overview);
@@ -1120,8 +2224,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'analytics:view')) {
+        return sendError(res, 403, 'Permission denied: Analytics view privileges required.');
       }
       const deptData = analytics.getDepartmentAnalytics(authCtx.companyId);
       return sendJson(res, 200, deptData);
@@ -1133,8 +2238,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'analytics:view')) {
+        return sendError(res, 403, 'Permission denied: Analytics view privileges required.');
       }
       const punctualityData = analytics.getPunctualityAndOvertime(authCtx.companyId);
       return sendJson(res, 200, punctualityData);
@@ -1146,8 +2252,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'analytics:view')) {
+        return sendError(res, 403, 'Permission denied: Analytics view privileges required.');
       }
       const risks = analytics.getAbsenteeismRiskIndicators(authCtx.companyId);
       return sendJson(res, 200, risks);
@@ -1159,8 +2266,9 @@ async function handleApiRequest(req, res, urlPath) {
       if (!authCtx) {
         return sendError(res, 401, 'Authentication required to view analytics.');
       }
-      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
-        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      if (checkPasswordChangeRequired(authCtx, res)) return;
+      if (!hasPermission(authCtx, 'analytics:view')) {
+        return sendError(res, 403, 'Permission denied: Analytics view privileges required.');
       }
       const anomalies = analytics.getAttendanceAnomalies(authCtx.companyId);
       return sendJson(res, 200, anomalies);
@@ -1390,4 +2498,15 @@ if (require.main === module) {
   startServer(port);
 }
 
-module.exports = { startServer, handleApiRequest, port, resolveSession, verifyCsrf };
+module.exports = {
+  startServer,
+  handleApiRequest,
+  port,
+  resolveSession,
+  verifyCsrf,
+  getAuthEffectivePermissions,
+  hasPermission,
+  canAccessEmployee,
+  getPermittedEmployeeIds,
+  checkPasswordChangeRequired
+};

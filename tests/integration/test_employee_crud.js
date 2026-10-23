@@ -1,5 +1,5 @@
 /**
- * tests/test_employee_crud.js
+ * tests/integration/test_employee_crud.js
  * Isolated Test Suite for Workforce Management:
  * Employee Edit, Deactivation, Reactivation, and Safe Deletion/Archiving.
  * 
@@ -42,7 +42,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-const tempDbPath = path.resolve(__dirname, 'isolated_crud_test.db');
+const tempDbPath = path.resolve(__dirname, '..', 'isolated_crud_test.db');
 if (fs.existsSync(tempDbPath)) {
   try { fs.unlinkSync(tempDbPath); } catch (_) {}
   try { fs.unlinkSync(`${tempDbPath}-wal`); } catch (_) {}
@@ -52,9 +52,9 @@ if (fs.existsSync(tempDbPath)) {
 // Point to isolated database
 process.env.DB_PATH = tempDbPath;
 
-const db = require('../database/database.js');
-const { startServer } = require('../backend/server.js');
-const auth = require('../backend/auth.js');
+const db = require('../../database/database.js');
+const { startServer } = require('../../backend/server.js');
+const auth = require('../../backend/auth.js');
 
 const BOLD = '\x1b[1m';
 const GREEN = '\x1b[32m';

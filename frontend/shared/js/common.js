@@ -207,27 +207,28 @@
     setInterval(tick, 1000);
   }
 
-  function initThemeToggle(buttonId) {
-    const toggleBtn = document.getElementById(buttonId);
-    const savedTheme = localStorage.getItem('sw_theme') || 'dark';
+  function initThemeToggle(buttonId = 'themeToggle', defaultTheme = 'dark') {
+    const savedTheme = localStorage.getItem('sw_theme') || defaultTheme;
 
     function applyTheme(theme) {
       document.body.setAttribute('data-theme', theme);
       localStorage.setItem('sw_theme', theme);
-      if (toggleBtn) {
-        toggleBtn.textContent = theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
-        toggleBtn.setAttribute('title', `Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`);
-      }
+      const buttons = document.querySelectorAll('#themeToggle, #sidebarThemeToggle');
+      buttons.forEach(btn => {
+        btn.textContent = theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
+        btn.setAttribute('title', `Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`);
+      });
     }
 
     applyTheme(savedTheme);
 
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        const current = document.body.getAttribute('data-theme') || 'dark';
+    const buttons = document.querySelectorAll('#themeToggle, #sidebarThemeToggle');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const current = document.body.getAttribute('data-theme') || defaultTheme;
         applyTheme(current === 'light' ? 'dark' : 'light');
       });
-    }
+    });
   }
 
   // -------------------------------------------------------------
@@ -264,6 +265,10 @@
 
     async getEmployees() {
       return this.request('GET', '/api/employees');
+    },
+
+    async getEmployee(id) {
+      return this.request('GET', `/api/employees/${encodeURIComponent(id)}`);
     },
 
     async createEmployee(employeeData) {
@@ -328,6 +333,109 @@
 
     async logout() {
       return this.request('POST', '/api/auth/logout');
+    },
+
+    // -----------------------------------------------------------
+    // Phase 4: Organization, Hierarchy, Roles & Team REST APIs
+    // -----------------------------------------------------------
+    async getOrgTree() {
+      return this.request('GET', '/api/org/tree');
+    },
+
+    async getOrgUnits(hierarchy = false) {
+      return this.request('GET', `/api/org/units${hierarchy ? '?hierarchy=true' : ''}`);
+    },
+
+    async createOrgUnit(unitData) {
+      return this.request('POST', '/api/org/units', unitData);
+    },
+
+    async updateOrgUnit(id, unitData) {
+      return this.request('PUT', `/api/org/units/${encodeURIComponent(id)}`, unitData);
+    },
+
+    async deleteOrgUnit(id) {
+      return this.request('DELETE', `/api/org/units/${encodeURIComponent(id)}`);
+    },
+
+    async getOrgLevels() {
+      return this.request('GET', '/api/org/levels');
+    },
+
+    async createOrgLevel(levelData) {
+      return this.request('POST', '/api/org/levels', levelData);
+    },
+
+    async updateOrgLevel(id, levelData) {
+      return this.request('PUT', `/api/org/levels/${encodeURIComponent(id)}`, levelData);
+    },
+
+    async deleteOrgLevel(id) {
+      return this.request('DELETE', `/api/org/levels/${encodeURIComponent(id)}`);
+    },
+
+    async getJobTitles() {
+      return this.request('GET', '/api/org/job-titles');
+    },
+
+    async createJobTitle(titleData) {
+      return this.request('POST', '/api/org/job-titles', titleData);
+    },
+
+    async updateJobTitle(id, titleData) {
+      return this.request('PUT', `/api/org/job-titles/${encodeURIComponent(id)}`, titleData);
+    },
+
+    async deleteJobTitle(id) {
+      return this.request('DELETE', `/api/org/job-titles/${encodeURIComponent(id)}`);
+    },
+
+    async getRoles() {
+      return this.request('GET', '/api/roles');
+    },
+
+    async createRole(roleData) {
+      return this.request('POST', '/api/roles', roleData);
+    },
+
+    async updateRole(id, roleData) {
+      return this.request('PUT', `/api/roles/${encodeURIComponent(id)}`, roleData);
+    },
+
+    async deleteRole(id) {
+      return this.request('DELETE', `/api/roles/${encodeURIComponent(id)}`);
+    },
+
+    async getRolePermissions(id) {
+      return this.request('GET', `/api/roles/${encodeURIComponent(id)}/permissions`);
+    },
+
+    async updateRolePermissions(id, permissions) {
+      return this.request('PUT', `/api/roles/${encodeURIComponent(id)}/permissions`, { permissions });
+    },
+
+    async updateEmployeeReporting(id, reportingData) {
+      return this.request('PUT', `/api/employees/${encodeURIComponent(id)}/reporting`, reportingData);
+    },
+
+    async getEmployeeReporting(id) {
+      return this.request('GET', `/api/employees/${encodeURIComponent(id)}/reporting`);
+    },
+
+    async getEmployeeSubordinates(id, mode = 'direct') {
+      return this.request('GET', `/api/employees/${encodeURIComponent(id)}/subordinates?mode=${encodeURIComponent(mode)}`);
+    },
+
+    async getTeamRoster() {
+      return this.request('GET', '/api/team/roster');
+    },
+
+    async getTeamAttendance() {
+      return this.request('GET', '/api/team/attendance');
+    },
+
+    async getTeamAnalytics() {
+      return this.request('GET', '/api/team/analytics');
     }
   };
 

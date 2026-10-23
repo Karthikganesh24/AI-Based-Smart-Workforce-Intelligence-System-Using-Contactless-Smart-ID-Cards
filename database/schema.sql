@@ -48,12 +48,20 @@ CREATE TABLE IF NOT EXISTS employees (
   email TEXT,
   phone TEXT,
   is_archived INTEGER NOT NULL DEFAULT 0,
-  archived_at TEXT
+  archived_at TEXT,
+  manager_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
+  org_unit_id TEXT REFERENCES org_units(id) ON DELETE SET NULL,
+  job_title_id TEXT REFERENCES company_job_titles(id) ON DELETE SET NULL,
+  access_role_id TEXT REFERENCES company_access_roles(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_employees_company_id ON employees(company_id);
 CREATE INDEX IF NOT EXISTS idx_employees_uid ON employees(uid);
 CREATE INDEX IF NOT EXISTS idx_employees_is_archived ON employees(is_archived);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_company_email ON employees(company_id, email) WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_employees_manager_id ON employees(manager_id);
+CREATE INDEX IF NOT EXISTS idx_employees_org_unit_id ON employees(org_unit_id);
+CREATE INDEX IF NOT EXISTS idx_employees_job_title_id ON employees(job_title_id);
+CREATE INDEX IF NOT EXISTS idx_employees_access_role_id ON employees(access_role_id);
 
 -- 4. Employee Accounts Table (Dedicated Employee Authentication Credentials)
 CREATE TABLE IF NOT EXISTS employee_accounts (
@@ -107,3 +115,92 @@ CREATE TABLE IF NOT EXISTS attendance_events (
 CREATE INDEX IF NOT EXISTS idx_events_emp_id ON attendance_events(emp_id);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON attendance_events(timestamp);
 CREATE INDEX IF NOT EXISTS idx_attendance_events_company_id ON attendance_events(company_id);
+
+-- 7. Organizational Hierarchy Levels (Configurable Tiers / Ranks per Company)
+CREATE TABLE IF NOT EXISTS org_levels (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  UNIQUE (company_id, rank),
+  UNIQUE (company_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_org_levels_company ON org_levels(company_id);
+CREATE INDEX IF NOT EXISTS idx_org_levels_rank ON org_levels(company_id, rank);
+
+-- 8. Organizational Units (Departments, Divisions, Teams, Plants per Company)
+CREATE TABLE IF NOT EXISTS org_units (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  unit_type TEXT NOT NULL DEFAULT 'DEPARTMENT',
+  parent_unit_id TEXT,
+  level_id TEXT,
+  manager_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_unit_id) REFERENCES org_units(id) ON DELETE SET NULL,
+  FOREIGN KEY (level_id) REFERENCES org_levels(id) ON DELETE SET NULL,
+  FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_org_units_company ON org_units(company_id);
+CREATE INDEX IF NOT EXISTS idx_org_units_parent ON org_units(parent_unit_id);
+CREATE INDEX IF NOT EXISTS idx_org_units_level ON org_units(level_id);
+CREATE INDEX IF NOT EXISTS idx_org_units_manager ON org_units(manager_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_org_units_root_name ON org_units(company_id, name) WHERE parent_unit_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_org_units_child_name ON org_units(company_id, parent_unit_id, name) WHERE parent_unit_id IS NOT NULL;
+
+-- 9. Company Job Titles (Dynamic HR Designations decoupled from Access Permissions)
+CREATE TABLE IF NOT EXISTS company_job_titles (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  UNIQUE (company_id, title)
+);
+CREATE INDEX IF NOT EXISTS idx_company_job_titles_company ON company_job_titles(company_id);
+CREATE INDEX IF NOT EXISTS idx_company_job_titles_active ON company_job_titles(company_id, is_active);
+
+-- 10. Company Access Roles (Configurable Security & Authorization Roles)
+CREATE TABLE IF NOT EXISTS company_access_roles (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  is_system_role INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  UNIQUE (company_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_company_access_roles_company ON company_access_roles(company_id);
+
+-- 11. Company Role Permissions (Granular Permission Grants with Scopes)
+CREATE TABLE IF NOT EXISTS company_role_permissions (
+  id TEXT PRIMARY KEY,
+  role_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  permission_key TEXT NOT NULL,
+  scope TEXT NOT NULL DEFAULT 'COMPANY' CHECK(scope IN ('SELF', 'DIRECT_REPORTS', 'DESCENDANTS', 'DEPARTMENT', 'COMPANY')),
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (role_id) REFERENCES company_access_roles(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+  UNIQUE (role_id, permission_key)
+);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON company_role_permissions(role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_company ON company_role_permissions(company_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_key ON company_role_permissions(permission_key);
+
+-- 12. Schema Migrations Ledger
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version TEXT PRIMARY KEY,
+  applied_at TEXT NOT NULL
+);

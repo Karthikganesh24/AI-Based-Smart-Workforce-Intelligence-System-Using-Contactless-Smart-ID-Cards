@@ -94,6 +94,33 @@
           </svg>
           <span class="nav-text">Analytics & Stats</span>
         </button>
+
+        <div class="nav-section-label" style="margin-top: 14px;">ORGANIZATION & ACCESS</div>
+
+        <button class="nav-item" data-view="view-org-tree" id="navItemOrgTree">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="3" width="6" height="4" rx="1"></rect>
+            <rect x="3" y="17" width="6" height="4" rx="1"></rect>
+            <rect x="15" y="17" width="6" height="4" rx="1"></rect>
+            <path d="M12 7v5m0 0H6v5m6-5h6v5"></path>
+          </svg>
+          <span class="nav-text">Organization Tree</span>
+        </button>
+
+        <button class="nav-item" data-view="view-job-titles" id="navItemJobTitles">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          <span class="nav-text">Job Titles</span>
+        </button>
+
+        <button class="nav-item" data-view="view-roles-perms" id="navItemRolesPerms">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span class="nav-text">Roles & Permissions</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -962,80 +989,120 @@
         <!-- ====================================================
              VIEW 4: WORKFORCE DIRECTORY & EMPLOYEE MANAGEMENT
              ==================================================== -->
+        <!-- ====================================================
+             VIEW 4: WORKFORCE DIRECTORY & EMPLOYEE MANAGEMENT
+             ==================================================== -->
         <section class="view-panel" id="view-employees">
-          <div class="table-container">
-            <div class="table-toolbar">
-              <div>
-                <h3 class="section-title">Registered Workforce Directory</h3>
+          <div class="table-container workforce-directory-card">
+            <!-- Directory Header Row: Title, Subtitle, Live Headcount Badge, and Primary Action -->
+            <div class="directory-header-row">
+              <div class="directory-header-info">
+                <div class="directory-title-wrap">
+                  <h3 class="section-title">Registered Workforce Directory</h3>
+                  <span class="directory-count-badge" id="empDirectoryCount">-- Members</span>
+                </div>
                 <p class="section-subtitle">
-                  Employee badge records, assigned smart card UIDs, department rosters, and quick tap simulation
+                  Employee badge records, assigned smart card UIDs, department rosters, and live gate telemetry
                 </p>
               </div>
 
-              <div class="table-filter-group">
-                <!-- Search Employee -->
-                <div class="search-box-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                  </svg>
-                  <input type="text" id="inputSearchEmployees" class="text-input" placeholder="Search by name, ID, role, UID...">
-                </div>
-
-                <!-- Filter Department -->
-                <select id="filterEmpDept" class="select-input" style="width: auto; min-width: 150px;">
-                  <option value="ALL">All Departments</option>
-                  <option value="Production">Production</option>
-                  <option value="IT">IT & Software</option>
-                  <option value="Quality">Quality</option>
-                  <option value="Maintenance">Maintenance</option>
-                </select>
-
-                <!-- Filter Status -->
-                <select id="filterEmpStatus" class="select-input" style="width: auto; min-width: 130px;">
-                  <option value="ALL">All Presence</option>
-                  <option value="INSIDE">Currently Inside</option>
-                  <option value="OUTSIDE">Currently Outside</option>
-                </select>
-
-                <!-- Filter Account Status -->
-                <select id="filterEmpAccountStatus" class="select-input" style="width: auto; min-width: 140px;">
-                  <option value="ALL">All Account Status</option>
-                  <option value="ACTIVE">Active Accounts</option>
-                  <option value="SUSPENDED">Suspended Accounts</option>
-                  <option value="ARCHIVED">Archived Records</option>
-                </select>
-
-                <!-- Add Employee Button -->
-                <button class="btn-action-primary" id="btnOpenAddEmployeeModal" style="margin-top: 0; width: auto; padding: 10px 16px;">
+              <div class="directory-header-actions">
+                <button class="btn-action-primary btn-add-emp" id="btnOpenAddEmployeeModal">
                   <svg style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.5;" viewBox="0 0 24 24">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
-                  Add Employee
+                  <span>Add Employee</span>
                 </button>
               </div>
             </div>
 
-            <div class="table-responsive">
-              <table class="data-table">
+            <!-- Directory Filter Bar: Search, Department, Presence, Account Status -->
+            <div class="directory-filter-bar">
+              <!-- Search Employee -->
+              <div class="search-box-wrap directory-search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="inputSearchEmployees" class="text-input" placeholder="Search by name, ID, role, UID, email, phone...">
+              </div>
+
+              <div class="directory-filters-cluster">
+                <!-- Filter Department -->
+                <div class="filter-select-wrap">
+                  <select id="filterEmpDept" class="select-input">
+                    <option value="ALL">All Departments</option>
+                    <option value="Production">Production</option>
+                    <option value="IT">IT & Software</option>
+                    <option value="Quality">Quality</option>
+                    <option value="Maintenance">Maintenance</option>
+                  </select>
+                </div>
+
+                <!-- Filter Status -->
+                <div class="filter-select-wrap">
+                  <select id="filterEmpStatus" class="select-input">
+                    <option value="ALL">All Presence</option>
+                    <option value="INSIDE">Currently Inside</option>
+                    <option value="OUTSIDE">Currently Outside</option>
+                  </select>
+                </div>
+
+                <!-- Filter Account Status -->
+                <div class="filter-select-wrap">
+                  <select id="filterEmpAccountStatus" class="select-input">
+                    <option value="ALL">All Account Status</option>
+                    <option value="ACTIVE">Active Accounts</option>
+                    <option value="SUSPENDED">Suspended Accounts</option>
+                    <option value="ARCHIVED">Archived Records</option>
+                  </select>
+                </div>
+
+                <!-- Reset Filter Button -->
+                <button type="button" class="btn-reset-filters" id="btnResetEmpFilters" title="Reset all filters">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <polyline points="3 3 3 8 8 8"></polyline>
+                  </svg>
+                  <span>Reset</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Workforce Responsive Table Container -->
+            <div class="table-responsive workforce-table-responsive">
+              <table class="data-table workforce-table" id="workforceTable">
                 <thead>
                   <tr>
-                    <th>Employee ID</th>
-                    <th>Employee Name</th>
-                    <th>Department</th>
-                    <th>Designation</th>
-                    <th>Smart Card UID</th>
-                    <th>Account Status</th>
-                    <th>Presence</th>
-                    <th>Last Detection</th>
-                    <th style="text-align: right; min-width: 200px;">Actions</th>
+                    <th class="col-emp-id">Employee ID</th>
+                    <th class="col-emp-name">Employee Name</th>
+                    <th class="col-emp-dept">Department</th>
+                    <th class="col-emp-role">Designation</th>
+                    <th class="col-emp-uid">Smart Card UID</th>
+                    <th class="col-emp-acc">Account Status</th>
+                    <th class="col-emp-presence">Presence</th>
+                    <th class="col-emp-seen">Last Detection</th>
+                    <th class="col-emp-actions" style="text-align: right;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="employeeTableBody">
                   <!-- Rendered via JavaScript -->
                 </tbody>
               </table>
+            </div>
+
+            <!-- Workforce Table Footer -->
+            <div class="table-footer-bar" id="workforceTableFooter">
+              <div class="footer-count-text" id="workforceFooterSummary">
+                <!-- Dynamically rendered -->
+              </div>
+              <div class="footer-legend">
+                <span class="legend-item"><span class="legend-dot active"></span> Active</span>
+                <span class="legend-item"><span class="legend-dot suspended"></span> Suspended</span>
+                <span class="legend-item"><span class="legend-dot inside"></span> Inside Facility</span>
+                <span class="legend-item"><span class="legend-dot outside"></span> Outside</span>
+              </div>
             </div>
           </div>
         </section>
@@ -1308,6 +1375,175 @@
           </div>
         </section>
 
+        <!-- ====================================================
+             VIEW 7: ORGANIZATION TREE & HIERARCHY
+             ==================================================== -->
+        <section class="view-panel" id="view-org-tree">
+          <div class="tree-toolbar">
+            <div class="tree-toolbar-left">
+              <div class="tree-stat-pill">
+                <span>Units:</span> <strong id="statOrgUnitCount">0</strong>
+              </div>
+              <div class="tree-stat-pill">
+                <span>Levels:</span> <strong id="statOrgLevelCount">0</strong>
+              </div>
+              <div class="tree-stat-pill">
+                <span>Covered Employees:</span> <strong id="statOrgEmpCoverage">0</strong>
+              </div>
+              <div class="search-input-wrap" style="position: relative; margin-left: 8px;">
+                <input type="text" id="inputSearchOrgTree" class="text-input" placeholder="Search units or managers..." style="padding: 7px 12px 7px 32px; font-size: 0.8rem; width: 220px; border-radius: 20px;">
+                <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); pointer-events: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </div>
+            </div>
+
+            <div class="tree-toolbar-right">
+              <button class="btn-action-secondary" id="btnToggleAllTreeNodes" style="font-size: 0.78rem; padding: 7px 12px; margin-top: 0; width: auto;">
+                Expand All
+              </button>
+              <button class="btn-action-secondary" id="btnOpenManageLevelsModal" style="font-size: 0.78rem; padding: 7px 12px; margin-top: 0; width: auto;">
+                ⚙ Hierarchy Levels
+              </button>
+              <button class="btn-action-secondary" id="btnOpenReassignReportingModal" style="font-size: 0.78rem; padding: 7px 12px; margin-top: 0; width: auto;">
+                🔄 Reassign Reporting
+              </button>
+              <button class="btn-action-primary" id="btnOpenAddOrgUnitModal" style="font-size: 0.78rem; padding: 7px 14px; margin-top: 0; width: auto;">
+                + Create Unit
+              </button>
+            </div>
+          </div>
+
+          <div class="org-tree-wrapper" id="orgTreeWrapper">
+            <div id="orgTreeLoading" style="display: none; padding: 40px; text-align: center; color: var(--text-muted);">
+              <div class="spinner-sm" style="margin: 0 auto 12px;"></div>
+              <span>Loading organizational hierarchy...</span>
+            </div>
+            <div id="orgTreeEmpty" class="empty-state-box" style="display: none;">
+              <div class="empty-state-icon">🏢</div>
+              <div class="empty-state-title">No Organizational Units Found</div>
+              <div class="empty-state-text">Your organization has not created any divisions, departments, or units yet. Structure your organization to assign reporting hierarchies.</div>
+              <button class="btn-action-primary" id="btnEmptyCreateUnit" style="width: auto;">+ Create First Unit</button>
+            </div>
+            <ul class="org-tree-root" id="orgTreeRoot">
+              <!-- Rendered dynamically -->
+            </ul>
+          </div>
+        </section>
+
+        <!-- ====================================================
+             VIEW 8: JOB TITLE MANAGEMENT
+             ==================================================== -->
+        <section class="view-panel" id="view-job-titles">
+          <div class="job-titles-toolbar">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span class="tree-stat-pill">Total Titles: <strong id="statJobTitlesCount">0</strong></span>
+              <div class="search-input-wrap" style="position: relative;">
+                <input type="text" id="inputSearchJobTitles" class="text-input" placeholder="Search designations..." style="padding: 7px 12px 7px 32px; font-size: 0.8rem; width: 220px; border-radius: 20px;">
+                <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); pointer-events: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </div>
+            </div>
+            <div>
+              <button class="btn-action-primary" id="btnOpenAddJobTitleModal" style="font-size: 0.78rem; padding: 7px 14px; margin-top: 0; width: auto;">
+                + Add Job Title
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive" style="background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-lg); box-shadow: var(--shadow-card);">
+            <table class="data-table" id="tableJobTitles">
+              <thead>
+                <tr>
+                  <th style="width: 250px;">Job Title / Designation</th>
+                  <th>Description</th>
+                  <th style="width: 140px; text-align: center;">Assigned Staff</th>
+                  <th style="width: 120px; text-align: center;">Status</th>
+                  <th style="width: 140px; text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tableJobTitlesBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+            <div id="jobTitlesEmptyState" class="empty-state-box" style="display: none; border: none; margin: 0;">
+              <div class="empty-state-icon">💼</div>
+              <div class="empty-state-title">No Custom Job Titles Defined</div>
+              <div class="empty-state-text">Create standardized designations and corporate job titles to classify your workforce members.</div>
+              <button class="btn-action-primary" id="btnEmptyCreateJobTitle" style="width: auto;">+ Add First Job Title</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================
+             VIEW 9: ROLES & ACCESS PERMISSIONS
+             ==================================================== -->
+        <section class="view-panel" id="view-roles-perms">
+          <div class="roles-perms-container">
+            <!-- Left: Roles List Sidebar -->
+            <div class="roles-sidebar-panel">
+              <div class="roles-sidebar-header">
+                <div>
+                  <h3 style="font-size: 0.96rem; font-weight: 700; color: var(--text-main); margin: 0;">Company Roles</h3>
+                  <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;">Select role to view & configure permissions</p>
+                </div>
+                <button class="btn-action-primary" id="btnOpenAddRoleModal" style="font-size: 0.74rem; padding: 5px 10px; margin-top: 0; width: auto;">
+                  + Add Role
+                </button>
+              </div>
+
+              <div class="roles-list" id="rolesListContainer">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Right: Permission & Scope Matrix -->
+            <div class="perms-matrix-panel" id="permsMatrixPanel">
+              <div class="perms-matrix-header">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <h2 id="activeRoleTitle" style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin: 0;">Role Permissions</h2>
+                    <span id="activeRoleBadge"></span>
+                  </div>
+                  <p id="activeRoleDesc" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Select a role from the left to view assigned permissions.</p>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                  <button class="btn-action-secondary" id="btnDeleteActiveRole" style="font-size: 0.78rem; padding: 7px 12px; margin-top: 0; width: auto; color: #EF4444; border-color: rgba(239, 68, 68, 0.3); display: none;">
+                    🗑 Delete Role
+                  </button>
+                  <button class="btn-action-primary" id="btnSaveRolePermissions" style="font-size: 0.78rem; padding: 7px 16px; margin-top: 0; width: auto;">
+                    Save Permissions
+                  </button>
+                </div>
+              </div>
+
+              <div id="systemRoleNotice" style="display: none; padding: 10px 14px; background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: var(--radius-sm); color: #0284C7; font-size: 0.78rem; margin-bottom: 14px;">
+                🔒 <strong>System Protected Role:</strong> This core role cannot be renamed or deleted, but you can adjust permissions and scopes.
+              </div>
+
+              <div class="perms-matrix-table-wrap">
+                <table class="perms-table" id="tablePermsMatrix">
+                  <thead>
+                    <tr>
+                      <th style="width: 50px; text-align: center;">Active</th>
+                      <th style="width: 200px;">Permission Key</th>
+                      <th>Operation Scope & Description</th>
+                      <th style="width: 220px;">Resource Boundary Scope</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablePermsMatrixBody">
+                    <!-- Rendered dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       <!-- Project Presentation Info Footer -->
@@ -1378,6 +1614,35 @@
           <div class="control-group">
             <label class="control-label" for="newEmpRole">Designation / Role *</label>
             <input type="text" id="newEmpRole" class="text-input" placeholder="e.g. PLC Programmer" required autocomplete="off">
+          </div>
+
+          <!-- Phase 4: Organization, Reporting & Role Controls -->
+          <div class="control-group">
+            <label class="control-label" for="newEmpOrgUnit">Organizational Unit</label>
+            <select id="newEmpOrgUnit" class="select-input">
+              <option value="">-- None / Unassigned --</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="newEmpJobTitle">Standard Job Title</label>
+            <select id="newEmpJobTitle" class="select-input">
+              <option value="">-- None / Custom Designation --</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="newEmpManager">Reporting Manager</label>
+            <select id="newEmpManager" class="select-input">
+              <option value="">-- None / Top-Level --</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="newEmpAccessRole">System Access Role</label>
+            <select id="newEmpAccessRole" class="select-input">
+              <option value="">-- Standard Employee (Default) --</option>
+            </select>
           </div>
 
           <!-- Employee Email below Department/Designation row -->
@@ -1543,6 +1808,22 @@
             <div class="emp-details-value" id="viewEmpPresence">--</div>
           </div>
           <div class="emp-details-cell">
+            <div class="emp-details-label">Organizational Unit</div>
+            <div class="emp-details-value" id="viewEmpOrgUnit">--</div>
+          </div>
+          <div class="emp-details-cell">
+            <div class="emp-details-label">Reporting Manager</div>
+            <div class="emp-details-value" id="viewEmpManager">--</div>
+          </div>
+          <div class="emp-details-cell">
+            <div class="emp-details-label">Standard Job Title</div>
+            <div class="emp-details-value" id="viewEmpJobTitle">--</div>
+          </div>
+          <div class="emp-details-cell">
+            <div class="emp-details-label">Access Role</div>
+            <div class="emp-details-value" id="viewEmpAccessRole">--</div>
+          </div>
+          <div class="emp-details-cell">
             <div class="emp-details-label">Last Detected At</div>
             <div class="emp-details-value" id="viewEmpLastSeen" style="font-family: var(--font-mono); font-size: 0.82rem;">--</div>
           </div>
@@ -1615,6 +1896,35 @@
             <input type="text" id="editEmpRole" class="text-input" placeholder="e.g. PLC Programmer" required autocomplete="off">
           </div>
 
+          <!-- Phase 4: Organization, Reporting & Role Controls -->
+          <div class="control-group">
+            <label class="control-label" for="editEmpOrgUnit">Organizational Unit</label>
+            <select id="editEmpOrgUnit" class="select-input">
+              <option value="">-- None / Unassigned --</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="editEmpJobTitle">Standard Job Title</label>
+            <select id="editEmpJobTitle" class="select-input">
+              <option value="">-- None / Custom Designation --</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="editEmpManager">Reporting Manager</label>
+            <select id="editEmpManager" class="select-input">
+              <option value="">-- None / Top-Level --</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="editEmpAccessRole">System Access Role</label>
+            <select id="editEmpAccessRole" class="select-input">
+              <option value="">-- Standard Employee (Default) --</option>
+            </select>
+          </div>
+
           <div class="control-group" style="grid-column: 1 / -1;">
             <label class="control-label" for="editEmpEmail">Employee Gmail / Email ID *</label>
             <input type="email" id="editEmpEmail" class="text-input" placeholder="e.g. rahul.sharma@gmail.com" required autocomplete="off">
@@ -1675,6 +1985,371 @@
           <button type="button" class="btn-action-primary" id="btnSubmitConfirmAction" style="margin-top: 0; width: auto;">Confirm</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       7. RESET TEMPORARY PASSWORD CREDENTIALS MODAL
+       ======================================================== -->
+  <div class="modal-overlay" id="modalResetPasswordResult">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg style="width: 20px; height: 20px; stroke: #38BDF8; fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span>Temporary Password Reset</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseResetPwdModal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px 24px;">
+        <div class="credential-display-card">
+          <div class="credential-success-banner">
+            <div class="credential-success-icon" style="background: rgba(56, 189, 248, 0.2); color: #38BDF8;">🔑</div>
+            <div>
+              <div class="credential-success-title" id="resetPwdEmpSummaryName">Password Reset Successful</div>
+              <div class="credential-success-desc" id="resetPwdEmpSummaryDesc">New temporary login credentials generated.</div>
+            </div>
+          </div>
+
+          <div class="credential-details-grid">
+            <div class="credential-field-row">
+              <span class="credential-field-label">Employee ID</span>
+              <div class="credential-field-content">
+                <span class="credential-code-box" id="dispResetEmpId">EMP-XXX</span>
+                <button type="button" class="btn-copy-credential" id="btnCopyResetEmpId" title="Copy Employee ID">
+                  📋 Copy
+                </button>
+              </div>
+            </div>
+
+            <div class="credential-field-row">
+              <span class="credential-field-label">New Temporary Password</span>
+              <div class="credential-field-content">
+                <span class="credential-code-box password-highlight" id="dispResetPassword">••••••••••••••</span>
+                <button type="button" class="btn-copy-credential" id="btnCopyResetPassword" title="Copy Temporary Password">
+                  📋 Copy
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+            <button type="button" class="btn-action-secondary" id="btnCopyAllResetCredentials" style="margin-top: 0; width: 100%; font-size: 0.82rem; padding: 10px;">
+              📋 Copy Credentials to Clipboard
+            </button>
+          </div>
+
+          <div class="credential-warning-banner" style="margin-top: 14px;">
+            <span style="font-size: 1rem; flex-shrink: 0;">⚠️</span>
+            <div>
+              <strong>Single-Presentation Security Notice:</strong> This temporary password is displayed once and is never stored in plaintext on the server. The employee will be forced to change their password (<code>must_change_password = 1</code>) on their next sign-in.
+            </div>
+          </div>
+
+          <div class="modal-footer" style="margin-top: 16px;">
+            <button type="button" class="btn-action-primary" id="btnDoneResetPwd" style="margin-top: 0; width: 100%;">Done & Return to Workforce</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       8. ORGANIZATIONAL UNIT MODAL (Create & Edit)
+       ======================================================== -->
+  <div class="modal-overlay" id="modalOrgUnit">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="modalOrgUnitTitle">
+          <svg style="width: 20px; height: 20px; stroke: var(--accent-blue); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+          </svg>
+          <span id="txtOrgUnitModalHeading">Create Organizational Unit</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseOrgUnitModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="formOrgUnit" class="modal-body">
+        <input type="hidden" id="orgUnitIdHidden" value="">
+
+        <div class="modal-form-grid">
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="inputOrgUnitName">Unit Name *</label>
+            <input type="text" id="inputOrgUnitName" class="text-input" placeholder="e.g. Backend Engineering" required autocomplete="off">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="selectOrgUnitType">Unit Type</label>
+            <select id="selectOrgUnitType" class="select-input">
+              <option value="DEPARTMENT">Department</option>
+              <option value="DIVISION">Division</option>
+              <option value="TEAM">Team / Squad</option>
+              <option value="BRANCH">Regional Branch</option>
+              <option value="OFFICE">Office</option>
+              <option value="EXECUTIVE">Executive / Board</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="selectOrgUnitLevel">Hierarchy Level</label>
+            <select id="selectOrgUnitLevel" class="select-input">
+              <option value="">-- Auto (No Specific Level) --</option>
+            </select>
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="selectOrgUnitParent">Parent Unit</label>
+            <select id="selectOrgUnitParent" class="select-input">
+              <option value="">-- None (Top-Level Unit / Root) --</option>
+            </select>
+            <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
+              Descendants and the current unit are prevented from being selected as parent.
+            </p>
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="selectOrgUnitManager">Unit Head / Manager</label>
+            <select id="selectOrgUnitManager" class="select-input">
+              <option value="">-- None / Unassigned --</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="modalOrgUnitError" style="display: none; margin-top: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-sm); color: #EF4444; font-size: 0.8rem; line-height: 1.45; font-weight: 500;"></div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-action-secondary" id="btnCancelOrgUnit" style="margin-top: 0; width: auto;">Cancel</button>
+          <button type="submit" class="btn-action-primary" id="btnSubmitOrgUnit" style="margin-top: 0; width: auto;">Save Unit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       9. MANAGE HIERARCHY LEVELS MODAL
+       ======================================================== -->
+  <div class="modal-overlay" id="modalOrgLevels">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span style="font-size: 1.2rem;">⚙</span>
+          <span>Company Hierarchy Levels</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseOrgLevelsModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px 24px;">
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
+          Define organizational tiers ordered by rank (e.g. Rank 1 = Executive, Rank 2 = Division, Rank 3 = Department, Rank 4 = Team).
+        </p>
+
+        <!-- Add Level Form -->
+        <form id="formAddLevel" style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 20px; background: var(--bg-base-subtle); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-medium);">
+          <div style="flex: 2;">
+            <label class="control-label" for="inputNewLevelName" style="font-size: 0.74rem;">Level Name *</label>
+            <input type="text" id="inputNewLevelName" class="text-input" placeholder="e.g. Department" required style="padding: 8px 12px; font-size: 0.84rem;">
+          </div>
+          <div style="width: 100px;">
+            <label class="control-label" for="inputNewLevelRank" style="font-size: 0.74rem;">Rank *</label>
+            <input type="number" id="inputNewLevelRank" class="text-input" placeholder="1" min="1" max="99" required style="padding: 8px 12px; font-size: 0.84rem;">
+          </div>
+          <button type="submit" class="btn-action-primary" id="btnSubmitAddLevel" style="margin-top: 0; width: auto; white-space: nowrap; height: 38px;">
+            + Add Tier
+          </button>
+        </form>
+
+        <div id="modalOrgLevelsError" style="display: none; margin-bottom: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-sm); color: #EF4444; font-size: 0.8rem;"></div>
+
+        <!-- Levels List Table -->
+        <div style="border: 1px solid var(--border-medium); border-radius: var(--radius-sm); overflow: hidden; max-height: 260px; overflow-y: auto;">
+          <table class="data-table" style="margin: 0; width: 100%;">
+            <thead>
+              <tr>
+                <th style="width: 80px; text-align: center;">Rank</th>
+                <th>Hierarchy Level Name</th>
+                <th style="width: 100px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="tableLevelsBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end;">
+          <button type="button" class="btn-action-primary" id="btnCloseOrgLevelsBtn" style="margin-top: 0; width: auto;">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       10. REASSIGN REPORTING RELATIONSHIP MODAL
+       ======================================================== -->
+  <div class="modal-overlay" id="modalReassignReporting">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg style="width: 20px; height: 20px; stroke: var(--accent-blue); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+            <polyline points="17 1 21 5 17 9"></polyline>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+            <polyline points="7 23 3 19 7 15"></polyline>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+          </svg>
+          <span>Reassign Reporting Relationship</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseReassignModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="formReassignReporting" class="modal-body">
+        <div class="modal-form-grid">
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="selectReassignEmp">Select Employee to Reassign *</label>
+            <select id="selectReassignEmp" class="select-input" required>
+              <option value="">-- Choose Employee --</option>
+            </select>
+          </div>
+
+          <!-- Current Chain Display -->
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <div style="background: var(--bg-base-subtle); border: 1px solid var(--border-medium); border-radius: var(--radius-sm); padding: 12px; font-size: 0.8rem;">
+              <div style="font-weight: 600; color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; margin-bottom: 4px;">Current Reporting Line</div>
+              <div id="txtCurrentReportingChain" style="color: var(--text-main); font-family: var(--font-mono); font-size: 0.8rem;">
+                Select an employee above to preview active reporting line
+              </div>
+            </div>
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="selectReassignManager">New Reporting Manager</label>
+            <select id="selectReassignManager" class="select-input">
+              <option value="">-- None (Top Level / Direct to Head) --</option>
+            </select>
+            <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
+              Circular manager relationships and self-reporting are prevented automatically.
+            </p>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="selectReassignOrgUnit">Organizational Unit</label>
+            <select id="selectReassignOrgUnit" class="select-input">
+              <option value="">-- Keep Current Unit --</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="selectReassignJobTitle">Job Title</label>
+            <select id="selectReassignJobTitle" class="select-input">
+              <option value="">-- Keep Current Title --</option>
+            </select>
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="selectReassignAccessRole">System Access Role</label>
+            <select id="selectReassignAccessRole" class="select-input">
+              <option value="">-- Keep Current Access Role --</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="modalReassignReportingError" style="display: none; margin-top: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-sm); color: #EF4444; font-size: 0.8rem; line-height: 1.45; font-weight: 500;"></div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-action-secondary" id="btnCancelReassign" style="margin-top: 0; width: auto;">Cancel</button>
+          <button type="submit" class="btn-action-primary" id="btnSubmitReassign" style="margin-top: 0; width: auto;">Update Reporting</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       11. JOB TITLE MODAL (Create & Edit)
+       ======================================================== -->
+  <div class="modal-overlay" id="modalJobTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg style="width: 20px; height: 20px; stroke: var(--accent-blue); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          <span id="txtJobTitleModalHeading">Create Job Title</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseJobTitleModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="formJobTitle" class="modal-body">
+        <input type="hidden" id="jobTitleIdHidden" value="">
+
+        <div class="modal-form-grid">
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="inputJobTitleName">Job Title / Designation *</label>
+            <input type="text" id="inputJobTitleName" class="text-input" placeholder="e.g. Lead Robotics Engineer" required autocomplete="off">
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="inputJobTitleDesc">Description & Scope</label>
+            <textarea id="inputJobTitleDesc" class="text-input" placeholder="Key responsibilities and classification level..." rows="3" style="resize: vertical;"></textarea>
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="checkJobTitleActive" checked class="perm-checkbox">
+            <label for="checkJobTitleActive" class="control-label" style="margin-bottom: 0; cursor: pointer;">Active Designation (Available for employee assignment)</label>
+          </div>
+        </div>
+
+        <div id="modalJobTitleError" style="display: none; margin-top: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-sm); color: #EF4444; font-size: 0.8rem; line-height: 1.45; font-weight: 500;"></div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-action-secondary" id="btnCancelJobTitle" style="margin-top: 0; width: auto;">Cancel</button>
+          <button type="submit" class="btn-action-primary" id="btnSubmitJobTitle" style="margin-top: 0; width: auto;">Save Title</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       12. CUSTOM ACCESS ROLE MODAL (Create & Edit Role)
+       ======================================================== -->
+  <div class="modal-overlay" id="modalRole">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg style="width: 20px; height: 20px; stroke: var(--accent-violet); fill: none; stroke-width: 2;" viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span id="txtRoleModalHeading">Create Custom Access Role</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseRoleModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="formRole" class="modal-body">
+        <input type="hidden" id="roleIdHidden" value="">
+
+        <div class="modal-form-grid">
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="inputRoleName">Role Name *</label>
+            <input type="text" id="inputRoleName" class="text-input" placeholder="e.g. Shift Operations Supervisor" required autocomplete="off">
+          </div>
+
+          <div class="control-group" style="grid-column: 1 / -1;">
+            <label class="control-label" for="inputRoleDesc">Role Description</label>
+            <textarea id="inputRoleDesc" class="text-input" placeholder="Define who this role is for and scope of authority..." rows="3" style="resize: vertical;"></textarea>
+          </div>
+        </div>
+
+        <div id="modalRoleError" style="display: none; margin-top: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-sm); color: #EF4444; font-size: 0.8rem; line-height: 1.45; font-weight: 500;"></div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-action-secondary" id="btnCancelRole" style="margin-top: 0; width: auto;">Cancel</button>
+          <button type="submit" class="btn-action-primary" id="btnSubmitRole" style="margin-top: 0; width: auto;">Create Role</button>
+        </div>
+      </form>
     </div>
   </div>
 

@@ -147,7 +147,15 @@ function formatEmployeeRow(row) {
     isArchived: Boolean(row.is_archived),
     archivedAt: row.archived_at || null,
     accountStatus: row.account_status || 'ACTIVE',
-    mustChangePassword: row.must_change_password !== undefined && row.must_change_password !== null ? Boolean(row.must_change_password) : true
+    mustChangePassword: row.must_change_password !== undefined && row.must_change_password !== null ? Boolean(row.must_change_password) : true,
+    managerId: row.manager_id || null,
+    managerName: row.manager_name || null,
+    orgUnitId: row.org_unit_id || null,
+    orgUnitName: row.org_unit_name || null,
+    jobTitleId: row.job_title_id || null,
+    jobTitleName: row.job_title_name || null,
+    accessRoleId: row.access_role_id || null,
+    accessRoleName: row.access_role_name || null
   };
 }
 
@@ -172,9 +180,19 @@ function formatEventRow(row) {
 
 function getAllEmployees(companyId = null, includeArchived = true) {
   let sql = `
-    SELECT e.*, a.account_status, a.must_change_password
+    SELECT e.*, 
+           a.account_status, 
+           a.must_change_password,
+           m.name AS manager_name,
+           u.name AS org_unit_name,
+           j.title AS job_title_name,
+           r.name AS access_role_name
     FROM employees e
     LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    LEFT JOIN employees m ON e.manager_id = m.id
+    LEFT JOIN org_units u ON e.org_unit_id = u.id
+    LEFT JOIN company_job_titles j ON e.job_title_id = j.id
+    LEFT JOIN company_access_roles r ON e.access_role_id = r.id
   `;
   const conditions = [];
   const params = [];
@@ -195,9 +213,19 @@ function getAllEmployees(companyId = null, includeArchived = true) {
 
 function getEmployeeById(id) {
   const stmt = db.prepare(`
-    SELECT e.*, a.account_status, a.must_change_password
+    SELECT e.*, 
+           a.account_status, 
+           a.must_change_password,
+           m.name AS manager_name,
+           u.name AS org_unit_name,
+           j.title AS job_title_name,
+           r.name AS access_role_name
     FROM employees e
     LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    LEFT JOIN employees m ON e.manager_id = m.id
+    LEFT JOIN org_units u ON e.org_unit_id = u.id
+    LEFT JOIN company_job_titles j ON e.job_title_id = j.id
+    LEFT JOIN company_access_roles r ON e.access_role_id = r.id
     WHERE e.id = ?
   `);
   return formatEmployeeRow(stmt.get(id));
@@ -206,9 +234,19 @@ function getEmployeeById(id) {
 function getEmployeeByUid(uid) {
   if (!uid || typeof uid !== 'string') return null;
   const stmt = db.prepare(`
-    SELECT e.*, a.account_status, a.must_change_password
+    SELECT e.*, 
+           a.account_status, 
+           a.must_change_password,
+           m.name AS manager_name,
+           u.name AS org_unit_name,
+           j.title AS job_title_name,
+           r.name AS access_role_name
     FROM employees e
     LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    LEFT JOIN employees m ON e.manager_id = m.id
+    LEFT JOIN org_units u ON e.org_unit_id = u.id
+    LEFT JOIN company_job_titles j ON e.job_title_id = j.id
+    LEFT JOIN company_access_roles r ON e.access_role_id = r.id
     WHERE e.uid = ?
   `);
   return formatEmployeeRow(stmt.get(uid));
@@ -218,9 +256,19 @@ function getEmployeeByEmail(email, companyId = null) {
   if (!email || typeof email !== 'string') return null;
   const normEmail = email.trim().toLowerCase();
   let sql = `
-    SELECT e.*, a.account_status, a.must_change_password
+    SELECT e.*, 
+           a.account_status, 
+           a.must_change_password,
+           m.name AS manager_name,
+           u.name AS org_unit_name,
+           j.title AS job_title_name,
+           r.name AS access_role_name
     FROM employees e
     LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    LEFT JOIN employees m ON e.manager_id = m.id
+    LEFT JOIN org_units u ON e.org_unit_id = u.id
+    LEFT JOIN company_job_titles j ON e.job_title_id = j.id
+    LEFT JOIN company_access_roles r ON e.access_role_id = r.id
     WHERE LOWER(e.email) = ?
   `;
   if (companyId) {
@@ -253,36 +301,27 @@ function generateUniqueEmployeeId() {
   return candidate;
 }
 
-function createEmployee({ id, name, department, role, uid, avatarBg, companyId, email, phone }) {
+function createEmployee({ id, name, department, role, uid, avatarBg, companyId, email, phone, managerId, orgUnitId, jobTitleId, accessRoleId }) {
   const now = new Date().toISOString();
   const cId = companyId || 'COMP-DEFAULT-01';
   const normUid = (uid && typeof uid === 'string' && uid.trim()) ? uid.trim().toUpperCase() : null;
   const normEmail = (email && typeof email === 'string' && email.trim()) ? email.trim().toLowerCase() : null;
   const normPhone = (phone && typeof phone === 'string' && phone.trim()) ? phone.trim() : null;
   const stmt = db.prepare(`
-    INSERT INTO employees (id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id, email, phone)
-    VALUES (?, ?, ?, ?, ?, 'OUTSIDE', 'Registered today', ?, ?, ?, ?, ?)
+    INSERT INTO employees (id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id, email, phone, manager_id, org_unit_id, job_title_id, access_role_id)
+    VALUES (?, ?, ?, ?, ?, 'OUTSIDE', 'Registered today', ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  stmt.run(id, name, department, role, normUid, avatarBg || '#0284C7', now, cId, normEmail, normPhone);
+  stmt.run(id, name, department, role, normUid, avatarBg || '#0284C7', now, cId, normEmail, normPhone, managerId || null, orgUnitId || null, jobTitleId || null, accessRoleId || null);
   return getEmployeeById(id);
 }
 
-function createEmployeeWithAccount({ id, name, department, role, uid, avatarBg, companyId, password, email, phone }) {
+function createEmployeeWithAccount({ 
+  id, name, department, role, uid, avatarBg, companyId, password, email, phone,
+  managerId, orgUnitId, jobTitleId, accessRoleId
+}) {
   if (!name || typeof name !== 'string' || name.trim().length < 2) {
     const err = new Error('Employee name must be at least 2 characters long.');
     err.code = 'INVALID_NAME';
-    err.statusCode = 400;
-    throw err;
-  }
-  if (!department || typeof department !== 'string' || !department.trim()) {
-    const err = new Error('Department is required.');
-    err.code = 'INVALID_DEPARTMENT';
-    err.statusCode = 400;
-    throw err;
-  }
-  if (!role || typeof role !== 'string' || role.trim().length < 2) {
-    const err = new Error('Job designation / role must be at least 2 characters long.');
-    err.code = 'INVALID_ROLE';
     err.statusCode = 400;
     throw err;
   }
@@ -292,6 +331,66 @@ function createEmployeeWithAccount({ id, name, department, role, uid, avatarBg, 
   const cId = companyId || 'COMP-DEFAULT-01';
   const normEmail = (email && typeof email === 'string' && email.trim()) ? email.trim().toLowerCase() : null;
   const normPhone = (phone && typeof phone === 'string' && phone.trim()) ? phone.trim() : null;
+
+  // Validate or resolve organizational unit
+  let targetOrgUnitId = null;
+  let targetDepartment = (department && typeof department === 'string') ? department.trim() : '';
+  if (orgUnitId !== undefined && orgUnitId !== null && typeof orgUnitId === 'string' && orgUnitId.trim()) {
+    const cleanUnitId = orgUnitId.trim();
+    const unit = validateOrgUnitBelongsToCompany(cleanUnitId, cId);
+    targetOrgUnitId = cleanUnitId;
+    if (!targetDepartment && unit && unit.name) targetDepartment = unit.name;
+  } else if (targetDepartment) {
+    const matchedUnit = db.prepare('SELECT id FROM org_units WHERE company_id = ? AND LOWER(name) = ?').get(cId, targetDepartment.toLowerCase());
+    if (matchedUnit) targetOrgUnitId = matchedUnit.id;
+  }
+
+  if (!targetDepartment) {
+    const err = new Error('Department or organizational unit is required.');
+    err.code = 'INVALID_DEPARTMENT';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Validate or resolve job title
+  let targetJobTitleId = null;
+  let targetRole = (role && typeof role === 'string') ? role.trim() : '';
+  if (jobTitleId !== undefined && jobTitleId !== null && typeof jobTitleId === 'string' && jobTitleId.trim()) {
+    const cleanJobId = jobTitleId.trim();
+    const job = validateJobTitleBelongsToCompany(cleanJobId, cId);
+    targetJobTitleId = cleanJobId;
+    if (!targetRole && job && job.title) targetRole = job.title;
+  } else if (targetRole) {
+    const matchedTitle = db.prepare('SELECT id FROM company_job_titles WHERE company_id = ? AND LOWER(title) = ?').get(cId, targetRole.toLowerCase());
+    if (matchedTitle) targetJobTitleId = matchedTitle.id;
+  }
+
+  if (!targetRole || targetRole.length < 2) {
+    const err = new Error('Job designation / role must be at least 2 characters long.');
+    err.code = 'INVALID_ROLE';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Validate manager assignment
+  let targetManagerId = null;
+  if (managerId !== undefined && managerId !== null && typeof managerId === 'string' && managerId.trim()) {
+    const cleanMgrId = managerId.trim();
+    validateReportingAssignment(empId, cleanMgrId, cId);
+    targetManagerId = cleanMgrId;
+  }
+
+  // Validate access role assignment
+  let targetAccessRoleId = null;
+  if (accessRoleId !== undefined && accessRoleId !== null && typeof accessRoleId === 'string' && accessRoleId.trim()) {
+    const cleanRoleId = accessRoleId.trim();
+    validateAccessRoleBelongsToCompany(cleanRoleId, cId);
+    targetAccessRoleId = cleanRoleId;
+  } else {
+    // Default to 'Employee' system role for this company
+    const defaultStaffRole = db.prepare("SELECT id FROM company_access_roles WHERE company_id = ? AND name = 'Employee'").get(cId);
+    if (defaultStaffRole) targetAccessRoleId = defaultStaffRole.id;
+  }
 
   if (normEmail) {
     const existingWithEmail = getEmployeeByEmail(normEmail, cId);
@@ -345,10 +444,16 @@ function createEmployeeWithAccount({ id, name, department, role, uid, avatarBg, 
   db.exec('BEGIN TRANSACTION;');
   try {
     const insertEmp = db.prepare(`
-      INSERT INTO employees (id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id, email, phone)
-      VALUES (?, ?, ?, ?, ?, 'OUTSIDE', 'Registered today', ?, ?, ?, ?, ?)
+      INSERT INTO employees (
+        id, name, department, role, uid, status, last_seen, avatar_bg, created_at, company_id, email, phone,
+        manager_id, org_unit_id, job_title_id, access_role_id
+      )
+      VALUES (?, ?, ?, ?, ?, 'OUTSIDE', 'Registered today', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    insertEmp.run(empId, name.trim(), department.trim(), role.trim(), normUid, bg, now, cId, normEmail, normPhone);
+    insertEmp.run(
+      empId, name.trim(), targetDepartment, targetRole, normUid, bg, now, cId, normEmail, normPhone,
+      targetManagerId, targetOrgUnitId, targetJobTitleId, targetAccessRoleId
+    );
 
     const insertAcc = db.prepare(`
       INSERT INTO employee_accounts (id, employee_id, company_id, password_hash, password_salt, must_change_password, account_status, created_at, updated_at)
@@ -369,7 +474,10 @@ function createEmployeeWithAccount({ id, name, department, role, uid, avatarBg, 
   };
 }
 
-function updateEmployee({ id, name, department, role, uid, email, phone, companyId }) {
+function updateEmployee({ 
+  id, name, department, role, uid, email, phone, companyId,
+  managerId, orgUnitId, jobTitleId, accessRoleId
+}) {
   if (!id || typeof id !== 'string') {
     const err = new Error('Employee ID is required.');
     err.code = 'INVALID_EMPLOYEE_ID';
@@ -385,6 +493,7 @@ function updateEmployee({ id, name, department, role, uid, email, phone, company
     throw err;
   }
 
+  const targetCompId = companyId || existing.companyId;
   if (companyId && existing.companyId && existing.companyId !== companyId) {
     const err = new Error(`Employee with ID '${id}' not found in your organization.`);
     err.code = 'EMPLOYEE_NOT_FOUND';
@@ -399,18 +508,76 @@ function updateEmployee({ id, name, department, role, uid, email, phone, company
     throw err;
   }
 
-  if (!department || typeof department !== 'string' || !department.trim()) {
+  // Handle department and org_unit_id updates
+  let targetDepartment = (department !== undefined && department !== null) ? department.trim() : existing.department;
+  let targetOrgUnitId = existing.orgUnitId;
+  if (orgUnitId !== undefined) {
+    if (orgUnitId !== null && typeof orgUnitId === 'string' && orgUnitId.trim()) {
+      const cleanUnitId = orgUnitId.trim();
+      const unit = validateOrgUnitBelongsToCompany(cleanUnitId, targetCompId);
+      targetOrgUnitId = cleanUnitId;
+      if (unit && unit.name && department === undefined) targetDepartment = unit.name;
+    } else {
+      targetOrgUnitId = null;
+    }
+  } else if (department !== undefined && department.trim() !== existing.department) {
+    const matchedUnit = db.prepare('SELECT id FROM org_units WHERE company_id = ? AND LOWER(name) = ?').get(targetCompId, targetDepartment.toLowerCase());
+    if (matchedUnit) targetOrgUnitId = matchedUnit.id;
+  }
+
+  if (!targetDepartment) {
     const err = new Error('Department is required.');
     err.code = 'INVALID_DEPARTMENT';
     err.statusCode = 400;
     throw err;
   }
 
-  if (!role || typeof role !== 'string' || role.trim().length < 2) {
+  // Handle role and job_title_id updates
+  let targetRole = (role !== undefined && role !== null) ? role.trim() : existing.role;
+  let targetJobTitleId = existing.jobTitleId;
+  if (jobTitleId !== undefined) {
+    if (jobTitleId !== null && typeof jobTitleId === 'string' && jobTitleId.trim()) {
+      const cleanJobId = jobTitleId.trim();
+      const job = validateJobTitleBelongsToCompany(cleanJobId, targetCompId);
+      targetJobTitleId = cleanJobId;
+      if (job && job.title && role === undefined) targetRole = job.title;
+    } else {
+      targetJobTitleId = null;
+    }
+  } else if (role !== undefined && role.trim() !== existing.role) {
+    const matchedTitle = db.prepare('SELECT id FROM company_job_titles WHERE company_id = ? AND LOWER(title) = ?').get(targetCompId, targetRole.toLowerCase());
+    if (matchedTitle) targetJobTitleId = matchedTitle.id;
+  }
+
+  if (!targetRole || targetRole.length < 2) {
     const err = new Error('Job designation / role must be at least 2 characters long.');
     err.code = 'INVALID_ROLE';
     err.statusCode = 400;
     throw err;
+  }
+
+  // Handle manager_id updates
+  let targetManagerId = existing.managerId;
+  if (managerId !== undefined) {
+    if (managerId !== null && typeof managerId === 'string' && managerId.trim()) {
+      const cleanMgrId = managerId.trim();
+      validateReportingAssignment(id, cleanMgrId, targetCompId);
+      targetManagerId = cleanMgrId;
+    } else {
+      targetManagerId = null;
+    }
+  }
+
+  // Handle access_role_id updates
+  let targetAccessRoleId = existing.accessRoleId;
+  if (accessRoleId !== undefined) {
+    if (accessRoleId !== null && typeof accessRoleId === 'string' && accessRoleId.trim()) {
+      const cleanRoleId = accessRoleId.trim();
+      validateAccessRoleBelongsToCompany(cleanRoleId, targetCompId);
+      targetAccessRoleId = cleanRoleId;
+    } else {
+      targetAccessRoleId = null;
+    }
   }
 
   let normEmail = null;
@@ -424,7 +591,6 @@ function updateEmployee({ id, name, department, role, uid, email, phone, company
       throw err;
     }
     normEmail = trimmedEmail.toLowerCase();
-    const targetCompId = companyId || existing.companyId;
     if (targetCompId) {
       const dupStmt = db.prepare('SELECT id FROM employees WHERE LOWER(email) = ? AND company_id = ? AND id != ?');
       const dup = dupStmt.get(normEmail, targetCompId, id);
@@ -472,10 +638,15 @@ function updateEmployee({ id, name, department, role, uid, email, phone, company
 
   const updateStmt = db.prepare(`
     UPDATE employees
-    SET name = ?, department = ?, role = ?, uid = ?, email = ?, phone = ?
+    SET name = ?, department = ?, role = ?, uid = ?, email = ?, phone = ?,
+        manager_id = ?, org_unit_id = ?, job_title_id = ?, access_role_id = ?
     WHERE id = ? AND company_id = ?
   `);
-  updateStmt.run(name.trim(), department.trim(), role.trim(), normUid, normEmail, normPhone, id, companyId || existing.companyId);
+  updateStmt.run(
+    name.trim(), targetDepartment, targetRole, normUid, normEmail, normPhone,
+    targetManagerId, targetOrgUnitId, targetJobTitleId, targetAccessRoleId,
+    id, targetCompId
+  );
 
   return getEmployeeById(id);
 }
@@ -918,6 +1089,9 @@ function registerCompanyWithHead({ companyName, industry, adminFullName, email, 
     `);
     insertUser.run(userId, companyId, normEmail, adminFullName.trim(), passwordHash, salt, now, now);
 
+    // Seed baseline access roles & granular permissions for the new company
+    seedCompanyDefaultRoles(companyId, now);
+
     db.exec('COMMIT;');
   } catch (err) {
     db.exec('ROLLBACK;');
@@ -966,6 +1140,30 @@ function updateEmployeePassword(employeeId, passwordHash, passwordSalt) {
   return getEmployeeAccountByEmpId(employeeId);
 }
 
+function resetEmployeeTemporaryPassword({ employeeId, companyId, passwordHash, passwordSalt }) {
+  const now = new Date().toISOString();
+  const existingAcc = getEmployeeAccountByEmpId(employeeId);
+  if (existingAcc) {
+    const stmt = db.prepare(`
+      UPDATE employee_accounts
+      SET password_hash = ?, password_salt = ?, must_change_password = 1, updated_at = ?
+      WHERE employee_id = ? AND company_id = ?
+    `);
+    stmt.run(passwordHash, passwordSalt, now, employeeId, companyId);
+  } else {
+    // Safely provision account for legacy employee if not already present
+    const accId = auth.generateId('ACC');
+    const stmt = db.prepare(`
+      INSERT INTO employee_accounts (id, employee_id, company_id, password_hash, password_salt, must_change_password, account_status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 1, 'ACTIVE', ?, ?)
+    `);
+    stmt.run(accId, employeeId, companyId, passwordHash, passwordSalt, now, now);
+  }
+  // Invalidate any active sessions so old credentials cannot continue to be used
+  deleteSessionsByAccount(employeeId);
+  return getEmployeeAccountByEmpId(employeeId);
+}
+
 function updateEmployeeAccountStatus(employeeId, status) {
   const now = new Date().toISOString();
   const stmt = db.prepare(`
@@ -1010,6 +1208,1381 @@ function cleanExpiredSessions() {
   stmt.run(now);
 }
 
+// -------------------------------------------------------------
+// Database Query Methods - Custom Organizational Tree & Roles
+// -------------------------------------------------------------
+
+// ==========================================
+// A. Organizational Levels
+// ==========================================
+
+function createOrgLevel({ id, companyId, name, rank }) {
+  if (!companyId || typeof companyId !== 'string' || !companyId.trim()) {
+    const err = new Error('Company ID is required to create an organizational level.');
+    err.code = 'INVALID_COMPANY_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    const err = new Error('Level name must be at least 2 characters long.');
+    err.code = 'INVALID_LEVEL_NAME';
+    err.statusCode = 400;
+    throw err;
+  }
+  const numRank = parseInt(rank, 10);
+  if (isNaN(numRank) || numRank < 1) {
+    const err = new Error('Level rank must be a positive integer (e.g., 1 for Executive, 2 for Dept Head).');
+    err.code = 'INVALID_LEVEL_RANK';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const cId = companyId.trim();
+  const levelName = name.trim();
+
+  // Check uniqueness of rank and name within company
+  const dupRank = db.prepare('SELECT id FROM org_levels WHERE company_id = ? AND rank = ?').get(cId, numRank);
+  if (dupRank) {
+    const err = new Error(`An organizational level with rank ${numRank} already exists in this organization.`);
+    err.code = 'DUPLICATE_ORG_LEVEL_RANK';
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const dupName = db.prepare('SELECT id FROM org_levels WHERE company_id = ? AND LOWER(name) = ?').get(cId, levelName.toLowerCase());
+  if (dupName) {
+    const err = new Error(`An organizational level named '${levelName}' already exists in this organization.`);
+    err.code = 'DUPLICATE_ORG_LEVEL_NAME';
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const levelId = (id && typeof id === 'string' && id.trim()) ? id.trim() : auth.generateId('LVL');
+  const now = new Date().toISOString();
+
+  const stmt = db.prepare(`
+    INSERT INTO org_levels (id, company_id, name, rank, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(levelId, cId, levelName, numRank, now, now);
+
+  return getOrgLevelById(levelId, cId);
+}
+
+function getOrgLevels(companyId) {
+  if (!companyId || typeof companyId !== 'string') return [];
+  const stmt = db.prepare('SELECT * FROM org_levels WHERE company_id = ? ORDER BY rank ASC, name ASC');
+  return stmt.all(companyId.trim());
+}
+
+function getOrgLevelById(id, companyId = null) {
+  if (!id) return null;
+  if (companyId) {
+    const stmt = db.prepare('SELECT * FROM org_levels WHERE id = ? AND company_id = ?');
+    return stmt.get(id, companyId);
+  }
+  const stmt = db.prepare('SELECT * FROM org_levels WHERE id = ?');
+  return stmt.get(id);
+}
+
+function updateOrgLevel({ id, companyId, name, rank }) {
+  if (!id || typeof id !== 'string') {
+    const err = new Error('Organizational Level ID is required.');
+    err.code = 'INVALID_LEVEL_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+  const existing = getOrgLevelById(id, companyId);
+  if (!existing) {
+    const err = new Error(`Organizational level '${id}' not found in your organization.`);
+    err.code = 'ORG_LEVEL_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const cId = existing.company_id;
+  const newName = (name !== undefined && name !== null) ? name.trim() : existing.name;
+  const newRank = (rank !== undefined && rank !== null) ? parseInt(rank, 10) : existing.rank;
+
+  if (newName.length < 2) {
+    const err = new Error('Level name must be at least 2 characters long.');
+    err.code = 'INVALID_LEVEL_NAME';
+    err.statusCode = 400;
+    throw err;
+  }
+  if (isNaN(newRank) || newRank < 1) {
+    const err = new Error('Level rank must be a positive integer.');
+    err.code = 'INVALID_LEVEL_RANK';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (newName.toLowerCase() !== existing.name.toLowerCase()) {
+    const dupName = db.prepare('SELECT id FROM org_levels WHERE company_id = ? AND LOWER(name) = ? AND id != ?').get(cId, newName.toLowerCase(), id);
+    if (dupName) {
+      const err = new Error(`An organizational level named '${newName}' already exists in this organization.`);
+      err.code = 'DUPLICATE_ORG_LEVEL_NAME';
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  if (newRank !== existing.rank) {
+    const dupRank = db.prepare('SELECT id FROM org_levels WHERE company_id = ? AND rank = ? AND id != ?').get(cId, newRank, id);
+    if (dupRank) {
+      const err = new Error(`An organizational level with rank ${newRank} already exists in this organization.`);
+      err.code = 'DUPLICATE_ORG_LEVEL_RANK';
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  const now = new Date().toISOString();
+  const stmt = db.prepare(`
+    UPDATE org_levels
+    SET name = ?, rank = ?, updated_at = ?
+    WHERE id = ? AND company_id = ?
+  `);
+  stmt.run(newName, newRank, now, id, cId);
+
+  return getOrgLevelById(id, cId);
+}
+
+function deleteOrgLevel(id, companyId) {
+  const existing = getOrgLevelById(id, companyId);
+  if (!existing) {
+    const err = new Error(`Organizational level '${id}' not found in your organization.`);
+    err.code = 'ORG_LEVEL_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    // Nullify references in org_units
+    db.prepare('UPDATE org_units SET level_id = NULL WHERE level_id = ? AND company_id = ?').run(id, existing.company_id);
+    db.prepare('DELETE FROM org_levels WHERE id = ? AND company_id = ?').run(id, existing.company_id);
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return { success: true, message: `Organizational level '${existing.name}' deleted successfully.` };
+}
+
+// ==========================================
+// B. Organizational Units
+// ==========================================
+
+function validateOrgUnitBelongsToCompany(unitId, companyId) {
+  if (!unitId) return null;
+  const stmt = db.prepare('SELECT id, company_id, name FROM org_units WHERE id = ?');
+  const row = stmt.get(unitId);
+  if (!row) {
+    const err = new Error(`Organizational unit '${unitId}' not found.`);
+    err.code = 'ORG_UNIT_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+  if (companyId && row.company_id !== companyId) {
+    const err = new Error(`Organizational unit '${unitId}' belongs to a different organization.`);
+    err.code = 'CROSS_COMPANY_REFERENCE';
+    err.statusCode = 400;
+    throw err;
+  }
+  return row;
+}
+
+function detectCircularOrgUnits(unitId, newParentId, companyId) {
+  if (!newParentId) return false;
+  if (unitId === newParentId) return true;
+
+  let currentId = newParentId;
+  const visited = new Set([unitId]);
+
+  while (currentId) {
+    if (visited.has(currentId)) return true;
+    visited.add(currentId);
+
+    const row = db.prepare('SELECT parent_unit_id, company_id FROM org_units WHERE id = ?').get(currentId);
+    if (!row) break;
+    if (companyId && row.company_id !== companyId) {
+      const err = new Error(`Parent unit '${currentId}' belongs to a different organization.`);
+      err.code = 'CROSS_COMPANY_REFERENCE';
+      err.statusCode = 400;
+      throw err;
+    }
+    currentId = row.parent_unit_id;
+  }
+
+  return false;
+}
+
+function createOrgUnit({ id, companyId, name, unitType = 'DEPARTMENT', parentUnitId = null, levelId = null, managerId = null }) {
+  if (!companyId || typeof companyId !== 'string' || !companyId.trim()) {
+    const err = new Error('Company ID is required to create an organizational unit.');
+    err.code = 'INVALID_COMPANY_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    const err = new Error('Unit name must be at least 2 characters long.');
+    err.code = 'INVALID_UNIT_NAME';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const cId = companyId.trim();
+  const unitName = name.trim();
+  const cleanType = (unitType && typeof unitType === 'string' && unitType.trim()) ? unitType.trim().toUpperCase() : 'DEPARTMENT';
+
+  let cleanParentId = null;
+  if (parentUnitId && typeof parentUnitId === 'string' && parentUnitId.trim()) {
+    cleanParentId = parentUnitId.trim();
+    validateOrgUnitBelongsToCompany(cleanParentId, cId);
+  }
+
+  let cleanLevelId = null;
+  if (levelId && typeof levelId === 'string' && levelId.trim()) {
+    cleanLevelId = levelId.trim();
+    const lvl = getOrgLevelById(cleanLevelId, cId);
+    if (!lvl) {
+      const err = new Error(`Organizational level '${cleanLevelId}' not found in your organization.`);
+      err.code = 'ORG_LEVEL_NOT_FOUND';
+      err.statusCode = 404;
+      throw err;
+    }
+  }
+
+  let cleanManagerId = null;
+  if (managerId && typeof managerId === 'string' && managerId.trim()) {
+    cleanManagerId = managerId.trim();
+    const mgr = getEmployeeById(cleanManagerId);
+    if (!mgr || mgr.companyId !== cId) {
+      const err = new Error(`Assigned manager '${cleanManagerId}' not found in your organization.`);
+      err.code = 'MANAGER_NOT_FOUND';
+      err.statusCode = 404;
+      throw err;
+    }
+    if (mgr.isArchived) {
+      const err = new Error(`Cannot assign archived employee '${mgr.name}' as unit manager.`);
+      err.code = 'MANAGER_ARCHIVED';
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  // Duplicate name check under same parent
+  if (cleanParentId) {
+    const dup = db.prepare('SELECT id FROM org_units WHERE company_id = ? AND parent_unit_id = ? AND LOWER(name) = ?').get(cId, cleanParentId, unitName.toLowerCase());
+    if (dup) {
+      const err = new Error(`An organizational unit named '${unitName}' already exists under the selected parent unit.`);
+      err.code = 'DUPLICATE_ORG_UNIT_NAME';
+      err.statusCode = 409;
+      throw err;
+    }
+  } else {
+    const dup = db.prepare('SELECT id FROM org_units WHERE company_id = ? AND parent_unit_id IS NULL AND LOWER(name) = ?').get(cId, unitName.toLowerCase());
+    if (dup) {
+      const err = new Error(`A top-level organizational unit named '${unitName}' already exists.`);
+      err.code = 'DUPLICATE_ORG_UNIT_NAME';
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  const unitId = (id && typeof id === 'string' && id.trim()) ? id.trim() : auth.generateId('UNIT');
+  const now = new Date().toISOString();
+
+  const stmt = db.prepare(`
+    INSERT INTO org_units (id, company_id, name, unit_type, parent_unit_id, level_id, manager_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(unitId, cId, unitName, cleanType, cleanParentId, cleanLevelId, cleanManagerId, now, now);
+
+  return getOrgUnitById(unitId, cId);
+}
+
+function getOrgUnits(companyId) {
+  if (!companyId || typeof companyId !== 'string') return [];
+  const stmt = db.prepare(`
+    SELECT u.*,
+           p.name AS parent_unit_name,
+           l.name AS level_name,
+           l.rank AS level_rank,
+           m.name AS manager_name,
+           (SELECT COUNT(*) FROM employees e WHERE e.org_unit_id = u.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count
+    FROM org_units u
+    LEFT JOIN org_units p ON u.parent_unit_id = p.id
+    LEFT JOIN org_levels l ON u.level_id = l.id
+    LEFT JOIN employees m ON u.manager_id = m.id
+    WHERE u.company_id = ?
+    ORDER BY COALESCE(l.rank, 999) ASC, u.name ASC
+  `);
+  return stmt.all(companyId.trim());
+}
+
+function getOrgUnitById(id, companyId = null) {
+  if (!id) return null;
+  let sql = `
+    SELECT u.*,
+           p.name AS parent_unit_name,
+           l.name AS level_name,
+           l.rank AS level_rank,
+           m.name AS manager_name,
+           (SELECT COUNT(*) FROM employees e WHERE e.org_unit_id = u.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count
+    FROM org_units u
+    LEFT JOIN org_units p ON u.parent_unit_id = p.id
+    LEFT JOIN org_levels l ON u.level_id = l.id
+    LEFT JOIN employees m ON u.manager_id = m.id
+    WHERE u.id = ?
+  `;
+  if (companyId) {
+    sql += ' AND u.company_id = ?';
+    return db.prepare(sql).get(id, companyId);
+  }
+  return db.prepare(sql).get(id);
+}
+
+function updateOrgUnit({ id, companyId, name, unitType, parentUnitId, levelId, managerId }) {
+  if (!id || typeof id !== 'string') {
+    const err = new Error('Organizational Unit ID is required.');
+    err.code = 'INVALID_UNIT_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+  const existing = getOrgUnitById(id, companyId);
+  if (!existing) {
+    const err = new Error(`Organizational unit '${id}' not found in your organization.`);
+    err.code = 'ORG_UNIT_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const cId = existing.company_id;
+  const newName = (name !== undefined && name !== null) ? name.trim() : existing.name;
+  const newType = (unitType !== undefined && unitType !== null) ? unitType.trim().toUpperCase() : existing.unit_type;
+
+  if (newName.length < 2) {
+    const err = new Error('Unit name must be at least 2 characters long.');
+    err.code = 'INVALID_UNIT_NAME';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let newParentId = existing.parent_unit_id;
+  if (parentUnitId !== undefined) {
+    if (parentUnitId !== null && typeof parentUnitId === 'string' && parentUnitId.trim()) {
+      newParentId = parentUnitId.trim();
+      if (newParentId === id) {
+        const err = new Error('An organizational unit cannot be its own parent.');
+        err.code = 'SELF_PARENTING_UNIT';
+        err.statusCode = 400;
+        throw err;
+      }
+      validateOrgUnitBelongsToCompany(newParentId, cId);
+      if (detectCircularOrgUnits(id, newParentId, cId)) {
+        const err = new Error(`Circular unit hierarchy detected: assigning unit '${newParentId}' as parent of '${id}' creates a loop.`);
+        err.code = 'CIRCULAR_ORG_UNIT';
+        err.statusCode = 400;
+        throw err;
+      }
+    } else {
+      newParentId = null;
+    }
+  }
+
+  let newLevelId = existing.level_id;
+  if (levelId !== undefined) {
+    if (levelId !== null && typeof levelId === 'string' && levelId.trim()) {
+      newLevelId = levelId.trim();
+      const lvl = getOrgLevelById(newLevelId, cId);
+      if (!lvl) {
+        const err = new Error(`Organizational level '${newLevelId}' not found in your organization.`);
+        err.code = 'ORG_LEVEL_NOT_FOUND';
+        err.statusCode = 404;
+        throw err;
+      }
+    } else {
+      newLevelId = null;
+    }
+  }
+
+  let newManagerId = existing.manager_id;
+  if (managerId !== undefined) {
+    if (managerId !== null && typeof managerId === 'string' && managerId.trim()) {
+      newManagerId = managerId.trim();
+      const mgr = getEmployeeById(newManagerId);
+      if (!mgr || mgr.companyId !== cId) {
+        const err = new Error(`Assigned manager '${newManagerId}' not found in your organization.`);
+        err.code = 'MANAGER_NOT_FOUND';
+        err.statusCode = 404;
+        throw err;
+      }
+      if (mgr.isArchived) {
+        const err = new Error(`Cannot assign archived employee '${mgr.name}' as unit manager.`);
+        err.code = 'MANAGER_ARCHIVED';
+        err.statusCode = 400;
+        throw err;
+      }
+    } else {
+      newManagerId = null;
+    }
+  }
+
+  // Duplicate name check under parent (excluding self)
+  if (newParentId) {
+    const dup = db.prepare('SELECT id FROM org_units WHERE company_id = ? AND parent_unit_id = ? AND LOWER(name) = ? AND id != ?').get(cId, newParentId, newName.toLowerCase(), id);
+    if (dup) {
+      const err = new Error(`An organizational unit named '${newName}' already exists under the selected parent unit.`);
+      err.code = 'DUPLICATE_ORG_UNIT_NAME';
+      err.statusCode = 409;
+      throw err;
+    }
+  } else {
+    const dup = db.prepare('SELECT id FROM org_units WHERE company_id = ? AND parent_unit_id IS NULL AND LOWER(name) = ? AND id != ?').get(cId, newName.toLowerCase(), id);
+    if (dup) {
+      const err = new Error(`A top-level organizational unit named '${newName}' already exists.`);
+      err.code = 'DUPLICATE_ORG_UNIT_NAME';
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  const now = new Date().toISOString();
+  const stmt = db.prepare(`
+    UPDATE org_units
+    SET name = ?, unit_type = ?, parent_unit_id = ?, level_id = ?, manager_id = ?, updated_at = ?
+    WHERE id = ? AND company_id = ?
+  `);
+  stmt.run(newName, newType, newParentId, newLevelId, newManagerId, now, id, cId);
+
+  return getOrgUnitById(id, cId);
+}
+
+function deleteOrgUnit(id, companyId) {
+  const existing = getOrgUnitById(id, companyId);
+  if (!existing) {
+    const err = new Error(`Organizational unit '${id}' not found in your organization.`);
+    err.code = 'ORG_UNIT_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    // Re-parent any child units to this unit's parent
+    db.prepare('UPDATE org_units SET parent_unit_id = ? WHERE parent_unit_id = ? AND company_id = ?')
+      .run(existing.parent_unit_id || null, id, existing.company_id);
+    
+    // Nullify references in employees
+    db.prepare('UPDATE employees SET org_unit_id = NULL WHERE org_unit_id = ? AND company_id = ?')
+      .run(id, existing.company_id);
+
+    db.prepare('DELETE FROM org_units WHERE id = ? AND company_id = ?')
+      .run(id, existing.company_id);
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return { success: true, message: `Organizational unit '${existing.name}' deleted successfully.` };
+}
+
+function getOrgUnitHierarchy(companyId) {
+  const allUnits = getOrgUnits(companyId);
+  const unitMap = new Map();
+  allUnits.forEach(u => unitMap.set(u.id, { ...u, children: [] }));
+
+  const rootUnits = [];
+  allUnits.forEach(u => {
+    const node = unitMap.get(u.id);
+    if (u.parent_unit_id && unitMap.has(u.parent_unit_id)) {
+      unitMap.get(u.parent_unit_id).children.push(node);
+    } else {
+      rootUnits.push(node);
+    }
+  });
+
+  return rootUnits;
+}
+
+// ==========================================
+// C. Dynamic Job Titles (HR Designations)
+// ==========================================
+
+function validateJobTitleBelongsToCompany(jobTitleId, companyId) {
+  if (!jobTitleId) return null;
+  const stmt = db.prepare('SELECT id, company_id, title, is_active FROM company_job_titles WHERE id = ?');
+  const row = stmt.get(jobTitleId);
+  if (!row) {
+    const err = new Error(`Job title '${jobTitleId}' not found.`);
+    err.code = 'JOB_TITLE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+  if (companyId && row.company_id !== companyId) {
+    const err = new Error(`Job title '${jobTitleId}' belongs to a different organization.`);
+    err.code = 'CROSS_COMPANY_REFERENCE';
+    err.statusCode = 400;
+    throw err;
+  }
+  return row;
+}
+
+function createJobTitle({ id, companyId, title, description = '', isActive = 1 }) {
+  if (!companyId || typeof companyId !== 'string' || !companyId.trim()) {
+    const err = new Error('Company ID is required to create a job title.');
+    err.code = 'INVALID_COMPANY_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!title || typeof title !== 'string' || title.trim().length < 2) {
+    const err = new Error('Job title must be at least 2 characters long.');
+    err.code = 'INVALID_JOB_TITLE';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const cId = companyId.trim();
+  const cleanTitle = title.trim();
+
+  const dup = db.prepare('SELECT id FROM company_job_titles WHERE company_id = ? AND LOWER(title) = ?').get(cId, cleanTitle.toLowerCase());
+  if (dup) {
+    const err = new Error(`A job title '${cleanTitle}' already exists in this organization.`);
+    err.code = 'DUPLICATE_JOB_TITLE';
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const jobId = (id && typeof id === 'string' && id.trim()) ? id.trim() : auth.generateId('JOB');
+  const now = new Date().toISOString();
+
+  const stmt = db.prepare(`
+    INSERT INTO company_job_titles (id, company_id, title, description, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(jobId, cId, cleanTitle, description || '', isActive ? 1 : 0, now, now);
+
+  return getJobTitleById(jobId, cId);
+}
+
+function getJobTitles(companyId, includeInactive = false) {
+  if (!companyId || typeof companyId !== 'string') return [];
+  let sql = `
+    SELECT j.*,
+           (SELECT COUNT(*) FROM employees e WHERE e.job_title_id = j.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count
+    FROM company_job_titles j
+    WHERE j.company_id = ?
+  `;
+  if (!includeInactive) {
+    sql += ' AND j.is_active = 1';
+  }
+  sql += ' ORDER BY j.title ASC';
+  return db.prepare(sql).all(companyId.trim());
+}
+
+function getJobTitleById(id, companyId = null) {
+  if (!id) return null;
+  let sql = `
+    SELECT j.*,
+           (SELECT COUNT(*) FROM employees e WHERE e.job_title_id = j.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count
+    FROM company_job_titles j
+    WHERE j.id = ?
+  `;
+  if (companyId) {
+    sql += ' AND j.company_id = ?';
+    return db.prepare(sql).get(id, companyId);
+  }
+  return db.prepare(sql).get(id);
+}
+
+function updateJobTitle({ id, companyId, title, description, isActive }) {
+  if (!id || typeof id !== 'string') {
+    const err = new Error('Job Title ID is required.');
+    err.code = 'INVALID_JOB_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+  const existing = getJobTitleById(id, companyId);
+  if (!existing) {
+    const err = new Error(`Job title '${id}' not found in your organization.`);
+    err.code = 'JOB_TITLE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const cId = existing.company_id;
+  const newTitle = (title !== undefined && title !== null) ? title.trim() : existing.title;
+  const newDesc = (description !== undefined && description !== null) ? description : existing.description;
+  const newActive = (isActive !== undefined && isActive !== null) ? (isActive ? 1 : 0) : existing.is_active;
+
+  if (newTitle.length < 2) {
+    const err = new Error('Job title must be at least 2 characters long.');
+    err.code = 'INVALID_JOB_TITLE';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (newTitle.toLowerCase() !== existing.title.toLowerCase()) {
+    const dup = db.prepare('SELECT id FROM company_job_titles WHERE company_id = ? AND LOWER(title) = ? AND id != ?').get(cId, newTitle.toLowerCase(), id);
+    if (dup) {
+      const err = new Error(`A job title '${newTitle}' already exists in this organization.`);
+      err.code = 'DUPLICATE_JOB_TITLE';
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  const now = new Date().toISOString();
+  const stmt = db.prepare(`
+    UPDATE company_job_titles
+    SET title = ?, description = ?, is_active = ?, updated_at = ?
+    WHERE id = ? AND company_id = ?
+  `);
+  stmt.run(newTitle, newDesc, newActive, now, id, cId);
+
+  return getJobTitleById(id, cId);
+}
+
+function deleteJobTitle(id, companyId) {
+  const existing = getJobTitleById(id, companyId);
+  if (!existing) {
+    const err = new Error(`Job title '${id}' not found in your organization.`);
+    err.code = 'JOB_TITLE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    db.prepare('UPDATE employees SET job_title_id = NULL WHERE job_title_id = ? AND company_id = ?')
+      .run(id, existing.company_id);
+    db.prepare('DELETE FROM company_job_titles WHERE id = ? AND company_id = ?')
+      .run(id, existing.company_id);
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return { success: true, message: `Job title '${existing.title}' deleted successfully.` };
+}
+
+// ==========================================
+// D. Company Access Roles & Granular Permissions
+// ==========================================
+
+const VALID_PERMISSION_KEYS = [
+  'employees:view',
+  'employees:manage',
+  'attendance:view',
+  'attendance:manage',
+  'analytics:view',
+  'org:view',
+  'org:manage',
+  'roles:manage'
+];
+
+const VALID_PERMISSION_SCOPES = [
+  'SELF',
+  'DIRECT_REPORTS',
+  'DESCENDANTS',
+  'DEPARTMENT',
+  'COMPANY'
+];
+
+function seedCompanyDefaultRoles(companyId, now = new Date().toISOString()) {
+  const roleCount = db.prepare('SELECT COUNT(*) AS c FROM company_access_roles WHERE company_id = ?').get(companyId).c;
+  if (roleCount > 0) return;
+
+  const insertRole = db.prepare(`
+    INSERT INTO company_access_roles (id, company_id, name, description, is_system_role, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertPerm = db.prepare(`
+    INSERT INTO company_role_permissions (id, role_id, company_id, permission_key, scope, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  // 1. Company Administrator
+  const adminRoleId = auth.generateId('ROLE');
+  insertRole.run(adminRoleId, companyId, 'Administrator', 'Full administrative authority across the entire organization.', 1, now, now);
+  const adminPerms = [
+    { key: 'employees:view', scope: 'COMPANY' },
+    { key: 'employees:manage', scope: 'COMPANY' },
+    { key: 'attendance:view', scope: 'COMPANY' },
+    { key: 'attendance:manage', scope: 'COMPANY' },
+    { key: 'analytics:view', scope: 'COMPANY' },
+    { key: 'org:view', scope: 'COMPANY' },
+    { key: 'org:manage', scope: 'COMPANY' },
+    { key: 'roles:manage', scope: 'COMPANY' }
+  ];
+  for (const p of adminPerms) {
+    insertPerm.run(auth.generateId('PERM'), adminRoleId, companyId, p.key, p.scope, now);
+  }
+
+  // 2. Department Head
+  const deptHeadRoleId = auth.generateId('ROLE');
+  insertRole.run(deptHeadRoleId, companyId, 'Department Head', 'Oversight and reporting for department and permitted descendants.', 1, now, now);
+  const deptPerms = [
+    { key: 'employees:view', scope: 'DESCENDANTS' },
+    { key: 'employees:manage', scope: 'DESCENDANTS' },
+    { key: 'attendance:view', scope: 'DESCENDANTS' },
+    { key: 'attendance:manage', scope: 'DEPARTMENT' },
+    { key: 'analytics:view', scope: 'DEPARTMENT' },
+    { key: 'org:view', scope: 'COMPANY' }
+  ];
+  for (const p of deptPerms) {
+    insertPerm.run(auth.generateId('PERM'), deptHeadRoleId, companyId, p.key, p.scope, now);
+  }
+
+  // 3. Team Lead
+  const leadRoleId = auth.generateId('ROLE');
+  insertRole.run(leadRoleId, companyId, 'Team Lead', 'Direct supervisor oversight for assigned team members.', 1, now, now);
+  const leadPerms = [
+    { key: 'employees:view', scope: 'DIRECT_REPORTS' },
+    { key: 'employees:manage', scope: 'DIRECT_REPORTS' },
+    { key: 'attendance:view', scope: 'DIRECT_REPORTS' },
+    { key: 'org:view', scope: 'COMPANY' }
+  ];
+  for (const p of leadPerms) {
+    insertPerm.run(auth.generateId('PERM'), leadRoleId, companyId, p.key, p.scope, now);
+  }
+
+  // 4. Employee (Standard)
+  const staffRoleId = auth.generateId('ROLE');
+  insertRole.run(staffRoleId, companyId, 'Employee', 'Standard workforce access for personal attendance and profile.', 1, now, now);
+  const staffPerms = [
+    { key: 'employees:view', scope: 'SELF' },
+    { key: 'attendance:view', scope: 'SELF' }
+  ];
+  for (const p of staffPerms) {
+    insertPerm.run(auth.generateId('PERM'), staffRoleId, companyId, p.key, p.scope, now);
+  }
+}
+
+function validateAccessRoleBelongsToCompany(roleId, companyId) {
+  if (!roleId) return null;
+  const stmt = db.prepare('SELECT id, company_id, name, is_system_role FROM company_access_roles WHERE id = ?');
+  const row = stmt.get(roleId);
+  if (!row) {
+    const err = new Error(`Access role '${roleId}' not found.`);
+    err.code = 'ACCESS_ROLE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+  if (companyId && row.company_id !== companyId) {
+    const err = new Error(`Access role '${roleId}' belongs to a different organization.`);
+    err.code = 'CROSS_COMPANY_REFERENCE';
+    err.statusCode = 400;
+    throw err;
+  }
+  return row;
+}
+
+function createAccessRole({ id, companyId, name, description = '', isSystemRole = 0, permissions = [] }) {
+  if (!companyId || typeof companyId !== 'string' || !companyId.trim()) {
+    const err = new Error('Company ID is required to create an access role.');
+    err.code = 'INVALID_COMPANY_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    const err = new Error('Access role name must be at least 2 characters long.');
+    err.code = 'INVALID_ROLE_NAME';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const cId = companyId.trim();
+  const roleName = name.trim();
+
+  const dup = db.prepare('SELECT id FROM company_access_roles WHERE company_id = ? AND LOWER(name) = ?').get(cId, roleName.toLowerCase());
+  if (dup) {
+    const err = new Error(`An access role named '${roleName}' already exists in this organization.`);
+    err.code = 'DUPLICATE_ACCESS_ROLE';
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const roleId = (id && typeof id === 'string' && id.trim()) ? id.trim() : auth.generateId('ROLE');
+  const now = new Date().toISOString();
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    const insertRole = db.prepare(`
+      INSERT INTO company_access_roles (id, company_id, name, description, is_system_role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    insertRole.run(roleId, cId, roleName, description || '', isSystemRole ? 1 : 0, now, now);
+
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      const insertPerm = db.prepare(`
+        INSERT INTO company_role_permissions (id, role_id, company_id, permission_key, scope, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const p of permissions) {
+        const key = typeof p === 'string' ? p : p.key || p.permissionKey || p.permission_key;
+        const scope = (typeof p === 'object' && (p.scope)) ? p.scope.toUpperCase() : 'COMPANY';
+        if (!VALID_PERMISSION_KEYS.includes(key)) {
+          const err = new Error(`Invalid permission key '${key}'. Supported permissions: ${VALID_PERMISSION_KEYS.join(', ')}`);
+          err.code = 'INVALID_PERMISSION_KEY';
+          err.statusCode = 400;
+          throw err;
+        }
+        if (!VALID_PERMISSION_SCOPES.includes(scope)) {
+          const err = new Error(`Invalid permission scope '${scope}'. Supported scopes: ${VALID_PERMISSION_SCOPES.join(', ')}`);
+          err.code = 'INVALID_PERMISSION_SCOPE';
+          err.statusCode = 400;
+          throw err;
+        }
+        insertPerm.run(auth.generateId('PERM'), roleId, cId, key, scope, now);
+      }
+    }
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return getAccessRoleById(roleId, cId);
+}
+
+function getAccessRoles(companyId) {
+  if (!companyId || typeof companyId !== 'string') return [];
+  const cId = companyId.trim();
+  const roles = db.prepare(`
+    SELECT r.*,
+           (SELECT COUNT(*) FROM employees e WHERE e.access_role_id = r.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count
+    FROM company_access_roles r
+    WHERE r.company_id = ?
+    ORDER BY r.is_system_role DESC, r.name ASC
+  `).all(cId);
+
+  const permStmt = db.prepare('SELECT id, permission_key, scope FROM company_role_permissions WHERE role_id = ?');
+  return roles.map(r => ({
+    ...r,
+    is_system_role: Boolean(r.is_system_role),
+    permissions: permStmt.all(r.id).map(p => ({
+      id: p.id,
+      key: p.permission_key,
+      scope: p.scope
+    }))
+  }));
+}
+
+function getAccessRoleById(id, companyId = null) {
+  if (!id) return null;
+  let sql = `
+    SELECT r.*,
+           (SELECT COUNT(*) FROM employees e WHERE e.access_role_id = r.id AND (e.is_archived = 0 OR e.is_archived IS NULL)) AS employee_count
+    FROM company_access_roles r
+    WHERE r.id = ?
+  `;
+  const role = companyId ? db.prepare(sql + ' AND r.company_id = ?').get(id, companyId) : db.prepare(sql).get(id);
+  if (!role) return null;
+
+  const perms = db.prepare('SELECT id, permission_key, scope FROM company_role_permissions WHERE role_id = ?').all(id);
+  return {
+    ...role,
+    is_system_role: Boolean(role.is_system_role),
+    permissions: perms.map(p => ({
+      id: p.id,
+      key: p.permission_key,
+      scope: p.scope
+    }))
+  };
+}
+
+function updateAccessRole({ id, companyId, name, description, permissions }) {
+  if (!id || typeof id !== 'string') {
+    const err = new Error('Access Role ID is required.');
+    err.code = 'INVALID_ROLE_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+  const existing = getAccessRoleById(id, companyId);
+  if (!existing) {
+    const err = new Error(`Access role '${id}' not found in your organization.`);
+    err.code = 'ACCESS_ROLE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const cId = existing.company_id;
+  let newName = existing.name;
+  if (name !== undefined && name !== null) {
+    if (existing.is_system_role && name.trim() !== existing.name) {
+      const err = new Error('System role names cannot be renamed.');
+      err.code = 'CANNOT_RENAME_SYSTEM_ROLE';
+      err.statusCode = 400;
+      throw err;
+    }
+    newName = name.trim();
+  }
+
+  if (newName.length < 2) {
+    const err = new Error('Access role name must be at least 2 characters long.');
+    err.code = 'INVALID_ROLE_NAME';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (newName.toLowerCase() !== existing.name.toLowerCase()) {
+    const dup = db.prepare('SELECT id FROM company_access_roles WHERE company_id = ? AND LOWER(name) = ? AND id != ?').get(cId, newName.toLowerCase(), id);
+    if (dup) {
+      const err = new Error(`An access role named '${newName}' already exists in this organization.`);
+      err.code = 'DUPLICATE_ACCESS_ROLE';
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  const newDesc = (description !== undefined && description !== null) ? description : existing.description;
+  const now = new Date().toISOString();
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    db.prepare(`
+      UPDATE company_access_roles
+      SET name = ?, description = ?, updated_at = ?
+      WHERE id = ? AND company_id = ?
+    `).run(newName, newDesc, now, id, cId);
+
+    if (Array.isArray(permissions)) {
+      db.prepare('DELETE FROM company_role_permissions WHERE role_id = ? AND company_id = ?').run(id, cId);
+      const insertPerm = db.prepare(`
+        INSERT INTO company_role_permissions (id, role_id, company_id, permission_key, scope, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const p of permissions) {
+        const key = typeof p === 'string' ? p : p.key || p.permissionKey || p.permission_key;
+        const scope = (typeof p === 'object' && (p.scope)) ? p.scope.toUpperCase() : 'COMPANY';
+        if (!VALID_PERMISSION_KEYS.includes(key)) {
+          const err = new Error(`Invalid permission key '${key}'. Supported permissions: ${VALID_PERMISSION_KEYS.join(', ')}`);
+          err.code = 'INVALID_PERMISSION_KEY';
+          err.statusCode = 400;
+          throw err;
+        }
+        if (!VALID_PERMISSION_SCOPES.includes(scope)) {
+          const err = new Error(`Invalid permission scope '${scope}'. Supported scopes: ${VALID_PERMISSION_SCOPES.join(', ')}`);
+          err.code = 'INVALID_PERMISSION_SCOPE';
+          err.statusCode = 400;
+          throw err;
+        }
+        insertPerm.run(auth.generateId('PERM'), id, cId, key, scope, now);
+      }
+    }
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return getAccessRoleById(id, cId);
+}
+
+function deleteAccessRole(id, companyId) {
+  const existing = getAccessRoleById(id, companyId);
+  if (!existing) {
+    const err = new Error(`Access role '${id}' not found in your organization.`);
+    err.code = 'ACCESS_ROLE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+  if (existing.is_system_role) {
+    const err = new Error('System roles are protected and cannot be deleted.');
+    err.code = 'CANNOT_DELETE_SYSTEM_ROLE';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    db.prepare('UPDATE employees SET access_role_id = NULL WHERE access_role_id = ? AND company_id = ?')
+      .run(id, existing.company_id);
+    db.prepare('DELETE FROM company_role_permissions WHERE role_id = ? AND company_id = ?')
+      .run(id, existing.company_id);
+    db.prepare('DELETE FROM company_access_roles WHERE id = ? AND company_id = ?')
+      .run(id, existing.company_id);
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return { success: true, message: `Access role '${existing.name}' deleted successfully.` };
+}
+
+function getRolePermissions(roleId, companyId = null) {
+  if (companyId) {
+    return db.prepare('SELECT id, permission_key AS key, scope FROM company_role_permissions WHERE role_id = ? AND company_id = ?').all(roleId, companyId);
+  }
+  return db.prepare('SELECT id, permission_key AS key, scope FROM company_role_permissions WHERE role_id = ?').all(roleId);
+}
+
+function setRolePermissions(roleId, companyId, permissions) {
+  const existing = getAccessRoleById(roleId, companyId);
+  if (!existing) {
+    const err = new Error(`Access role '${roleId}' not found.`);
+    err.code = 'ACCESS_ROLE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const now = new Date().toISOString();
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    db.prepare('DELETE FROM company_role_permissions WHERE role_id = ? AND company_id = ?').run(roleId, existing.company_id);
+    const insertPerm = db.prepare(`
+      INSERT INTO company_role_permissions (id, role_id, company_id, permission_key, scope, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    for (const p of permissions) {
+      const key = typeof p === 'string' ? p : p.key || p.permissionKey || p.permission_key;
+      const scope = (typeof p === 'object' && p.scope) ? p.scope.toUpperCase() : 'COMPANY';
+      if (!VALID_PERMISSION_KEYS.includes(key)) {
+        const err = new Error(`Invalid permission key '${key}'. Supported: ${VALID_PERMISSION_KEYS.join(', ')}`);
+        err.code = 'INVALID_PERMISSION_KEY';
+        err.statusCode = 400;
+        throw err;
+      }
+      if (!VALID_PERMISSION_SCOPES.includes(scope)) {
+        const err = new Error(`Invalid permission scope '${scope}'. Supported: ${VALID_PERMISSION_SCOPES.join(', ')}`);
+        err.code = 'INVALID_PERMISSION_SCOPE';
+        err.statusCode = 400;
+        throw err;
+      }
+      insertPerm.run(auth.generateId('PERM'), roleId, existing.company_id, key, scope, now);
+    }
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return getRolePermissions(roleId, existing.company_id);
+}
+
+function getEmployeeEffectivePermissions(employeeId, companyId = null) {
+  const emp = getEmployeeById(employeeId);
+  if (!emp) return {};
+  const cId = companyId || emp.companyId;
+
+  let roleId = emp.accessRoleId;
+  if (!roleId) {
+    const defaultStaff = db.prepare("SELECT id FROM company_access_roles WHERE company_id = ? AND name = 'Employee'").get(cId);
+    if (defaultStaff) roleId = defaultStaff.id;
+  }
+
+  if (!roleId) return {};
+
+  const perms = db.prepare('SELECT permission_key, scope FROM company_role_permissions WHERE role_id = ?').all(roleId);
+  const effective = {};
+  for (const p of perms) {
+    effective[p.permission_key] = p.scope;
+  }
+  return effective;
+}
+
+// ==========================================
+// E. Reporting Hierarchy & Circular Cycle Detection
+// ==========================================
+
+function validateReportingAssignment(employeeId, newManagerId, companyId) {
+  if (!newManagerId) {
+    return { valid: true };
+  }
+
+  if (employeeId && employeeId === newManagerId) {
+    const err = new Error('An employee cannot report to themselves.');
+    err.code = 'SELF_REPORTING';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const mgr = getEmployeeById(newManagerId);
+  if (!mgr) {
+    const err = new Error(`Assigned manager with ID '${newManagerId}' not found.`);
+    err.code = 'MANAGER_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (companyId && mgr.companyId !== companyId) {
+    const err = new Error(`Reporting manager '${newManagerId}' belongs to a different organization.`);
+    err.code = 'CROSS_COMPANY_REFERENCE';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (mgr.isArchived) {
+    const err = new Error(`Cannot assign archived employee '${mgr.name}' (${mgr.id}) as reporting manager.`);
+    err.code = 'MANAGER_ARCHIVED';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (employeeId) {
+    // Trace upwards from newManagerId: if we hit employeeId, it's a circular relationship
+    let currentId = newManagerId;
+    const visited = new Set([employeeId]);
+    const chain = [newManagerId];
+
+    while (currentId) {
+      const parentRow = db.prepare('SELECT id, name, manager_id, company_id FROM employees WHERE id = ?').get(currentId);
+      if (!parentRow) break;
+      if (companyId && parentRow.company_id !== companyId) {
+        const err = new Error(`Manager '${currentId}' belongs to a different company.`);
+        err.code = 'CROSS_COMPANY_REFERENCE';
+        err.statusCode = 400;
+        throw err;
+      }
+      if (parentRow.manager_id && visited.has(parentRow.manager_id)) {
+        const cycleChain = [...chain, parentRow.manager_id].join(' -> ');
+        const err = new Error(`Circular reporting relationship detected: assigning '${newManagerId}' as manager of '${employeeId}' creates a loop (${cycleChain}).`);
+        err.code = 'CIRCULAR_REPORTING';
+        err.statusCode = 400;
+        throw err;
+      }
+      currentId = parentRow.manager_id;
+      if (currentId) {
+        visited.add(currentId);
+        chain.push(currentId);
+      }
+    }
+  }
+
+  return { valid: true };
+}
+
+function detectCircularReporting(employeeId, newManagerId, companyId) {
+  try {
+    validateReportingAssignment(employeeId, newManagerId, companyId);
+    return false;
+  } catch (err) {
+    if (err.code === 'CIRCULAR_REPORTING' || err.code === 'SELF_REPORTING') {
+      return true;
+    }
+    throw err;
+  }
+}
+
+function assignEmployeeOrgAndReporting({ employeeId, companyId, managerId, orgUnitId, jobTitleId, accessRoleId }) {
+  if (!employeeId || typeof employeeId !== 'string') {
+    const err = new Error('Employee ID is required.');
+    err.code = 'INVALID_EMPLOYEE_ID';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const existing = getEmployeeById(employeeId);
+  if (!existing) {
+    const err = new Error(`Employee with ID '${employeeId}' not found.`);
+    err.code = 'EMPLOYEE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const cId = companyId || existing.companyId;
+  if (existing.companyId !== cId) {
+    const err = new Error(`Employee with ID '${employeeId}' not found in your organization.`);
+    err.code = 'EMPLOYEE_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  let targetManagerId = existing.managerId;
+  if (managerId !== undefined) {
+    if (managerId !== null && typeof managerId === 'string' && managerId.trim()) {
+      const cleanMgrId = managerId.trim();
+      validateReportingAssignment(employeeId, cleanMgrId, cId);
+      targetManagerId = cleanMgrId;
+    } else {
+      targetManagerId = null;
+    }
+  }
+
+  let targetOrgUnitId = existing.orgUnitId;
+  let targetDepartment = existing.department;
+  if (orgUnitId !== undefined) {
+    if (orgUnitId !== null && typeof orgUnitId === 'string' && orgUnitId.trim()) {
+      const cleanUnitId = orgUnitId.trim();
+      const unit = validateOrgUnitBelongsToCompany(cleanUnitId, cId);
+      targetOrgUnitId = cleanUnitId;
+      if (unit && unit.name) targetDepartment = unit.name;
+    } else {
+      targetOrgUnitId = null;
+    }
+  }
+
+  let targetJobTitleId = existing.jobTitleId;
+  let targetRole = existing.role;
+  if (jobTitleId !== undefined) {
+    if (jobTitleId !== null && typeof jobTitleId === 'string' && jobTitleId.trim()) {
+      const cleanJobId = jobTitleId.trim();
+      const job = validateJobTitleBelongsToCompany(cleanJobId, cId);
+      targetJobTitleId = cleanJobId;
+      if (job && job.title) targetRole = job.title;
+    } else {
+      targetJobTitleId = null;
+    }
+  }
+
+  let targetAccessRoleId = existing.accessRoleId;
+  if (accessRoleId !== undefined) {
+    if (accessRoleId !== null && typeof accessRoleId === 'string' && accessRoleId.trim()) {
+      const cleanRoleId = accessRoleId.trim();
+      validateAccessRoleBelongsToCompany(cleanRoleId, cId);
+      targetAccessRoleId = cleanRoleId;
+    } else {
+      targetAccessRoleId = null;
+    }
+  }
+
+  const updateStmt = db.prepare(`
+    UPDATE employees
+    SET manager_id = ?, org_unit_id = ?, job_title_id = ?, access_role_id = ?,
+        department = ?, role = ?
+    WHERE id = ? AND company_id = ?
+  `);
+  updateStmt.run(
+    targetManagerId, targetOrgUnitId, targetJobTitleId, targetAccessRoleId,
+    targetDepartment, targetRole, employeeId, cId
+  );
+
+  return getEmployeeById(employeeId);
+}
+
+function getDirectReports(managerId, companyId = null) {
+  if (!managerId) return [];
+  let sql = `
+    SELECT e.*, 
+           a.account_status, 
+           a.must_change_password,
+           m.name AS manager_name,
+           u.name AS org_unit_name,
+           j.title AS job_title_name,
+           r.name AS access_role_name
+    FROM employees e
+    LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    LEFT JOIN employees m ON e.manager_id = m.id
+    LEFT JOIN org_units u ON e.org_unit_id = u.id
+    LEFT JOIN company_job_titles j ON e.job_title_id = j.id
+    LEFT JOIN company_access_roles r ON e.access_role_id = r.id
+    WHERE e.manager_id = ? AND (e.is_archived = 0 OR e.is_archived IS NULL)
+  `;
+  if (companyId) {
+    sql += ' AND e.company_id = ?';
+    return db.prepare(sql + ' ORDER BY e.name ASC').all(managerId, companyId).map(formatEmployeeRow);
+  }
+  return db.prepare(sql + ' ORDER BY e.name ASC').all(managerId).map(formatEmployeeRow);
+}
+
+function getRecursiveSubordinates(managerId, companyId) {
+  if (!managerId || !companyId) return [];
+  const stmt = db.prepare(`
+    WITH RECURSIVE subordinates(id, manager_id, depth, path) AS (
+      -- Anchor: direct reports
+      SELECT id, manager_id, 1 AS depth, id AS path
+      FROM employees
+      WHERE manager_id = ? AND company_id = ? AND (is_archived = 0 OR is_archived IS NULL)
+      
+      UNION ALL
+      
+      -- Recursive: reports of reports
+      SELECT e.id, e.manager_id, s.depth + 1, s.path || '/' || e.id
+      FROM employees e
+      JOIN subordinates s ON e.manager_id = s.id
+      WHERE e.company_id = ? AND (e.is_archived = 0 OR e.is_archived IS NULL) AND s.depth < 50
+    )
+    SELECT s.depth, s.path,
+           e.*, 
+           a.account_status, 
+           a.must_change_password,
+           m.name AS manager_name,
+           u.name AS org_unit_name,
+           j.title AS job_title_name,
+           r.name AS access_role_name
+    FROM subordinates s
+    JOIN employees e ON s.id = e.id
+    LEFT JOIN employee_accounts a ON e.id = a.employee_id
+    LEFT JOIN employees m ON e.manager_id = m.id
+    LEFT JOIN org_units u ON e.org_unit_id = u.id
+    LEFT JOIN company_job_titles j ON e.job_title_id = j.id
+    LEFT JOIN company_access_roles r ON e.access_role_id = r.id
+    ORDER BY s.depth ASC, e.name ASC
+  `);
+
+  return stmt.all(managerId, companyId, companyId).map(row => ({
+    ...formatEmployeeRow(row),
+    depth: row.depth,
+    path: row.path
+  }));
+}
+
+function getReportingChain(employeeId, companyId) {
+  if (!employeeId || !companyId) return [];
+  const stmt = db.prepare(`
+    WITH RECURSIVE ancestors(id, manager_id, depth) AS (
+      SELECT id, manager_id, 0 AS depth
+      FROM employees
+      WHERE id = ? AND company_id = ?
+      
+      UNION ALL
+      
+      SELECT e.id, e.manager_id, a.depth + 1
+      FROM employees e
+      JOIN ancestors a ON e.id = a.manager_id
+      WHERE a.manager_id IS NOT NULL AND a.depth < 50
+    )
+    SELECT a.depth,
+           e.*, 
+           a.manager_id,
+           u.name AS org_unit_name,
+           j.title AS job_title_name,
+           r.name AS access_role_name
+    FROM ancestors a
+    JOIN employees e ON a.id = e.id
+    LEFT JOIN org_units u ON e.org_unit_id = u.id
+    LEFT JOIN company_job_titles j ON e.job_title_id = j.id
+    LEFT JOIN company_access_roles r ON e.access_role_id = r.id
+    ORDER BY a.depth ASC
+  `);
+
+  return stmt.all(employeeId, companyId).map(row => ({
+    ...formatEmployeeRow(row),
+    depth: row.depth
+  }));
+}
+
+function getOrgHierarchy(companyId) {
+  if (!companyId) return null;
+  const company = getCompanyById(companyId);
+  if (!company) return null;
+
+  const levels = getOrgLevels(companyId);
+  const units = getOrgUnitHierarchy(companyId);
+  const roles = getAccessRoles(companyId);
+  const jobTitles = getJobTitles(companyId, true);
+  const employees = getAllEmployees(companyId, false);
+
+  return {
+    company,
+    levels,
+    units,
+    roles,
+    jobTitles,
+    totalEmployees: employees.length
+  };
+}
+
 // Run table creation and seed check
 initDatabase();
 
@@ -1048,10 +2621,49 @@ module.exports = {
   getEmployeeAccountByEmpId,
   createEmployeeAccount,
   updateEmployeePassword,
+  resetEmployeeTemporaryPassword,
   updateEmployeeAccountStatus,
   createSession,
   getSession,
   deleteSession,
   deleteSessionsByAccount,
-  cleanExpiredSessions
+  cleanExpiredSessions,
+  // Org Tree, Dynamic Roles, & Reporting Hierarchy Exports
+  createOrgLevel,
+  getOrgLevels,
+  getOrgLevelById,
+  updateOrgLevel,
+  deleteOrgLevel,
+  createOrgUnit,
+  getOrgUnits,
+  getOrgUnitById,
+  updateOrgUnit,
+  deleteOrgUnit,
+  getOrgUnitHierarchy,
+  detectCircularOrgUnits,
+  createJobTitle,
+  getJobTitles,
+  getJobTitleById,
+  updateJobTitle,
+  deleteJobTitle,
+  createAccessRole,
+  getAccessRoles,
+  getAccessRoleById,
+  updateAccessRole,
+  deleteAccessRole,
+  getRolePermissions,
+  setRolePermissions,
+  getEmployeeEffectivePermissions,
+  VALID_PERMISSION_KEYS,
+  VALID_PERMISSION_SCOPES,
+  validateReportingAssignment,
+  detectCircularReporting,
+  assignEmployeeOrgAndReporting,
+  getDirectReports,
+  getRecursiveSubordinates,
+  getReportingChain,
+  getOrgHierarchy,
+  validateOrgUnitBelongsToCompany,
+  validateJobTitleBelongsToCompany,
+  validateAccessRoleBelongsToCompany
 };

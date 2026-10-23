@@ -1,5 +1,5 @@
 /**
- * tests/test_persistence.js
+ * tests/integration/test_persistence_analytics.js
  * 
  * Automated Comprehensive Test Suite for SmartWorkforce (Phases 1, 2, 3, 4, 5A, and 5B).
  * Zero external dependencies (powered entirely by native Node.js).
@@ -38,16 +38,16 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const { DatabaseSync } = require('node:sqlite');
-const auth = require('../backend/auth.js');
+const auth = require('../../backend/auth.js');
 
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const SERVER_PATH = fs.existsSync(path.join(PROJECT_ROOT, 'backend', 'server.js'))
   ? path.join(PROJECT_ROOT, 'backend', 'server.js')
   : path.join(PROJECT_ROOT, 'server.js');
 const REAL_DB_PATH = fs.existsSync(path.join(PROJECT_ROOT, 'database', 'smartworkforce.db'))
   ? path.join(PROJECT_ROOT, 'database', 'smartworkforce.db')
   : path.join(PROJECT_ROOT, 'smartworkforce.db');
-const TEST_DB_PATH = path.join(__dirname, 'temp_test.db');
+const TEST_DB_PATH = path.join(__dirname, '..', 'temp_test.db');
 const TEST_PORT = 3099;
 const TEST_GATEWAY_KEY = 'test-secret-gateway-key-xyz';
 

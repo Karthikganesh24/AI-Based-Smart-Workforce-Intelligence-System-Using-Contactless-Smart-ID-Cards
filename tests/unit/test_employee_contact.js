@@ -1,5 +1,5 @@
 /**
- * tests/test_employee_contact.js
+ * tests/unit/test_employee_contact.js
  * Isolated Test Suite for Employee Email, Phone, and Temporary Password Rule
  * 
  * Verifies:
@@ -23,7 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-const tempDbPath = path.resolve(__dirname, 'isolated_contact_test.db');
+const tempDbPath = path.resolve(__dirname, '..', 'isolated_contact_test.db');
 if (fs.existsSync(tempDbPath)) {
   fs.unlinkSync(tempDbPath);
 }
@@ -31,9 +31,9 @@ if (fs.existsSync(tempDbPath)) {
 // Point to isolated database
 process.env.DB_PATH = tempDbPath;
 
-const db = require('../database/database.js');
-const { startServer } = require('../backend/server.js');
-const auth = require('../backend/auth.js');
+const db = require('../../database/database.js');
+const { startServer } = require('../../backend/server.js');
+const auth = require('../../backend/auth.js');
 
 const BOLD = '\x1b[1m';
 const GREEN = '\x1b[32m';

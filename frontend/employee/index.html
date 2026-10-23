@@ -3,498 +3,356 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SmartWorkforce | Employee Self-Service & Personal Attendance Portal</title>
-  <meta name="description" content="Authenticated personal workforce portal with contactless smart ID card badge status, real-time punch history, and verified gate telemetry.">
+  <title>SmartWorkforce | Employee Self-Service &amp; Personal Attendance Portal</title>
+  <meta name="description" content="Clean and simple minimal enterprise employee self-service dashboard with contactless smart ID card badge status, real-time punch history, and verified gate telemetry.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/shared/css/style.css">
-  <style>
-    .emp-portal-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 24px 20px;
-    }
-    .emp-portal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      padding: 16px 24px;
-      margin-bottom: 24px;
-      box-shadow: var(--shadow-sm);
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .emp-brand-area {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .emp-brand-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: var(--radius-md);
-      background: linear-gradient(135deg, #059669, #10B981);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-    }
-    .emp-brand-title {
-      font-family: var(--font-heading);
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--text-main);
-      margin: 0;
-    }
-    .emp-brand-sub {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin: 2px 0 0;
-    }
-    .emp-header-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .emp-live-clock {
-      font-family: var(--font-mono);
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      padding: 6px 12px;
-      background: var(--bg-subtle);
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-color);
-    }
-    .emp-grid {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 24px;
-    }
-    @media (max-width: 900px) {
-      .emp-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-    .emp-company-pill {
-      background: rgba(16, 185, 129, 0.08);
-      border: 1px solid rgba(16, 185, 129, 0.22);
-      border-radius: var(--radius-md);
-      padding: 12px 16px;
-      margin-bottom: 18px;
-    }
-    .emp-company-label {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-    .emp-company-name {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--accent-primary);
-      margin-top: 2px;
-    }
-    .emp-company-meta {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-    .smart-card-badge-wrap {
-      background: linear-gradient(145deg, #0F172A, #1E293B);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      padding: 24px;
-      color: #fff;
-      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
-      position: relative;
-      overflow: hidden;
-    }
-    .smart-card-badge-wrap::after {
-      content: '';
-      position: absolute;
-      top: -50px;
-      right: -50px;
-      width: 140px;
-      height: 140px;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .card-top-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .rfid-chip-icon {
-      width: 36px;
-      height: 28px;
-      background: linear-gradient(135deg, #F59E0B, #D97706);
-      border-radius: 4px;
-      border: 1px solid #B45309;
-      position: relative;
-    }
-    .rfid-chip-icon::after {
-      content: '';
-      position: absolute;
-      top: 6px;
-      left: 6px;
-      right: 6px;
-      bottom: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.4);
-    }
-    .emp-avatar-large {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: #0284C7;
-      color: #fff;
-      font-size: 1.5rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.2);
-    }
-    .card-emp-name {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .card-emp-role {
-      font-size: 0.85rem;
-      color: #94A3B8;
-      margin-bottom: 16px;
-    }
-    .card-uid-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 6px;
-      padding: 6px 12px;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      color: #34D399;
-    }
-    .card-uid-status {
-      font-size: 0.7rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-    }
-    .card-uid-status.active {
-      background: rgba(16, 185, 129, 0.2);
-      color: #34D399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-    .card-uid-status.unassigned {
-      background: rgba(245, 158, 11, 0.2);
-      color: #FBBF24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-    .emp-status-box {
-      margin-top: 20px;
-      padding: 14px 16px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-    }
-    .emp-tap-box {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: var(--shadow-sm);
-    }
-    .emp-history-box {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      box-shadow: var(--shadow-sm);
-    }
-    .status-indicator {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .status-indicator.status-inside {
-      background: #10B981;
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-    }
-    .status-indicator.status-outside {
-      background: #F59E0B;
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      font-family: var(--font-mono);
-      letter-spacing: 0.04em;
-    }
-    .badge-entry {
-      background: rgba(16, 185, 129, 0.15);
-      color: #34D399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-    .badge-exit {
-      background: rgba(239, 68, 68, 0.15);
-      color: #F87171;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-    .badge-verified {
-      background: rgba(59, 130, 246, 0.15);
-      color: #60A5FA;
-      border: 1px solid rgba(59, 130, 246, 0.3);
-    }
-
-    /* Mandatory Password Change Modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.82);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      padding: 20px;
-      animation: fadeIn 0.2s ease-out;
-    }
-    .modal-overlay.hidden {
-      display: none !important;
-    }
-    .modal-dialog {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 18px;
-      width: 100%;
-      max-width: 480px;
-      padding: 30px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-      position: relative;
-    }
-    .modal-icon-badge {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      color: #F59E0B;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 14px;
-    }
-    .modal-title {
-      font-family: var(--font-heading);
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: var(--text-main);
-      margin: 0 0 6px;
-    }
-    .modal-sub {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin: 0 0 20px;
-      line-height: 1.45;
-    }
-    .form-group-modal {
-      margin-bottom: 16px;
-    }
-    .form-label-modal {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-main);
-      margin-bottom: 6px;
-    }
-    .modal-input {
-      width: 100%;
-      padding: 10px 14px;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      color: var(--text-main);
-      font-family: inherit;
-      font-size: 0.9rem;
-      outline: none;
-      transition: border-color 0.15s ease;
-      box-sizing: border-box;
-    }
-    .modal-input:focus {
-      border-color: var(--accent-primary);
-    }
-    .modal-feedback {
-      display: none;
-      padding: 10px 14px;
-      border-radius: var(--radius-sm);
-      font-size: 0.82rem;
-      margin-bottom: 16px;
-    }
-    .modal-feedback.error {
-      display: block;
-      background: rgba(239, 68, 68, 0.12);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #F87171;
-    }
-    .modal-feedback.success {
-      display: block;
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #34D399;
-    }
-    .btn-submit-pwd {
-      width: 100%;
-      padding: 12px;
-      background: var(--accent-primary);
-      color: #fff;
-      font-weight: 600;
-      border: none;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      font-size: 0.92rem;
-      transition: background 0.15s ease;
-    }
-    .btn-submit-pwd:hover {
-      background: #047857;
-    }
-    .btn-submit-pwd:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  </style>
+  <link rel="stylesheet" href="/employee/employee.css">
 </head>
-<body data-theme="dark">
+<body class="emp-portal-body" data-theme="light">
 
-  <div class="emp-portal-container">
-    <!-- Header -->
-    <header class="emp-portal-header">
-      <div class="emp-brand-area">
-        <div class="emp-brand-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 24px; height: 24px;">
-            <path d="M4.9 19.1a10 10 0 0 1 0-14.2M7.8 16.2a6 6 0 0 1 0-8.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 0v5m4.2-2.8a6 6 0 0 0 0-8.4m2.8 11.2a10 10 0 0 0 0-14.2"/>
-          </svg>
-        </div>
-        <div>
-          <h1 class="emp-brand-title">SmartWorkforce</h1>
-          <p class="emp-brand-sub">Employee Self-Service & Personal Attendance Portal</p>
-        </div>
+  <!-- Fixed Left Sidebar (Design 4 — Minimal Clean & Simple) -->
+  <aside class="emp-sidebar" aria-label="Employee Navigation Sidebar">
+    <div class="emp-sidebar-header">
+      <div class="emp-sidebar-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 20px; height: 20px;">
+          <path d="M4.9 19.1a10 10 0 0 1 0-14.2M7.8 16.2a6 6 0 0 1 0-8.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 0v5m4.2-2.8a6 6 0 0 0 0-8.4m2.8 11.2a10 10 0 0 0 0-14.2"/>
+        </svg>
+      </div>
+      <div class="emp-sidebar-brand">
+        <h1 class="emp-sidebar-title">SmartWorkforce</h1>
+        <span class="emp-sidebar-badge">Employee Portal</span>
+      </div>
+    </div>
+
+    <!-- Sidebar Navigation Links -->
+    <nav class="emp-sidebar-nav">
+      <a href="#dashboard" class="emp-nav-item active" id="navItemDashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+          <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+          <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+          <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+
+      <a href="#cardEmployeeProfile" class="emp-nav-item" id="navItemProfile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span>My Profile</span>
+      </a>
+
+      <a href="#cardAttendanceHistory" class="emp-nav-item" id="navItemAttendance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>Attendance History</span>
+      </a>
+
+      <!-- Phase 5: My Team (Shown dynamically for authorized managers / leads) -->
+      <a href="#sectionMyTeam" class="emp-nav-item" id="navItemTeam" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span id="navItemTeamText">My Team</span>
+      </a>
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="emp-sidebar-footer">
+      <div class="emp-sidebar-policy">
+        <strong>Shift:</strong> 09:00 AM – 05:00 PM<br>
+        5s anti-passback debouncing active
       </div>
 
-      <div class="emp-header-actions">
-        <div class="emp-live-clock" id="empLiveClock">--:--:-- --</div>
-        <button type="button" class="btn-action-secondary" id="btnOpenPasswordModal" style="margin: 0; padding: 6px 12px; font-size: 0.8rem;">
-          🔑 Change Password
-        </button>
-        <button type="button" class="btn-theme-toggle" id="themeToggle" style="margin: 0; padding: 6px 12px; font-size: 0.8rem;">
-          ☀️ Light Mode
-        </button>
-        <button type="button" class="btn-action-secondary" id="btnSignOut" style="margin: 0; padding: 6px 14px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+      <button type="button" class="emp-sidebar-btn" id="sidebarThemeToggle" title="Toggle Light / Dark Mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <span>Theme Mode</span>
+      </button>
+
+      <button type="button" class="emp-sidebar-btn btn-signout" id="btnSignOut" title="Sign Out of Session">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <div class="emp-main-wrap" id="dashboard">
+    <!-- Compact Top Header -->
+    <header class="emp-top-header">
+      <div class="emp-breadcrumb">
+        <span>SmartWorkforce</span>
+        <span>/</span>
+        <span class="emp-breadcrumb-active">Employee Dashboard</span>
+      </div>
+
+      <div class="emp-top-actions">
+        <!-- Live Clock Pill -->
+        <div class="emp-clock-pill">
+          <span class="clock-pulse-dot"></span>
+          <span id="empLiveClock">--:--:-- --</span>
+        </div>
+
+        <!-- Change Password Action -->
+        <button type="button" class="emp-btn-nav" id="btnOpenPasswordModal" title="Change Portal Password">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
-          <span>Sign Out</span>
+          <span>Change Password</span>
         </button>
+
+        <!-- Theme Toggle Button -->
+        <button type="button" class="emp-btn-nav" id="themeToggle" title="Switch Theme">
+          🌙 Dark Mode
+        </button>
+
+        <!-- Employee Avatar / Profile Pill -->
+        <div class="emp-header-profile">
+          <div class="emp-header-avatar" id="headerAvatar">--</div>
+          <div class="emp-header-userinfo">
+            <span class="emp-header-name" id="headerName">Loading...</span>
+            <span class="emp-header-role" id="headerRole">Employee</span>
+          </div>
+        </div>
       </div>
     </header>
 
-    <div class="emp-grid">
-      <!-- Left Column: Authenticated Employee Smart ID Badge Presentation -->
-      <aside>
-        <!-- Affiliated Enterprise Scope -->
-        <div class="emp-company-pill">
-          <div class="emp-company-label">Affiliated Enterprise</div>
-          <div class="emp-company-name" id="empCompanyName">Loading Company...</div>
-          <div class="emp-company-meta" id="empCompanyMeta">Scoped Corporate Identity</div>
-        </div>
+    <!-- Main Content Body -->
+    <main class="emp-content-body">
+      <!-- Welcome Heading & Summary -->
+      <section class="emp-welcome-section">
+        <span class="emp-welcome-date" id="welcomeDate">TODAY'S WORKFORCE SESSION</span>
+        <h2 class="emp-welcome-title" id="welcomeGreeting">Welcome back, Employee</h2>
+        <p class="emp-welcome-summary">
+          Real-time personal attendance telemetry, verified RFID turnstile punch logs, and contactless gate simulation.
+        </p>
+      </section>
 
-        <!-- Contactless Smart ID Card -->
-        <div class="smart-card-badge-wrap">
-          <div class="card-top-row">
-            <div class="rfid-chip-icon"></div>
-            <div style="font-size: 0.75rem; letter-spacing: 0.05em; color: #94A3B8; text-transform: uppercase;">
-              Contactless Smart ID
-            </div>
-          </div>
-
-          <div class="emp-avatar-large" id="badgeAvatar">--</div>
-          <div class="card-emp-name" id="badgeName">Loading...</div>
-          <div class="card-emp-role" id="badgeRole">Job Designation • Department</div>
-
-          <div style="margin-top: 16px;">
-            <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 4px; text-transform: uppercase;">Card UID (13.56 MHz HF / NFC)</div>
-            <div class="card-uid-pill" id="badgeUid">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="2" y1="12" x2="22" y2="12"></line>
+      <!-- Four Compact KPI Cards Row -->
+      <section class="emp-kpi-grid" aria-label="Attendance Summary Overview">
+        <!-- Card 1: Current Presence -->
+        <div class="emp-kpi-card kpi-presence" id="kpiPresenceCard">
+          <div class="emp-kpi-header">
+            <span class="emp-kpi-label">Current Presence</span>
+            <div class="emp-kpi-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 16px; height: 16px;">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
               </svg>
-              <span id="badgeUidText">--:--:--:--</span>
-              <span class="card-uid-status active" id="badgeUidStatus">ACTIVE</span>
+            </div>
+          </div>
+          <div class="emp-kpi-value" style="display: flex; align-items: center; gap: 8px; font-size: 1.25rem;">
+            <span class="status-indicator status-inside" id="statusDot"></span>
+            <span id="statusText">CHECKING STATUS...</span>
+          </div>
+          <div class="emp-kpi-sub">
+            Last scan: <strong id="statusLastSeen" style="color: var(--emp-text-primary); margin-left: 4px;">--</strong>
+          </div>
+        </div>
+
+        <!-- Card 2: Today's Entries -->
+        <div class="emp-kpi-card kpi-entries">
+          <div class="emp-kpi-header">
+            <span class="emp-kpi-label">Today's Entries</span>
+            <div class="emp-kpi-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 16px; height: 16px;">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="emp-kpi-value" id="kpiTodayEntries">0</div>
+          <div class="emp-kpi-sub">
+            Verified turnstile check-ins logged today
+          </div>
+        </div>
+
+        <!-- Card 3: Today's Exits -->
+        <div class="emp-kpi-card kpi-exits">
+          <div class="emp-kpi-header">
+            <span class="emp-kpi-label">Today's Exits</span>
+            <div class="emp-kpi-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 16px; height: 16px;">
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="14" y1="10" x2="3" y2="21"></line>
+                <path d="M6 11V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-6"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="emp-kpi-value" id="kpiTodayExits">0</div>
+          <div class="emp-kpi-sub">
+            Facility departures recorded today
+          </div>
+        </div>
+
+        <!-- Card 4: Last Gate Detection -->
+        <div class="emp-kpi-card kpi-gate">
+          <div class="emp-kpi-header">
+            <span class="emp-kpi-label">Last Gate Detection</span>
+            <div class="emp-kpi-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 16px; height: 16px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+          </div>
+          <div class="emp-kpi-value" id="kpiLastGate" style="font-size: 1.12rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="Last Gate Location">--</div>
+          <div class="emp-kpi-sub" id="kpiLastGateTime" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            No gate detections today
+          </div>
+        </div>
+      </section>
+
+      <!-- Two Balanced Cards: Employee Information & Smart Gate Reader -->
+      <section class="emp-two-cards-grid">
+        <!-- Card A: Employee Information -->
+        <div class="emp-card" id="cardEmployeeProfile">
+          <div class="emp-card-header">
+            <h3 class="emp-card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--emp-emerald)" stroke-width="2" style="width: 18px; height: 18px;">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+              <span>Employee Information</span>
+            </h3>
+            <span class="emp-card-badge">Verified Identity</span>
+          </div>
+
+          <!-- Profile Row -->
+          <div class="badge-profile-row">
+            <div class="badge-avatar-wrap" id="badgeAvatar">--</div>
+            <div style="min-width: 0; flex: 1;">
+              <h4 class="badge-name" id="badgeName" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Loading...</h4>
+              <div class="badge-role" id="badgeRole" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Designation • Department</div>
+              <div class="badge-id-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 6v6l4 2"></path>
+                </svg>
+                <span>ID:</span>
+                <span id="badgeEmpId">--</span>
+              </div>
             </div>
           </div>
 
-          <div style="margin-top: 14px; font-size: 0.72rem; color: #64748B;">
-            Employee Identifier: <span id="badgeEmpId" style="color: #CBD5E1; font-family: var(--font-mono);">--</span>
+          <!-- Key Details List -->
+          <div class="emp-details-list">
+            <div class="emp-detail-row">
+              <span class="emp-detail-label">Affiliated Enterprise</span>
+              <span class="emp-detail-val" id="empCompanyName">Loading Company...</span>
+            </div>
+            <div class="emp-detail-row">
+              <span class="emp-detail-label">Job Title</span>
+              <span class="emp-detail-val" id="empJobTitle" style="font-weight: 600;">--</span>
+            </div>
+            <div class="emp-detail-row">
+              <span class="emp-detail-label">Organizational Unit</span>
+              <span class="emp-detail-val" id="empOrgUnit">--</span>
+            </div>
+            <div class="emp-detail-row">
+              <span class="emp-detail-label">Department / Scope</span>
+              <span class="emp-detail-val" id="empCompanyMeta">Scoped Corporate Identity</span>
+            </div>
+            <div class="emp-detail-row">
+              <span class="emp-detail-label">Reporting Manager</span>
+              <span class="emp-detail-val" id="empReportingManager">--</span>
+            </div>
+            <div class="emp-detail-row">
+              <span class="emp-detail-label">Access Role</span>
+              <span class="emp-detail-val" id="empAccessRole">--</span>
+            </div>
+            <div class="emp-detail-row">
+              <span class="emp-detail-label">Smart Card UID</span>
+              <div class="emp-detail-val" id="badgeUid" style="display: flex; align-items: center; gap: 4px;">
+                <span id="badgeUidText" style="font-family: var(--font-family-mono); font-size: 0.82rem;">--:--:--:--</span>
+                <span class="card-uid-status active" id="badgeUidStatus">ACTIVE</span>
+              </div>
+            </div>
+            <div class="emp-detail-row">
+              <span class="emp-detail-label">Card Technology</span>
+              <span class="emp-detail-val" style="font-size: 0.78rem;">13.56 MHz HF • ISO/IEC 14443A</span>
+            </div>
+          </div>
+
+          <!-- Authorized Reporting-Chain Breadcrumb (Feature 1) -->
+          <div class="emp-reporting-chain-box" id="empReportingChainBox">
+            <div class="emp-chain-header">
+              <span class="emp-chain-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                  <line x1="6" y1="3" x2="6" y2="15"></line>
+                  <circle cx="18" cy="6" r="3"></circle>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <path d="M18 9a9 9 0 0 1-9 9"></path>
+                </svg>
+                <span>Reporting Lineage Breadcrumb</span>
+              </span>
+              <span class="emp-chain-count-badge" id="empChainCountBadge">Direct Path</span>
+            </div>
+            <div class="emp-chain-flow" id="empChainFlow">
+              <span style="font-size: 0.8rem; color: var(--emp-text-muted);">Loading reporting chain...</span>
+            </div>
+          </div>
+
+          <!-- Presence Status Banner -->
+          <div class="badge-status-banner" id="badgeStatusBanner">
+            <div class="badge-status-indicator">
+              <span class="badge-pulse" id="badgeStatusPulse"></span>
+              <span id="badgeStatusText">INSIDE FACILITY</span>
+            </div>
+            <span style="font-size: 0.72rem; color: var(--emp-text-muted);" id="badgeStatusSince">Verified Status</span>
           </div>
         </div>
 
-        <!-- Live Presence Status Box -->
-        <div class="emp-status-box">
-          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">Current Presence Status</div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="status-indicator" id="statusDot"></span>
-            <span style="font-weight: 700; font-size: 1.05rem;" id="statusText">CHECKING STATUS...</span>
+        <!-- Card B: Smart Gate Reader Simulator -->
+        <div class="emp-card" id="cardGateTerminal">
+          <div class="emp-card-header">
+            <h3 class="emp-card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--emp-emerald)" stroke-width="2.2" style="width: 18px; height: 18px;">
+                <path d="M4.9 19.1a10 10 0 0 1 0-14.2M7.8 16.2a6 6 0 0 1 0-8.4M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 0v5m4.2-2.8a6 6 0 0 0 0-8.4m2.8 11.2a10 10 0 0 0 0-14.2"/>
+              </svg>
+              <span>Smart Gate Reader</span>
+            </h3>
+            <span class="emp-card-badge">
+              <span class="clock-pulse-dot" style="width: 6px; height: 6px;"></span>
+              <span>Terminal Online</span>
+            </span>
           </div>
-          <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-muted);">
-            Last detection: <strong id="statusLastSeen" style="color: var(--text-main);">--</strong>
-          </div>
-        </div>
-
-        <!-- Corporate Shift Policy -->
-        <div style="margin-top: 16px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">
-          <strong style="color: var(--text-main);">Shift Policy:</strong> Standard workday is 09:00 AM – 05:00 PM with a 15-minute grace window. Card scans within 5s at the same portal are debounced for fraud prevention.
-        </div>
-      </aside>
-
-      <!-- Right Column: Interactive Simulator & Personal Logs -->
-      <main>
-        <!-- Self Tap Simulated Station -->
-        <div class="emp-tap-box">
-          <h2 style="font-size: 1.1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" style="width: 20px; height: 20px;">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-            Simulate Smart Card Presentation
-          </h2>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 18px;">
-            Tap your contactless smart ID card at a facility checkpoint to register verified entry or departure.
+          <p class="terminal-desc">
+            Present your Contactless Smart ID card at an enterprise access portal to simulate real-time attendance telemetry.
           </p>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
-            <div class="control-group" style="margin: 0;">
-              <label class="control-label" for="tapGateSelect">Target Gate Portal:</label>
-              <select id="tapGateSelect" class="select-input">
+          <!-- Checkpoint & Mode Selectors -->
+          <div class="terminal-controls-row">
+            <div class="terminal-control-group">
+              <label class="terminal-label" for="tapGateSelect">Target Gate Checkpoint:</label>
+              <select id="tapGateSelect" class="terminal-select">
                 <option value="Gate 01 - Main Facility Turnstile">Gate 01 - Main Facility Turnstile</option>
                 <option value="Gate 02 - Production Bay">Gate 02 - Production Bay</option>
                 <option value="Gate 03 - IT Labs Secure Door">Gate 03 - IT Labs Secure Door</option>
@@ -502,70 +360,225 @@
               </select>
             </div>
 
-            <div class="control-group" style="margin: 0;">
-              <label class="control-label" for="tapModeSelect">Detection Mode:</label>
-              <select id="tapModeSelect" class="select-input">
+            <div class="terminal-control-group">
+              <label class="terminal-label" for="tapModeSelect">Detection Mode:</label>
+              <select id="tapModeSelect" class="terminal-select">
                 <option value="AUTO">AUTO (Toggle In / Out)</option>
                 <option value="ENTRY">Forced ENTRY</option>
                 <option value="EXIT">Forced EXIT</option>
               </select>
             </div>
+          </div>
 
-            <button type="button" class="btn-action-primary" id="btnSimulateTap" style="margin: 0; height: 42px; padding: 0 20px; white-space: nowrap;">
-              📡 Tap Smart Card
-            </button>
+          <!-- Tap Button -->
+          <button type="button" class="btn-terminal-tap" id="btnSimulateTap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 18px; height: 18px;">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+            <span>Tap Smart Card</span>
+          </button>
+
+          <!-- Live Scan Outcome Feedback Screen -->
+          <div class="terminal-feedback-screen" id="terminalFeedbackScreen">
+            <div class="terminal-feedback-left">
+              <div class="terminal-screen-icon" id="terminalFeedbackIcon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 18px; height: 18px;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 14 14"></polyline>
+                </svg>
+              </div>
+              <div>
+                <div class="terminal-screen-title" id="terminalFeedbackTitle">Reader Ready for Presentation</div>
+                <div class="terminal-screen-desc" id="terminalFeedbackDesc">Select a target checkpoint above and click Tap Smart Card.</div>
+              </div>
+            </div>
+            <div class="terminal-feedback-right" id="terminalFeedbackRight">
+              <span class="badge badge-verified" id="terminalFeedbackBadge">STANDBY</span>
+            </div>
           </div>
         </div>
+      </section>
 
-        <!-- Personal Attendance Activity History -->
-        <div class="emp-history-box">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h2 style="font-size: 1.1rem; margin: 0; display: flex; align-items: center; gap: 8px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" style="width: 20px; height: 20px;">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
+      <!-- Attendance Punch History Card -->
+      <section class="emp-card" id="cardAttendanceHistory">
+        <div class="history-card-header">
+          <div class="history-title-group">
+            <h3 class="history-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--emp-emerald)" stroke-width="2" style="width: 18px; height: 18px;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
               </svg>
-              My Punch History & Attendance Records
-            </h2>
-            <button type="button" class="btn-action-secondary" id="btnRefreshLogs" style="margin: 0; padding: 4px 12px; font-size: 0.8rem;">
-              🔄 Refresh
-            </button>
+              <span>My Attendance &amp; Punch History</span>
+            </h3>
+            <span class="history-count-badge" id="historyCountBadge">0 Records</span>
+          </div>
+          <button type="button" class="btn-history-refresh" id="btnRefreshLogs" title="Refresh attendance log records">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 13px; height: 13px;">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        <div class="emp-table-wrap">
+          <table class="emp-table" id="empLogsTable">
+            <thead>
+              <tr>
+                <th>Log ID</th>
+                <th>Timestamp</th>
+                <th>Gate Location</th>
+                <th>Event Type</th>
+                <th>Verification</th>
+              </tr>
+            </thead>
+            <tbody id="empLogsTbody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--emp-text-muted); padding: 24px;">Loading personal attendance history...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- FEATURE 2 & 3: My Team & Manager / Department Dashboard -->
+      <section class="emp-card emp-team-card" id="sectionMyTeam" style="display: none;">
+        <div class="team-card-header">
+          <div class="team-title-group">
+            <h3 class="team-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--emp-emerald)" stroke-width="2" style="width: 20px; height: 20px;">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <span id="teamSectionHeading">My Team</span>
+            </h3>
+            <span class="team-scope-badge" id="teamScopeBadge">Direct Reports Scope</span>
           </div>
 
-          <div class="table-container">
-            <table class="data-table" id="empLogsTable">
-              <thead>
-                <tr>
-                  <th>Log ID</th>
-                  <th>Timestamp</th>
-                  <th>Gate Location</th>
-                  <th>Event Type</th>
-                  <th>Verification</th>
-                </tr>
-              </thead>
-              <tbody id="empLogsTbody">
-                <tr>
-                  <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading personal attendance history...</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="team-header-actions">
+            <!-- Filter buttons: All, Direct, Indirect -->
+            <div class="team-filter-pills" id="teamFilterPills">
+              <button type="button" class="team-pill active" data-filter="all" id="btnFilterAll">All Permitted (<span id="countAll">0</span>)</button>
+              <button type="button" class="team-pill" data-filter="direct" id="btnFilterDirect">Direct Reports (<span id="countDirect">0</span>)</button>
+              <button type="button" class="team-pill" data-filter="indirect" id="btnFilterIndirect" style="display: none;">Indirect Reports (<span id="countIndirect">0</span>)</button>
+            </div>
+
+            <button type="button" class="btn-history-refresh" id="btnRefreshTeam" title="Refresh team roster and attendance data">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 13px; height: 13px;">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span>Refresh Team</span>
+            </button>
           </div>
         </div>
-      </main>
-    </div>
+
+        <p class="team-section-sub" id="teamSectionSub">
+          Supervisory roster, real-time presence telemetry, and last gate checkpoint detections for your authorized team members.
+        </p>
+
+        <!-- Team Analytics KPI Row (Feature 3) -->
+        <div class="team-kpi-grid" id="teamKpiGrid">
+          <div class="team-kpi-mini">
+            <span class="team-kpi-mini-label">Permitted Workforce</span>
+            <div class="team-kpi-mini-val" id="teamKpiTotal">0</div>
+            <span class="team-kpi-mini-sub" id="teamKpiTotalSub">In authorized scope</span>
+          </div>
+          <div class="team-kpi-mini">
+            <span class="team-kpi-mini-label">Currently Inside</span>
+            <div class="team-kpi-mini-val text-emerald" id="teamKpiInside">0</div>
+            <span class="team-kpi-mini-sub">Active on premises</span>
+          </div>
+          <div class="team-kpi-mini">
+            <span class="team-kpi-mini-label">Currently Outside</span>
+            <div class="team-kpi-mini-val text-amber" id="teamKpiOutside">0</div>
+            <span class="team-kpi-mini-sub">Away / Not on premises</span>
+          </div>
+          <div class="team-kpi-mini">
+            <span class="team-kpi-mini-label">Presence Rate</span>
+            <div class="team-kpi-mini-val text-blue" id="teamKpiOccupancy">0%</div>
+            <span class="team-kpi-mini-sub">Real-time attendance</span>
+          </div>
+        </div>
+
+        <!-- Optional Department Distribution Breakdown (for Dept Heads / authorized users) -->
+        <div class="team-dept-breakdown" id="teamDeptBreakdown" style="display: none;">
+          <div class="team-dept-title">Organizational Unit Distribution</div>
+          <div class="team-dept-chips" id="teamDeptChips"></div>
+        </div>
+
+        <!-- Search / Filter input bar -->
+        <div class="team-search-bar">
+          <div class="team-search-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; color: var(--emp-text-muted);">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="teamSearchInput" class="team-search-input" placeholder="Search team by name, employee ID, job title, or unit...">
+          </div>
+        </div>
+
+        <!-- Empty State Container -->
+        <div class="team-empty-state" id="teamEmptyState" style="display: none;">
+          <div class="empty-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 32px; height: 32px; color: var(--emp-text-muted);">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <h4 class="empty-title" id="emptyTitle">No Team Members Assigned</h4>
+          <p class="empty-desc" id="emptyDesc">
+            You are authorized for team management, but currently have no employees assigned to report to you.
+          </p>
+        </div>
+
+        <!-- Team Roster Table -->
+        <div class="emp-table-wrap" id="teamTableWrap">
+          <table class="emp-table" id="teamTable">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role &amp; Unit</th>
+                <th>Reporting Line</th>
+                <th>Presence Status</th>
+                <th>Last Gate Detection</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="teamTbody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--emp-text-muted); padding: 24px;">Loading team members...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   </div>
 
   <!-- Mandatory / Voluntary Password Change Modal -->
   <div id="passwordChangeModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-dialog">
       <div class="modal-icon-badge">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 26px; height: 26px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 22px; height: 22px;">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
           <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
         </svg>
       </div>
 
-      <h2 class="modal-title" id="modalTitle">Credential Security Update</h2>
+      <h3 class="modal-title" id="modalTitle">Credential Security Update</h3>
       <p class="modal-sub" id="modalSub">
         Your account requires establishing a secure permanent password before you can access your workforce dashboard and attendance history.
       </p>
@@ -581,7 +594,7 @@
         <div class="form-group-modal">
           <label class="form-label-modal" for="pwdNewInput">New Permanent Password</label>
           <input type="password" id="pwdNewInput" class="modal-input" placeholder="Minimum 8 characters" autocomplete="new-password" required>
-          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Must be at least 8 characters and differ from temporary password.</div>
+          <div style="font-size: 0.72rem; color: var(--emp-text-muted); margin-top: 4px;">Must be at least 8 characters and differ from temporary password.</div>
         </div>
 
         <div class="form-group-modal">
@@ -590,12 +603,100 @@
         </div>
 
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-          <button type="button" id="btnCancelModal" class="btn-action-secondary" style="flex: 1; padding: 10px; display: none;">Cancel</button>
+          <button type="button" id="btnCancelModal" class="emp-btn-nav" style="flex: 1; padding: 10px; justify-content: center; display: none;">Cancel</button>
           <button type="submit" id="btnSavePassword" class="btn-submit-pwd" style="flex: 2;">
-            Save Password & Continue
+            Save Password &amp; Continue
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Authorized Team Member Profile Modal (Feature 2 & 3) -->
+  <div id="memberProfileModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="memberModalName">
+    <div class="modal-dialog member-modal-dialog">
+      <div class="member-modal-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="badge-avatar-wrap" id="memberModalAvatar" style="width: 44px; height: 44px; font-size: 1rem;">--</div>
+          <div>
+            <h3 class="modal-title" id="memberModalName" style="margin: 0; font-size: 1.15rem; text-align: left;">Employee Name</h3>
+            <span class="badge badge-direct" id="memberModalRelationBadge">Direct Report</span>
+          </div>
+        </div>
+        <button type="button" class="member-modal-close" id="btnMemberModalClose" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="member-modal-body">
+        <!-- Details 2-Column Grid -->
+        <div class="member-info-grid">
+          <div class="member-info-item">
+            <span class="member-info-label">Employee ID</span>
+            <span class="member-info-val" id="memberModalId">--</span>
+          </div>
+          <div class="member-info-item">
+            <span class="member-info-label">Job Title</span>
+            <span class="member-info-val" id="memberModalJobTitle">--</span>
+          </div>
+          <div class="member-info-item">
+            <span class="member-info-label">Organizational Unit</span>
+            <span class="member-info-val" id="memberModalOrgUnit">--</span>
+          </div>
+          <div class="member-info-item">
+            <span class="member-info-label">Department</span>
+            <span class="member-info-val" id="memberModalDept">--</span>
+          </div>
+          <div class="member-info-item">
+            <span class="member-info-label">Reporting Manager</span>
+            <span class="member-info-val" id="memberModalManager">--</span>
+          </div>
+          <div class="member-info-item">
+            <span class="member-info-label">Access Role</span>
+            <span class="member-info-val" id="memberModalRole">--</span>
+          </div>
+          <div class="member-info-item">
+            <span class="member-info-label">Smart Card UID</span>
+            <span class="member-info-val" id="memberModalCardUid">--</span>
+          </div>
+          <div class="member-info-item">
+            <span class="member-info-label">Current Presence</span>
+            <span class="member-info-val" id="memberModalPresence">--</span>
+          </div>
+        </div>
+
+        <!-- Upward Reporting Hierarchy -->
+        <div class="member-chain-section">
+          <h4 class="member-section-heading">Reporting Hierarchy Path</h4>
+          <div class="emp-chain-flow" id="memberModalChainFlow">
+            <span style="font-size: 0.78rem; color: var(--emp-text-muted);">Loading reporting path...</span>
+          </div>
+        </div>
+
+        <!-- Recent Gate Telemetry & Attendance -->
+        <div class="member-attendance-section" style="margin-top: 16px;">
+          <h4 class="member-section-heading">Recent Gate Checkpoints &amp; Telemetry</h4>
+          <div class="emp-table-wrap" style="max-height: 180px; overflow-y: auto;">
+            <table class="emp-table" style="font-size: 0.8rem;">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Gate Location</th>
+                  <th>Event</th>
+                  <th>Verification</th>
+                </tr>
+              </thead>
+              <tbody id="memberModalAttendanceTbody">
+                <tr>
+                  <td colspan="4" style="text-align: center; color: var(--emp-text-muted); padding: 12px;">Loading events...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="member-modal-footer">
+        <button type="button" class="emp-btn-nav" id="btnMemberModalDismiss" style="padding: 8px 18px;">Close</button>
+      </div>
     </div>
   </div>
 
