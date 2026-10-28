@@ -28,7 +28,8 @@
       "@services/*": ["./src/services/*"],
       "@models/*": ["./src/models/*"],
       "@utils/*": ["./src/utils/*"],
-      "@styles/*": ["./src/styles/*"]
+      "@styles/*": ["./src/styles/*"],
+      "@data/*": ["./src/data/*"]
     },
 
     /* Linting */

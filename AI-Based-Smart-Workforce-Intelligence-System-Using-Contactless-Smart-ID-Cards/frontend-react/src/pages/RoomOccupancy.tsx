@@ -238,7 +238,7 @@ export const RoomOccupancy = () => {
       </div>
 
       {/* 3D Building Map */}
-      <div className="building-3d-scene">
+      <div className="building-3d-scene" onClick={() => setSelectedFloor(null)}>
         <div className="building-perspective">
           {FLOORS.map((floor) => {
             const isExpanded = selectedFloor === floor.level;
@@ -253,7 +253,10 @@ export const RoomOccupancy = () => {
                   isExpanded && 'floor-expanded',
                   selectedFloor !== null && !isExpanded && 'floor-dimmed'
                 )}
-                onClick={() => setSelectedFloor(isExpanded ? null : floor.level)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedFloor(isExpanded ? null : floor.level);
+                }}
               >
                 <div className="floor-label-bar">
                   <span className="floor-label-text">{floor.label}</span>

@@ -10,6 +10,7 @@ import {
   ChartIcon,
   HistoryIcon,
   EmergencyIcon,
+  SmartBuildingIcon,
   UserIcon,
 } from './icons';
 import './Sidebar.css';
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Analytics', path: '/analytics', icon: ChartIcon },
   { name: 'History', path: '/history', icon: HistoryIcon },
   { name: 'Emergency', path: '/emergency', icon: EmergencyIcon },
+  { name: 'Smart Building', path: '/smart-building', icon: SmartBuildingIcon },
 ];
 
 export const Sidebar = () => {

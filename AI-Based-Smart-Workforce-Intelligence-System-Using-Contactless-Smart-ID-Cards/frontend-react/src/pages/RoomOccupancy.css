@@ -1,4 +1,4 @@
-/* SmartWorkforce · Room Occupancy — Isometric 3D Building */
+/* SmartWorkforce · Room Occupancy — Flat Building Map */
 
 .room-occupancy-page {
   display: flex;
@@ -62,86 +62,67 @@
   color: var(--color-ink);
 }
 
-/* ── 3D Scene (reuses Emergency BuildingMap patterns) ── */
+/* ── Building scene — flat stacked layout ── */
 
 .building-3d-scene {
-  perspective: 900px;
-  perspective-origin: 50% 40%;
-  padding: var(--space-xl) var(--space-md);
-  min-height: 520px;
+  padding: var(--space-lg);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background:
-    radial-gradient(ellipse at 50% 100%, oklch(95% 0.005 260 / 0.5) 0%, transparent 70%),
-    var(--color-paper);
+  gap: var(--space-md);
+  background: var(--color-paper);
   border: 1px solid var(--color-rule);
   border-radius: var(--radius-lg);
-  overflow: hidden;
 }
 
 [data-theme="dark"] .building-3d-scene {
-  background:
-    radial-gradient(ellipse at 50% 100%, oklch(20% 0.01 260 / 0.5) 0%, transparent 70%),
-    var(--color-paper);
+  background: var(--color-paper);
 }
 
 .building-perspective {
-  transform-style: preserve-3d;
-  transform: rotateX(55deg) rotateZ(-45deg);
-  width: 340px;
-  position: relative;
+  width: 100%;
+  display: flex;
+  gap: var(--space-md);
 }
 
 /* ── Floor layers ── */
 
 .floor-layer {
   position: relative;
-  width: 100%;
-  margin-bottom: 8px;
-  transform-style: preserve-3d;
+  flex: 1;
+  min-width: 0;
   transition:
-    transform 0.4s var(--ease-out),
-    opacity 0.3s var(--ease-out),
-    margin 0.4s var(--ease-out);
+    flex 0.3s var(--ease-out),
+    opacity 0.3s var(--ease-out);
   cursor: pointer;
 }
 
-.floor-level-2 { transform: translateZ(80px); }
-.floor-level-1 { transform: translateZ(40px); }
-.floor-level-0 { transform: translateZ(0px); }
-
 .floor-expanded {
-  transform: translateZ(20px) scale(1.06);
-  margin-bottom: 24px;
-  margin-top: 16px;
+  flex: 2;
   z-index: 10;
 }
 
 .floor-dimmed {
-  opacity: 0.35;
-  filter: grayscale(0.3);
+  flex: 0;
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .floor-label-bar {
-  position: absolute;
-  top: -18px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  z-index: 5;
-  pointer-events: none;
+  margin-bottom: var(--space-xs);
 }
 
 .floor-label-text {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-ink-2);
   background: var(--color-paper);
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--color-rule);
 }
@@ -152,18 +133,12 @@
   padding-top: 100%;
   background: var(--color-paper-2);
   border: 1.5px solid var(--color-rule);
-  border-radius: var(--radius-sm);
-  box-shadow:
-    0 3px 0 0 oklch(88% 0.005 260),
-    0 6px 0 0 oklch(85% 0.005 260),
-    0 8px 16px oklch(0% 0 0 / 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px oklch(0% 0 0 / 0.06);
 }
 
 [data-theme="dark"] .floor-plate {
-  box-shadow:
-    0 3px 0 0 oklch(15% 0.01 260),
-    0 6px 0 0 oklch(12% 0.01 260),
-    0 8px 16px oklch(0% 0 0 / 0.4);
+  box-shadow: 0 2px 8px oklch(0% 0 0 / 0.3);
 }
 
 .floor-grid {
@@ -172,9 +147,9 @@
   background-image:
     linear-gradient(var(--color-rule) 1px, transparent 1px),
     linear-gradient(90deg, var(--color-rule) 1px, transparent 1px);
-  background-size: 20% 20%;
-  opacity: 0.25;
-  border-radius: var(--radius-sm);
+  background-size: 10% 25%;
+  opacity: 0.15;
+  border-radius: var(--radius-md);
   pointer-events: none;
 }
 
@@ -240,13 +215,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 4px 2px 0;
-  gap: 1px;
+  padding: 6px 4px 0;
+  gap: 2px;
 }
 
 .zone-label {
   font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--color-ink-2);
   text-align: center;
@@ -263,7 +238,7 @@
   display: flex;
   gap: 1px;
   font-family: var(--font-mono);
-  font-size: 0.55rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -296,10 +271,10 @@
 
 .dots-overflow {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
+  bottom: 4px;
+  right: 4px;
   font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--color-ink-3);
   z-index: 4;
@@ -309,9 +284,9 @@
 
 .zone-capacity-bar {
   position: absolute;
-  bottom: 2px;
-  left: 4px;
-  right: 4px;
+  bottom: 3px;
+  left: 6px;
+  right: 6px;
   height: 3px;
   background: oklch(90% 0.005 260);
   border-radius: var(--radius-full);
@@ -337,9 +312,9 @@
 
 .zone-tooltip {
   position: absolute;
-  top: 100%;
+  bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%) rotateZ(45deg) rotateX(-55deg);
+  transform: translateX(-50%);
   z-index: 100;
   background: var(--color-paper);
   border: 1px solid var(--color-rule);
@@ -619,13 +594,7 @@
   }
 
   .building-perspective {
-    width: 260px;
-    transform: rotateX(55deg) rotateZ(-45deg) scale(0.85);
-  }
-
-  .building-3d-scene {
-    min-height: 400px;
-    padding: var(--space-md);
+    flex-direction: column;
   }
 
   .rdm-stats {

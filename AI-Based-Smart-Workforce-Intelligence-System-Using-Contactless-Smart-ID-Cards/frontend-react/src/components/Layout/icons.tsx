@@ -79,6 +79,15 @@ export const EmergencyIcon = () => (
   </svg>
 );
 
+export const SmartBuildingIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="4" y="3" width="12" height="14" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M7 6H9M11 6H13M7 9H9M11 9H13" strokeLinecap="round"/>
+    <circle cx="14" cy="14" r="3.5" fill="var(--color-paper, white)" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M14 12.5V14L15 15" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.3"/>
+  </svg>
+);
+
 export const UserIcon = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
     <circle cx="10" cy="7" r="3" strokeLinecap="round"/>

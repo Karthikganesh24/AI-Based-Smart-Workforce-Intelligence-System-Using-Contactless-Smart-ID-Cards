@@ -12,6 +12,7 @@ import { Terminal } from './pages/Terminal';
 import { Analytics } from './pages/Analytics';
 import { History } from './pages/History';
 import { Emergency } from './pages/Emergency';
+import { SmartBuilding } from './pages/SmartBuilding';
 import './App.css';
 
 // Create a client
@@ -46,6 +47,7 @@ function App() {
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/history" element={<History />} />
               <Route path="/emergency" element={<Emergency />} />
+              <Route path="/smart-building" element={<SmartBuilding />} />
             </Routes>
           </Suspense>
         </MainLayout>
