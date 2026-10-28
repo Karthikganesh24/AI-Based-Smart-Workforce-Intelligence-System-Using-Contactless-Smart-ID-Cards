@@ -23,10 +23,6 @@ export const Header = () => {
         <Button variant="ghost" size="sm" onClick={toggleTheme} aria-label="Toggle theme">
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </Button>
-        <div className="header-status">
-          <span className="status-indicator status-online" />
-          <span className="status-text">System Online</span>
-        </div>
       </div>
     </header>
   );

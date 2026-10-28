@@ -11,6 +11,7 @@ import { Employees } from './pages/Employees';
 import { Terminal } from './pages/Terminal';
 import { Analytics } from './pages/Analytics';
 import { History } from './pages/History';
+import { Emergency } from './pages/Emergency';
 import './App.css';
 
 // Create a client
@@ -44,6 +45,7 @@ function App() {
               <Route path="/terminal" element={<Terminal />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/history" element={<History />} />
+              <Route path="/emergency" element={<Emergency />} />
             </Routes>
           </Suspense>
         </MainLayout>

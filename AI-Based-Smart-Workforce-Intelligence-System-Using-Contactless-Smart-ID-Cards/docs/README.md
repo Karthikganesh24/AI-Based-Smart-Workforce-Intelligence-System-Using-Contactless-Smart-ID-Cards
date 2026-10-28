@@ -14,6 +14,7 @@ This directory houses technical specifications, architectural designs, API refer
 | **REST API Specification** | [api/API.md](api/API.md) | Exhaustive REST endpoint catalog, request/response contracts, authentication headers, error envelopes, and sample payloads. |
 | **Database Schema** | [database/DATABASE_SCHEMA.md](database/DATABASE_SCHEMA.md) | Relational schema definitions, column constraints, indexing strategy, foreign key graphs, and recursive CTE query patterns. |
 | **Testing & Quality Assurance** | [testing/TESTING_GUIDE.md](testing/TESTING_GUIDE.md) | Automated testing philosophy, suite execution commands, mock vs. live database isolation, and test suite matrix. |
+| **IEEE Research Paper** | [IEEE_RESEARCH_PAPER.md](IEEE_RESEARCH_PAPER.md) | Publication-ready IEEE conference/journal manuscript covering BLE iBeacon spatial presence sensing, 40-50m room occupancy, recursive CTEs, and Explainable AI. |
 | **Engineering Project Report** | [project-report/PROJECT_REPORT.md](project-report/PROJECT_REPORT.md) | Academic/engineering project report covering problem statement, system engineering, IoT integration, performance metrics, and societal impact. |
 | **IoT & RFID Hardware** | [../hardware/README.md](../hardware/README.md) | ESP32 microcontroller specifications, RC522 RFID reader wiring schematics, LED/Buzzer circuits, and gateway simulation. |
 | **Historical Archive** | [../archive/README.md](../archive/README.md) | Catalog of preserved phase backups, historical schema snapshots, and legacy diagnostic scripts. |

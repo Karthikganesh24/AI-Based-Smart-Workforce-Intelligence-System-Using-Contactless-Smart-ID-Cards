@@ -3,11 +3,11 @@
  */
 
 .card {
-  background: var(--color-paper-2);
-  border: 1px solid var(--color-rule);
-  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-lg);
   padding: var(--space-lg);
-  transition: box-shadow var(--dur-short);
+  transition: all var(--dur-short);
 }
 
 .card-default {
@@ -31,7 +31,8 @@
 }
 
 .card-hover:hover {
-  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
 }
 
 .card-glow {

@@ -2569,6 +2569,335 @@ async function handleApiRequest(req, res, urlPath) {
       });
     }
 
+    // =====================================================================
+    // Emergency Headcount System Endpoints
+    // =====================================================================
+
+    // E0. POST /api/emergency/simulate - Run a full evacuation drill simulation (~90s)
+    // Allows unauthenticated access for demo/simulation purposes
+    if (pathOnly === '/api/emergency/simulate' && method === 'POST') {
+      const authCtx = resolveSession(req);
+      const companyId = authCtx ? authCtx.companyId : 'COMP-DEFAULT-01';
+      const operatorName = authCtx ? (authCtx.user.full_name || authCtx.user.name) : 'Simulation Operator';
+      const operatorId = authCtx ? authCtx.user.id : 'SYSTEM';
+
+      // Close any existing active evacuation first
+      const existing = db.getActiveEvacuation(companyId);
+      if (existing) {
+        db.closeEvacuation({
+          evacuationId: existing.id,
+          companyId,
+          closedById: operatorId,
+          closedByName: operatorName,
+          closeReason: 'Closed to start new simulation'
+        });
+      }
+
+      // Ensure all employees are INSIDE first (simulate a working day)
+      const allEmps = db.getAllEmployees(companyId, false);
+      for (const emp of allEmps) {
+        if (emp.status !== 'INSIDE') {
+          try {
+            db.recordCardScan({ empId: emp.id, mode: 'ENTRY', gate: 'Gate 01 - Main Entrance' });
+          } catch (_) {}
+        }
+      }
+
+      // Start evacuation
+      let evac;
+      try {
+        evac = db.createEvacuationEvent({
+          companyId,
+          eventName: 'Emergency Drill — BLE iBeacon Simulation',
+          building: 'Main Building',
+          coordinatorId: operatorId,
+          coordinatorName: operatorName,
+          notes: 'Automated simulation: employees exit via BLE iBeacon gates over ~90 seconds'
+        });
+      } catch (err) {
+        return sendError(res, err.statusCode || 500, err.message);
+      }
+
+      const stats = db.getEvacuationStats(evac.id, companyId);
+
+      // ── 3-Phase Realistic Evacuation Simulation ──
+      // Phase 1 (0-5s):   Place people in Floor 1 & 2 rooms (working day positions)
+      // Phase 2 (5-50s):  People move from upper floors → ground floor exit gates
+      // Phase 3 (20-95s): People exit through BLE gates (overlaps with phase 2)
+
+      const evacuationId = evac.id;
+      const simCompanyId = companyId;
+
+      const floor2Rooms = ['IT Lab', 'Quality Lab', 'Conference Room A'];
+      const floor1Rooms = ['Production Floor A', 'Production Bay', 'Maintenance Workshop'];
+      const exitGates = [
+        'BLE Exit Gate — South Wing',
+        'BLE Exit Gate — North Wing',
+        'BLE Exit Gate — Main Lobby',
+        'BLE Exit Gate — Emergency Stairwell B',
+        'BLE Exit Gate — Parking Level'
+      ];
+
+      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+      const shuffle = (arr) => {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      };
+
+      const shuffled = shuffle(allEmps);
+
+      // Assign each person to a floor: ~40% floor 2, ~60% floor 1
+      const assignments = shuffled.map((emp, i) => ({
+        emp,
+        startRoom: i < Math.floor(shuffled.length * 0.4)
+          ? pick(floor2Rooms)
+          : pick(floor1Rooms),
+        exitGate: pick(exitGates)
+      }));
+
+      // Phase 1: Immediately place everyone in their starting room
+      const updateZone = db.db.prepare(`
+        UPDATE evacuation_participants
+        SET last_known_zone = ?, last_detected_at = ?, updated_at = ?
+        WHERE evacuation_id = ? AND emp_id = ? AND company_id = ?
+      `);
+
+      const nowIso = new Date().toISOString();
+      for (const a of assignments) {
+        try {
+          updateZone.run(a.startRoom, nowIso, nowIso, evacuationId, a.emp.id, simCompanyId);
+        } catch (_) {}
+      }
+
+      // Phase 2: Gradually move people from upper floors to ground floor gates
+      // Stagger over 5s–50s with randomness
+      assignments.forEach((a, index) => {
+        const moveDelay = 5000 + Math.round((index / assignments.length) * 40000) + Math.round((Math.random() - 0.3) * 5000);
+
+        setTimeout(() => {
+          try {
+            const currentEvac = db.getEvacuationById(evacuationId, simCompanyId);
+            if (!currentEvac || currentEvac.status !== 'ACTIVE') return;
+            const t = new Date().toISOString();
+            updateZone.run(a.exitGate, t, t, evacuationId, a.emp.id, simCompanyId);
+          } catch (_) {}
+        }, Math.max(3000, moveDelay));
+      });
+
+      // Phase 3: People exit through BLE gates (20s–95s, overlapping with phase 2)
+      // Earlier movers exit sooner
+      assignments.forEach((a, index) => {
+        const exitDelay = 20000 + Math.round((index / assignments.length) * 70000) + Math.round((Math.random() - 0.3) * 6000);
+
+        setTimeout(() => {
+          try {
+            const currentEvac = db.getEvacuationById(evacuationId, simCompanyId);
+            if (!currentEvac || currentEvac.status !== 'ACTIVE') return;
+            db.recordCardScan({ empId: a.emp.id, mode: 'EXIT', gate: a.exitGate });
+          } catch (_) {}
+        }, Math.max(15000, exitDelay));
+      });
+
+      // Auto-close after all exits
+      setTimeout(() => {
+        try {
+          const finalEvac = db.getEvacuationById(evacuationId, simCompanyId);
+          if (finalEvac && finalEvac.status === 'ACTIVE') {
+            db.closeEvacuation({
+              evacuationId,
+              companyId: simCompanyId,
+              closedById: 'SYSTEM',
+              closedByName: 'Simulation Engine',
+              closeReason: 'Drill simulation completed — all personnel accounted for'
+            });
+          }
+        } catch (_) {}
+      }, 100000);
+
+      return sendJson(res, 201, {
+        success: true,
+        message: `Simulation started: ${shuffled.length} employees evacuating from Floor 1 & 2 through BLE iBeacon exit gates over ~90 seconds.`,
+        evacuation: evac,
+        stats,
+        simulationDuration: '~90 seconds',
+        participantCount: shuffled.length
+      });
+    }
+
+    // E1. POST /api/emergency/evacuations - Start a new evacuation event
+    if (pathOnly === '/api/emergency/evacuations' && method === 'POST') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required to start an evacuation.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required to start an evacuation.');
+      }
+
+      const body = await parseJsonBody(req);
+      if (!verifyCsrf(req, authCtx, body)) {
+        return sendError(res, 403, 'Invalid or missing CSRF token.');
+      }
+
+      const { eventName, affectedZones, building, floor, notes } = body;
+      if (!eventName || typeof eventName !== 'string' || eventName.trim().length < 3) {
+        return sendError(res, 400, 'Event name must be at least 3 characters.');
+      }
+
+      try {
+        const evac = db.createEvacuationEvent({
+          companyId: authCtx.companyId,
+          eventName: eventName.trim(),
+          affectedZones: affectedZones || null,
+          building: building || null,
+          floor: floor || null,
+          coordinatorId: authCtx.user.id,
+          coordinatorName: authCtx.user.full_name || authCtx.user.name,
+          notes: notes || null
+        });
+        const stats = db.getEvacuationStats(evac.id, authCtx.companyId);
+        return sendJson(res, 201, { success: true, evacuation: evac, stats });
+      } catch (err) {
+        return sendError(res, err.statusCode || 500, err.message);
+      }
+    }
+
+    // E2. GET /api/emergency/evacuations/active - Get current active evacuation
+    // Allows unauthenticated access (falls back to default company for demo)
+    if (pathOnly === '/api/emergency/evacuations/active' && method === 'GET') {
+      const authCtx = resolveSession(req);
+      const cId = authCtx ? authCtx.companyId : 'COMP-DEFAULT-01';
+
+      const evac = db.getActiveEvacuation(cId);
+      if (!evac) {
+        return sendJson(res, 200, { active: false, evacuation: null, stats: null });
+      }
+      const stats = db.getEvacuationStats(evac.id, cId);
+      return sendJson(res, 200, { active: true, evacuation: evac, stats });
+    }
+
+    // E3. GET /api/emergency/evacuations/history - Past evacuations
+    if (pathOnly === '/api/emergency/evacuations/history' && method === 'GET') {
+      const authCtx = resolveSession(req);
+      if (!authCtx) {
+        return sendError(res, 401, 'Authentication required.');
+      }
+      if (authCtx.userType !== 'COMPANY_HEAD' && authCtx.userType !== 'COMPANY_ADMIN') {
+        return sendError(res, 403, 'Permission denied: Administrator privileges required.');
+      }
+
+      const history = db.getEvacuationHistory(authCtx.companyId);
+      return sendJson(res, 200, history);
+    }
+
+    // E4-E8. Evacuation-specific routes (/api/emergency/evacuations/:id/*)
+    const evacIdMatch = pathOnly.match(/^\/api\/emergency\/evacuations\/([^\/]+)(\/.*)?$/);
+    if (evacIdMatch) {
+      const evacId = decodeURIComponent(evacIdMatch[1]);
+      const subPath = evacIdMatch[2] || '';
+
+      // Skip if this matched 'active' or 'history' (already handled above)
+      if (evacId !== 'active' && evacId !== 'history') {
+
+        const authCtx = resolveSession(req);
+        const cId = authCtx ? authCtx.companyId : 'COMP-DEFAULT-01';
+
+        const evac = db.getEvacuationById(evacId, cId);
+        if (!evac) {
+          return sendError(res, 404, 'Evacuation event not found.');
+        }
+
+        // E4. GET /api/emergency/evacuations/:id - Get evacuation details with stats
+        if (!subPath && method === 'GET') {
+          const stats = db.getEvacuationStats(evacId, cId);
+          return sendJson(res, 200, { evacuation: evac, stats });
+        }
+
+        // E5. POST /api/emergency/evacuations/:id/close - Close evacuation
+        if (subPath === '/close' && method === 'POST') {
+          const operatorName = authCtx ? (authCtx.user.full_name || authCtx.user.name) : 'Operator';
+          const operatorId = authCtx ? authCtx.user.id : 'SYSTEM';
+
+          try {
+            const closed = db.closeEvacuation({
+              evacuationId: evacId,
+              companyId: cId,
+              closedById: operatorId,
+              closedByName: operatorName,
+              closeReason: (await parseJsonBody(req).catch(() => ({}))).reason || null
+            });
+            const stats = db.getEvacuationStats(evacId, cId);
+            return sendJson(res, 200, { success: true, evacuation: closed, stats });
+          } catch (err) {
+            return sendError(res, err.statusCode || 500, err.message);
+          }
+        }
+
+        // E6. GET /api/emergency/evacuations/:id/headcount - Full headcount list
+        if (subPath === '/headcount' && method === 'GET') {
+          const headcount = db.getEvacuationHeadcount(evacId, cId);
+          const stats = db.getEvacuationStats(evacId, cId);
+          return sendJson(res, 200, { headcount, stats });
+        }
+
+        // E7. POST /api/emergency/evacuations/:id/verify - Verify a person
+        if (subPath === '/verify' && method === 'POST') {
+          const operatorName = authCtx ? (authCtx.user.full_name || authCtx.user.name) : 'Operator';
+          const operatorId = authCtx ? authCtx.user.id : 'SYSTEM';
+
+          const body = await parseJsonBody(req);
+
+          const { empId, status: newStatus, verificationMethod, note, notExpectedReason } = body;
+          if (!empId || typeof empId !== 'string') {
+            return sendError(res, 400, 'Employee ID (empId) is required.');
+          }
+          if (!newStatus || typeof newStatus !== 'string') {
+            return sendError(res, 400, 'New status is required.');
+          }
+
+          try {
+            const result = db.verifyPerson({
+              evacuationId: evacId,
+              companyId: cId,
+              empId: empId.trim(),
+              newStatus: newStatus.trim().toUpperCase(),
+              verificationMethod: verificationMethod || null,
+              verifiedById: operatorId,
+              verifiedByName: operatorName,
+              note: note || null,
+              notExpectedReason: notExpectedReason || null
+            });
+            const stats = db.getEvacuationStats(evacId, cId);
+            return sendJson(res, 200, { success: true, ...result, stats });
+          } catch (err) {
+            return sendError(res, err.statusCode || 500, err.message);
+          }
+        }
+
+        // E8. GET /api/emergency/evacuations/:id/zones - Zone summary
+        if (subPath === '/zones' && method === 'GET') {
+          const zones = db.getEvacuationZoneSummary(evacId, cId);
+          return sendJson(res, 200, zones);
+        }
+
+        // E9. GET /api/emergency/evacuations/:id/audit - Verification audit trail
+        if (subPath === '/audit' && method === 'GET') {
+          let empIdFilter = null;
+          try {
+            const urlObj = new URL(req.url, 'http://localhost');
+            empIdFilter = urlObj.searchParams.get('empId') || null;
+          } catch (_) {}
+
+          const history = db.getVerificationHistory(evacId, cId, empIdFilter);
+          return sendJson(res, 200, history);
+        }
+      }
+    }
+
     // 404 for unknown API routes
     return sendError(res, 404, `API endpoint ${method} ${urlPath} not found.`);
   } catch (err) {

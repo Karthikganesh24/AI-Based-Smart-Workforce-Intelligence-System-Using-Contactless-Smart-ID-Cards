@@ -71,6 +71,14 @@ export const MoonIcon = () => (
   </svg>
 );
 
+export const EmergencyIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M10 2L18 17H2L10 2Z" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M10 8V11" strokeLinecap="round"/>
+    <circle cx="10" cy="14" r="0.5" fill="currentColor" stroke="none"/>
+  </svg>
+);
+
 export const UserIcon = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
     <circle cx="10" cy="7" r="3" strokeLinecap="round"/>

@@ -1011,7 +1011,55 @@ function recordCardScan({ empId, uid, mode, gate, deviceId }) {
     throw err;
   }
 
-  // 7. Build response with room capacity info
+  // 7. Emergency Headcount Integration
+  // 7a. Update last-known-zone for any scan during an active evacuation
+  try {
+    const activeEvacForLocation = getActiveEvacuation(companyId);
+    if (activeEvacForLocation) {
+      db.prepare(`
+        UPDATE evacuation_participants
+        SET last_known_zone = ?, last_detected_at = ?, updated_at = ?
+        WHERE evacuation_id = ? AND emp_id = ? AND company_id = ?
+      `).run(gateLocation, isoNow, isoNow, activeEvacForLocation.id, emp.id, companyId);
+    }
+  } catch (_) {}
+
+  // 7b. Auto-verify on facility EXIT during active evacuation
+  let evacuationVerification = null;
+  if (eventType === 'EXIT' && !isRoomReader) {
+    try {
+      const activeEvac = getActiveEvacuation(companyId);
+      if (activeEvac) {
+        const participant = db.prepare(
+          "SELECT * FROM evacuation_participants WHERE evacuation_id = ? AND emp_id = ? AND company_id = ?"
+        ).get(activeEvac.id, emp.id, companyId);
+
+        if (participant && participant.headcount_status !== 'ACCOUNTED_FOR') {
+          const verResult = verifyPerson({
+            evacuationId: activeEvac.id,
+            companyId,
+            empId: emp.id,
+            newStatus: 'ACCOUNTED_FOR',
+            verificationMethod: 'BLE_EXIT_GATE',
+            verifiedById: 'SYSTEM',
+            verifiedByName: 'BLE iBeacon Exit Gate',
+            note: `Auto-verified: BLE beacon detected at ${gateLocation}`
+          });
+          evacuationVerification = {
+            evacuationId: activeEvac.id,
+            evacuationName: activeEvac.eventName,
+            previousStatus: verResult.previousStatus,
+            newStatus: 'ACCOUNTED_FOR',
+            autoVerified: true
+          };
+        }
+      }
+    } catch (_) {
+      // Non-critical: don't fail the scan if evacuation verification fails
+    }
+  }
+
+  // 8. Build response with room capacity info
   const response = {
     ignored: false,
     event: {
@@ -1029,7 +1077,8 @@ function recordCardScan({ empId, uid, mode, gate, deviceId }) {
       locationType: locationType
     },
     employee: getEmployeeById(emp.id),
-    facilityStatus: newStatus
+    facilityStatus: newStatus,
+    evacuationVerification
   };
 
   // Add room capacity info if this was a room scan
@@ -2991,6 +3040,332 @@ function getRoomOccupancySummary(companyId) {
   };
 }
 
+// -------------------------------------------------------------
+// Emergency Headcount System — Database Functions
+// -------------------------------------------------------------
+
+function createEvacuationEvent({ companyId, eventName, affectedZones, building, floor, coordinatorId, coordinatorName, notes }) {
+  const id = auth.generateId('EVAC');
+  const now = new Date().toISOString();
+
+  const activeCheck = db.prepare(
+    "SELECT id FROM evacuation_events WHERE company_id = ? AND status = 'ACTIVE'"
+  ).get(companyId);
+  if (activeCheck) {
+    const err = new Error('An active evacuation is already in progress. Close it before starting a new one.');
+    err.code = 'ACTIVE_EVACUATION_EXISTS';
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const zonesJson = affectedZones ? JSON.stringify(affectedZones) : null;
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    db.prepare(`
+      INSERT INTO evacuation_events (id, company_id, event_name, status, affected_zones, building, floor, coordinator_id, coordinator_name, started_at, notes, created_at, updated_at)
+      VALUES (?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, companyId, eventName, zonesJson, building || null, floor || null, coordinatorId || null, coordinatorName, now, notes || null, now, now);
+
+    const employees = getAllEmployees(companyId, false);
+    const insParticipant = db.prepare(`
+      INSERT INTO evacuation_participants (id, evacuation_id, company_id, emp_id, emp_name, department, assigned_zone, headcount_status, last_known_zone, last_known_room_id, last_detected_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'MISSING', ?, ?, ?, ?, ?)
+    `);
+
+    for (const emp of employees) {
+      const partId = auth.generateId('EPART');
+      const currentRoom = getEmployeeCurrentRoom(emp.id);
+      let lastKnownZone = null;
+      let lastKnownRoomId = null;
+      let lastDetectedAt = null;
+
+      if (currentRoom) {
+        lastKnownZone = currentRoom.room_name || currentRoom.name;
+        lastKnownRoomId = currentRoom.room_id;
+        lastDetectedAt = currentRoom.last_seen || currentRoom.entry_time;
+      } else {
+        const latestEvent = getLatestEventForEmployee(emp.id);
+        if (latestEvent) {
+          lastKnownZone = latestEvent.gate;
+          lastDetectedAt = latestEvent.timestamp;
+        }
+      }
+
+      if (!lastDetectedAt && emp.lastSeen && emp.lastSeen !== 'Not detected today' && emp.lastSeen !== 'Registered today') {
+        lastDetectedAt = emp.lastSeen;
+      }
+
+      insParticipant.run(partId, id, companyId, emp.id, emp.name, emp.department, emp.department, lastKnownZone, lastKnownRoomId, lastDetectedAt, now, now);
+    }
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return getEvacuationById(id, companyId);
+}
+
+function getActiveEvacuation(companyId) {
+  const row = db.prepare(
+    "SELECT * FROM evacuation_events WHERE company_id = ? AND status = 'ACTIVE' ORDER BY started_at DESC LIMIT 1"
+  ).get(companyId);
+  if (!row) return null;
+  return formatEvacuationRow(row);
+}
+
+function getEvacuationById(id, companyId) {
+  const row = db.prepare(
+    'SELECT * FROM evacuation_events WHERE id = ? AND company_id = ?'
+  ).get(id, companyId);
+  if (!row) return null;
+  return formatEvacuationRow(row);
+}
+
+function formatEvacuationRow(row) {
+  if (!row) return null;
+  let affectedZones = null;
+  try {
+    affectedZones = row.affected_zones ? JSON.parse(row.affected_zones) : null;
+  } catch (_) {
+    affectedZones = row.affected_zones;
+  }
+  return {
+    id: row.id,
+    companyId: row.company_id,
+    eventName: row.event_name,
+    status: row.status,
+    affectedZones,
+    building: row.building,
+    floor: row.floor,
+    coordinatorId: row.coordinator_id,
+    coordinatorName: row.coordinator_name,
+    startedAt: row.started_at,
+    closedAt: row.closed_at,
+    closedById: row.closed_by_id,
+    closedByName: row.closed_by_name,
+    closeReason: row.close_reason,
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function closeEvacuation({ evacuationId, companyId, closedById, closedByName, closeReason }) {
+  const evac = getEvacuationById(evacuationId, companyId);
+  if (!evac) {
+    const err = new Error('Evacuation event not found.');
+    err.code = 'EVACUATION_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+  if (evac.status === 'CLOSED') {
+    const err = new Error('Evacuation is already closed.');
+    err.code = 'EVACUATION_ALREADY_CLOSED';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE evacuation_events SET status = 'CLOSED', closed_at = ?, closed_by_id = ?, closed_by_name = ?, close_reason = ?, updated_at = ?
+    WHERE id = ? AND company_id = ?
+  `).run(now, closedById || null, closedByName, closeReason || null, now, evacuationId, companyId);
+
+  return getEvacuationById(evacuationId, companyId);
+}
+
+function getEvacuationHeadcount(evacuationId, companyId) {
+  const participants = db.prepare(`
+    SELECT ep.*, e.status as emp_status, e.uid as emp_uid
+    FROM evacuation_participants ep
+    LEFT JOIN employees e ON ep.emp_id = e.id
+    WHERE ep.evacuation_id = ? AND ep.company_id = ?
+    ORDER BY
+      CASE ep.headcount_status
+        WHEN 'MISSING' THEN 1
+        WHEN 'UNVERIFIED' THEN 2
+        WHEN 'NOT_EXPECTED' THEN 3
+        WHEN 'ACCOUNTED_FOR' THEN 4
+      END,
+      ep.emp_name ASC
+  `).all(evacuationId, companyId);
+
+  return participants.map(p => ({
+    id: p.id,
+    evacuationId: p.evacuation_id,
+    empId: p.emp_id,
+    empName: p.emp_name,
+    empUid: p.emp_uid || null,
+    department: p.department,
+    assignedZone: p.assigned_zone,
+    headcountStatus: p.headcount_status,
+    notExpectedReason: p.not_expected_reason,
+    lastKnownZone: p.last_known_zone,
+    lastKnownRoomId: p.last_known_room_id,
+    lastDetectedAt: p.last_detected_at,
+    empStatus: p.emp_status,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at
+  }));
+}
+
+function getEvacuationStats(evacuationId, companyId) {
+  const row = db.prepare(`
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN headcount_status = 'ACCOUNTED_FOR' THEN 1 ELSE 0 END) as accounted,
+      SUM(CASE WHEN headcount_status = 'MISSING' THEN 1 ELSE 0 END) as missing,
+      SUM(CASE WHEN headcount_status = 'UNVERIFIED' THEN 1 ELSE 0 END) as unverified,
+      SUM(CASE WHEN headcount_status = 'NOT_EXPECTED' THEN 1 ELSE 0 END) as not_expected
+    FROM evacuation_participants
+    WHERE evacuation_id = ? AND company_id = ?
+  `).get(evacuationId, companyId);
+
+  const expected = (row.total || 0) - (row.not_expected || 0);
+  const completionPct = expected > 0 ? Math.round(((row.accounted || 0) / expected) * 100) : 0;
+
+  return {
+    total: row.total || 0,
+    expected,
+    accounted: row.accounted || 0,
+    missing: row.missing || 0,
+    unverified: row.unverified || 0,
+    notExpected: row.not_expected || 0,
+    completionPercentage: completionPct
+  };
+}
+
+function verifyPerson({ evacuationId, companyId, empId, newStatus, verificationMethod, verifiedById, verifiedByName, note, notExpectedReason }) {
+  const validStatuses = ['ACCOUNTED_FOR', 'MISSING', 'UNVERIFIED', 'NOT_EXPECTED'];
+  if (!validStatuses.includes(newStatus)) {
+    const err = new Error(`Invalid headcount status: ${newStatus}`);
+    err.code = 'INVALID_STATUS';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const participant = db.prepare(
+    'SELECT * FROM evacuation_participants WHERE evacuation_id = ? AND emp_id = ? AND company_id = ?'
+  ).get(evacuationId, empId, companyId);
+
+  if (!participant) {
+    const err = new Error('Person not found in this evacuation.');
+    err.code = 'PARTICIPANT_NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const evac = db.prepare(
+    'SELECT status FROM evacuation_events WHERE id = ? AND company_id = ?'
+  ).get(evacuationId, companyId);
+
+  if (!evac || evac.status !== 'ACTIVE') {
+    const err = new Error('Cannot modify headcount for a closed evacuation.');
+    err.code = 'EVACUATION_NOT_ACTIVE';
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const previousStatus = participant.headcount_status;
+  if (previousStatus === newStatus) {
+    return { changed: false, previousStatus, newStatus };
+  }
+
+  const now = new Date().toISOString();
+  const verificationId = auth.generateId('HCVER');
+
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    db.prepare(`
+      UPDATE evacuation_participants
+      SET headcount_status = ?, not_expected_reason = ?, updated_at = ?
+      WHERE evacuation_id = ? AND emp_id = ? AND company_id = ?
+    `).run(newStatus, newStatus === 'NOT_EXPECTED' ? (notExpectedReason || null) : null, now, evacuationId, empId, companyId);
+
+    db.prepare(`
+      INSERT INTO headcount_verifications (id, evacuation_id, company_id, emp_id, previous_status, new_status, verification_method, verified_by_id, verified_by_name, note, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(verificationId, evacuationId, companyId, empId, previousStatus, newStatus, verificationMethod || null, verifiedById, verifiedByName, note || null, now);
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+
+  return { changed: true, previousStatus, newStatus, verificationId };
+}
+
+function getVerificationHistory(evacuationId, companyId, empId) {
+  let sql = `
+    SELECT hv.*, ep.emp_name
+    FROM headcount_verifications hv
+    LEFT JOIN evacuation_participants ep ON hv.emp_id = ep.emp_id AND hv.evacuation_id = ep.evacuation_id
+    WHERE hv.evacuation_id = ? AND hv.company_id = ?
+  `;
+  const params = [evacuationId, companyId];
+  if (empId) {
+    sql += ' AND hv.emp_id = ?';
+    params.push(empId);
+  }
+  sql += ' ORDER BY hv.created_at DESC';
+
+  return db.prepare(sql).all(...params).map(r => ({
+    id: r.id,
+    evacuationId: r.evacuation_id,
+    empId: r.emp_id,
+    empName: r.emp_name,
+    previousStatus: r.previous_status,
+    newStatus: r.new_status,
+    verificationMethod: r.verification_method,
+    verifiedById: r.verified_by_id,
+    verifiedByName: r.verified_by_name,
+    note: r.note,
+    createdAt: r.created_at
+  }));
+}
+
+function getEvacuationZoneSummary(evacuationId, companyId) {
+  const rows = db.prepare(`
+    SELECT
+      COALESCE(last_known_zone, 'Location unavailable') as zone,
+      last_known_room_id as room_id,
+      COUNT(*) as total,
+      SUM(CASE WHEN headcount_status = 'ACCOUNTED_FOR' THEN 1 ELSE 0 END) as accounted,
+      SUM(CASE WHEN headcount_status = 'MISSING' THEN 1 ELSE 0 END) as missing,
+      SUM(CASE WHEN headcount_status = 'UNVERIFIED' THEN 1 ELSE 0 END) as unverified,
+      SUM(CASE WHEN headcount_status = 'NOT_EXPECTED' THEN 1 ELSE 0 END) as not_expected
+    FROM evacuation_participants
+    WHERE evacuation_id = ? AND company_id = ?
+    GROUP BY COALESCE(last_known_zone, 'Location unavailable')
+    ORDER BY missing DESC, zone ASC
+  `).all(evacuationId, companyId);
+
+  return rows.map(r => ({
+    zone: r.zone,
+    roomId: r.room_id,
+    total: r.total,
+    accounted: r.accounted,
+    missing: r.missing,
+    unverified: r.unverified,
+    notExpected: r.not_expected
+  }));
+}
+
+function getEvacuationHistory(companyId, limit = 20) {
+  const rows = db.prepare(`
+    SELECT * FROM evacuation_events
+    WHERE company_id = ?
+    ORDER BY started_at DESC
+    LIMIT ?
+  `).all(companyId, limit);
+
+  return rows.map(formatEvacuationRow);
+}
+
 // Run table creation and seed check
 initDatabase();
 
@@ -3091,5 +3466,16 @@ module.exports = {
   getEmployeeCurrentRoom,
   getRoomOccupancy,
   evaluateRoomCapacity,
-  getRoomOccupancySummary
+  getRoomOccupancySummary,
+  // Emergency Headcount Exports
+  createEvacuationEvent,
+  getActiveEvacuation,
+  getEvacuationById,
+  closeEvacuation,
+  getEvacuationHeadcount,
+  getEvacuationStats,
+  verifyPerson,
+  getVerificationHistory,
+  getEvacuationZoneSummary,
+  getEvacuationHistory
 };

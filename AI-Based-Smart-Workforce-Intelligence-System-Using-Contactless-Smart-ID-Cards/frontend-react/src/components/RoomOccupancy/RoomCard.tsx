@@ -45,7 +45,7 @@ export const RoomCard = ({ room, onViewDetails }: RoomCardProps) => {
         transition: 'transform 0.1s ease-out',
       }}
     >
-      <Card variant="glass" hover className="room-card">
+      <Card className="room-card">
         <div className="room-card-header">
           <h3 className="room-name">{room.name}</h3>
           <Badge variant={alertVariant} glow={room.alertLevel === 'red'}>

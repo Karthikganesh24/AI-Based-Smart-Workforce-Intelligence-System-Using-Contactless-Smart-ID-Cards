@@ -11,7 +11,7 @@ import './Attendance.css';
 export const Attendance = () => {
   const { data: attendance, isLoading: attendanceLoading, error: attendanceError } = useAttendanceToday();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
-  const [filterDirection, setFilterDirection] = useState<'all' | 'IN' | 'OUT'>('all');
+  const [filterDirection, setFilterDirection] = useState<'all' | 'ENTRY' | 'EXIT'>('all');
 
   const isLoading = attendanceLoading || employeesLoading;
   const error = attendanceError;
@@ -19,8 +19,8 @@ export const Attendance = () => {
   const stats = useMemo(() => {
     if (!attendance || !employees) return null;
 
-    const checkIns = attendance.filter(r => r.direction === 'IN').length;
-    const checkOuts = attendance.filter(r => r.direction === 'OUT').length;
+    const checkIns = attendance.filter(r => r.eventType === 'ENTRY').length;
+    const checkOuts = attendance.filter(r => r.eventType === 'EXIT').length;
     const present = employees.filter(e => e.status === 'INSIDE').length;
     const totalEmployees = employees.length;
     const attendanceRate = totalEmployees > 0 ? Math.round((present / totalEmployees) * 100) : 0;
@@ -64,7 +64,7 @@ export const Attendance = () => {
   // Filter attendance records
   const filteredAttendance = filterDirection === 'all'
     ? attendance
-    : attendance.filter(r => r.direction === filterDirection);
+    : attendance.filter(r => r.eventType === filterDirection);
 
   return (
     <div className="attendance-page">
@@ -118,14 +118,14 @@ export const Attendance = () => {
             All Records ({attendance.length})
           </button>
           <button
-            className={filterDirection === 'IN' ? 'filter-button active' : 'filter-button'}
-            onClick={() => setFilterDirection('IN')}
+            className={filterDirection === 'ENTRY' ? 'filter-button active' : 'filter-button'}
+            onClick={() => setFilterDirection('ENTRY')}
           >
             Check-ins ({stats.checkIns})
           </button>
           <button
-            className={filterDirection === 'OUT' ? 'filter-button active' : 'filter-button'}
-            onClick={() => setFilterDirection('OUT')}
+            className={filterDirection === 'EXIT' ? 'filter-button active' : 'filter-button'}
+            onClick={() => setFilterDirection('EXIT')}
           >
             Check-outs ({stats.checkOuts})
           </button>
@@ -151,16 +151,16 @@ export const Attendance = () => {
                   <td className="table-time">
                     {format(new Date(record.timestamp), 'HH:mm:ss')}
                   </td>
-                  <td className="table-employee">{record.employeeName}</td>
+                  <td className="table-employee">{record.empName}</td>
                   <td>
                     <Badge
-                      variant={record.direction === 'IN' ? 'success' : 'default'}
+                      variant={record.eventType === 'ENTRY' ? 'success' : 'default'}
                       size="sm"
                     >
-                      {record.direction === 'IN' ? 'Check-in' : 'Check-out'}
+                      {record.eventType === 'ENTRY' ? 'Check-in' : 'Check-out'}
                     </Badge>
                   </td>
-                  <td className="table-location">{record.location || '—'}</td>
+                  <td className="table-location">{record.gate || '—'}</td>
                 </tr>
               ))}
             </tbody>

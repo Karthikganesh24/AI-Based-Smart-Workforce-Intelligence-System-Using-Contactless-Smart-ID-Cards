@@ -764,6 +764,99 @@ function runMigration(dbOrPath) {
       `).run(nowIso);
     }
 
+    // ==================================================================
+    // K. Migration v4: Emergency Headcount System
+    // ==================================================================
+    const hasV4 = db.prepare(`
+      SELECT 1 FROM schema_migrations WHERE version = 'v4_emergency_headcount'
+    `).get();
+
+    if (!hasV4) {
+      // K1. Evacuation events — tracks each emergency session
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS evacuation_events (
+          id TEXT PRIMARY KEY,
+          company_id TEXT NOT NULL,
+          event_name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'CLOSED')),
+          affected_zones TEXT,
+          building TEXT,
+          floor TEXT,
+          coordinator_id TEXT,
+          coordinator_name TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          closed_at TEXT,
+          closed_by_id TEXT,
+          closed_by_name TEXT,
+          close_reason TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_evac_events_company ON evacuation_events(company_id);
+        CREATE INDEX IF NOT EXISTS idx_evac_events_status ON evacuation_events(company_id, status);
+        CREATE INDEX IF NOT EXISTS idx_evac_events_started ON evacuation_events(started_at);
+      `);
+
+      // K2. Evacuation participants — who is expected in this event
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS evacuation_participants (
+          id TEXT PRIMARY KEY,
+          evacuation_id TEXT NOT NULL,
+          company_id TEXT NOT NULL,
+          emp_id TEXT NOT NULL,
+          emp_name TEXT NOT NULL,
+          department TEXT,
+          assigned_zone TEXT,
+          headcount_status TEXT NOT NULL DEFAULT 'MISSING' CHECK(headcount_status IN ('MISSING', 'ACCOUNTED_FOR', 'UNVERIFIED', 'NOT_EXPECTED')),
+          not_expected_reason TEXT,
+          last_known_zone TEXT,
+          last_known_room_id TEXT,
+          last_detected_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (evacuation_id) REFERENCES evacuation_events(id) ON DELETE CASCADE,
+          FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+          FOREIGN KEY (emp_id) REFERENCES employees(id) ON DELETE CASCADE,
+          UNIQUE (evacuation_id, emp_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_evac_part_evacuation ON evacuation_participants(evacuation_id);
+        CREATE INDEX IF NOT EXISTS idx_evac_part_emp ON evacuation_participants(emp_id);
+        CREATE INDEX IF NOT EXISTS idx_evac_part_status ON evacuation_participants(evacuation_id, headcount_status);
+        CREATE INDEX IF NOT EXISTS idx_evac_part_company ON evacuation_participants(company_id);
+      `);
+
+      // K3. Headcount verifications — audit trail for every status change
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS headcount_verifications (
+          id TEXT PRIMARY KEY,
+          evacuation_id TEXT NOT NULL,
+          company_id TEXT NOT NULL,
+          emp_id TEXT NOT NULL,
+          previous_status TEXT NOT NULL,
+          new_status TEXT NOT NULL,
+          verification_method TEXT,
+          verified_by_id TEXT NOT NULL,
+          verified_by_name TEXT NOT NULL,
+          note TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (evacuation_id) REFERENCES evacuation_events(id) ON DELETE CASCADE,
+          FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+          FOREIGN KEY (emp_id) REFERENCES employees(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_hc_verify_evacuation ON headcount_verifications(evacuation_id);
+        CREATE INDEX IF NOT EXISTS idx_hc_verify_emp ON headcount_verifications(emp_id);
+        CREATE INDEX IF NOT EXISTS idx_hc_verify_time ON headcount_verifications(created_at);
+        CREATE INDEX IF NOT EXISTS idx_hc_verify_company ON headcount_verifications(company_id);
+      `);
+
+      db.prepare(`
+        INSERT INTO schema_migrations (version, applied_at)
+        VALUES ('v4_emergency_headcount', ?)
+      `).run(nowIso);
+    }
+
     // Commit Transaction
     db.exec('COMMIT;');
   } catch (err) {
